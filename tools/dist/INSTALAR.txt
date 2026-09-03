@@ -1,0 +1,80 @@
+PAC CT -- instalacao offline
+============================
+
+Este pacote traz o programa E as dependencias (pasta `vendor/`, um wheel por
+biblioteca). Nada e' baixado da internet durante a instalacao -- e' o mesmo
+motivo pelo qual o `app.py` so' chama o pip quando um import falha: uma
+subestacao normalmente nao tem rede.
+
+Requisito: Python 3.10 ou mais novo (`python3 --version` / `python --version`).
+
+
+1. ONDE DESCOMPACTAR
+--------------------
+
+O programa e os SEUS DADOS ficam separados de proposito, para que uma
+atualizacao nunca leve junto o `config.ini` (que e' onde ficam as senhas
+ACC/2AC do rele) nem o cache de RDBs:
+
+    PAC-CT\
+    |-- pac-ct.cmd  (ou pac-ct.sh)   atalho: sempre roda a versao `current`
+    |-- versions\1.4.0\              esta versao, com o venv dela
+    |-- current  ->  versions\1.4.0  ponteiro (junction no Windows)
+    `-- userdata\                    config.ini, cache\, rdbs\
+                                     NUNCA e' tocado por uma atualizacao
+
+O zip ja' vem com a pasta `pac-ct-<versao>/` dentro. Descompacte e mova essa
+pasta para `PAC-CT\versions\<versao>\`.
+
+
+2. INSTALAR
+
+    Windows:   python  PAC-CT\versions\1.4.0\app.py --instalar
+    Linux:     python3 PAC-CT/versions/1.4.0/app.py --instalar
+
+Isso cria o venv da versao a partir de `vendor/` (sem internet), cria
+`userdata/`, aponta `current` para esta versao e escreve o atalho na raiz.
+Se ja' existia um `userdata/` de uma instalacao anterior, ele e' reaproveitado
+como esta': nada dentro dele e' lido, movido ou migrado.
+
+
+3. RODAR
+
+    Windows:   PAC-CT\pac-ct.cmd
+    Linux:     PAC-CT/pac-ct.sh
+
+Abra http://localhost:8765/ no navegador. Para outra porta:
+
+    PAC-CT\pac-ct.cmd --port 9000
+
+
+4. CONFIGURAR O RELE
+
+Na primeira execucao o programa copia `config/config.ini.example` para
+`userdata/config/config.ini` e avisa no log. Edite esse arquivo com o IP e as
+senhas do rele. Ele fica em `userdata/`, entao sobrevive a todas as
+atualizacoes.
+
+
+5. ATUALIZAR
+
+    PAC-CT\pac-ct.cmd --atualizar
+
+Precisa de internet, e por isso NUNCA acontece sozinho: a verificacao e' um
+comando que voce da'. Ela consulta as releases publicas do projeto, confere o
+sha256 do pacote antes de descompactar qualquer coisa, instala a nova versao
+em `versions\<nova>\` e so' entao aponta `current` para ela. Se algo falhar no
+meio, `current` continua onde estava.
+
+Voltar para a versao anterior e' repontar o `current` -- `--reverter` faz
+isso, e as versoes antigas continuam em `versions\`.
+
+
+PROBLEMAS
+---------
+
+"python nao e' reconhecido"      Instale o Python 3.10+ e marque
+                                 "Add Python to PATH".
+A pagina nao abre                Confira o firewall na porta 8765.
+"Configuracao ausente"           E' um aviso, nao um erro: o programa acabou
+                                 de criar o `config.ini` a partir do modelo.

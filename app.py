@@ -41,6 +41,13 @@ Modes:
     python3 app.py --config other.ini     # another configuration file
     python3 app.py --skip-install         # skip the dependency check
     python3 app.py --no-venv              # do not use a virtualenv
+
+Distribution (docs/MIGRATION.md Phase 5, `src/pacct/update.py`):
+    python3 app.py --versao               # print the version and exit
+    python3 app.py --offline              # install from vendor/, never an index
+    python3 app.py --instalar             # first install of an unzipped bundle
+    python3 app.py --atualizar            # check GitHub Releases, then update
+    python3 app.py --reverter             # point `current` back one version
 """
 
 import argparse
@@ -56,6 +63,11 @@ ROOT = Path(__file__).resolve().parent
 # since the project moved to the `src/` layout.
 SRC_DIR = ROOT / "src"
 REQ_FILE = ROOT / "requirements.txt"
+
+# The offline bundle's wheels. Absent in a clone, which is the normal state:
+# `--offline` is what a substation install uses, and it says so when it is not
+# there rather than quietly falling back to an index that cannot be reached.
+VENDOR_DIR = ROOT / "vendor"
 
 VENV_DIR = ROOT / ".venv"
 if os.name == "nt":
@@ -169,7 +181,8 @@ def missing_packages(pkgs: list[str]) -> list[str]:
 
 
 def install_requirements(allow_break: bool = False,
-                         upgrade: bool = False) -> None:
+                         upgrade: bool = False,
+                         offline: bool = False) -> None:
     """Install what is missing -- or, with `upgrade`, pull the newer versions.
 
     A normal boot runs pip only when a package fails to IMPORT. That is what
@@ -192,7 +205,16 @@ def install_requirements(allow_break: bool = False,
     else:
         print(f"[INFO] Instalando dependencias ausentes: {', '.join(missing)}")
     cmd = [sys.executable, "-m", "pip", "install", "-r", str(REQ_FILE)]
-    if upgrade:
+    if offline:
+        # The offline bundle carries a wheel for every dependency, so the
+        # install must never reach for an index: `--no-index` turns "no
+        # network" from a silent 30-second stall into an immediate, readable
+        # failure naming the wheel that is missing.
+        if not VENDOR_DIR.is_dir():
+            sys.exit(f"[ERRO] --offline pedido mas {VENDOR_DIR} nao existe. "
+                     f"Este e' um clone do repositorio, nao um pacote offline.")
+        cmd.extend(["--no-index", "--find-links", str(VENDOR_DIR)])
+    elif upgrade:
         cmd.extend(["--pre", "--upgrade"])
     if allow_break:
         cmd.append("--break-system-packages")
@@ -232,6 +254,100 @@ def run_web(extra_args: list[str], port: int) -> None:
     web_main()
 
 
+# -----------------------------------------------------------------------------
+# Distribuicao (Fase 5): instalar, atualizar, reverter
+# -----------------------------------------------------------------------------
+
+def read_version_file() -> str:
+    """`VERSION`, read straight from disk.
+
+    `--versao` deliberately does not import `pacct`: importing the package
+    configures `selfiles`, so asking a bundle what version it is would require
+    its dependencies to be installed. Printing a version must work on a broken
+    install -- that is usually when somebody asks.
+    """
+    f = ROOT / "VERSION"
+    return f.read_text(encoding="utf-8").strip() if f.is_file() else "0.0.0+unknown"
+
+
+def run_install() -> None:
+    """First install of an unzipped bundle: venv, userdata/, current, launcher.
+
+    The venv is already built by this point -- the bootstrap at the top of
+    `main()` created `versions/<v>/.venv` and installed into it from `vendor/`,
+    which is exactly the venv this version needs. So `install_here` is told not
+    to build one.
+    """
+    _ensure_import_path()
+    from pacct.update import UpdateError, install_here
+    try:
+        layout = install_here(ROOT, build=False)
+    except UpdateError as exc:
+        sys.exit(f"[ERRO] {exc}")
+    print(f"[OK] Instalado: {layout.current} -> {ROOT}")
+    print(f"[OK] Dados do usuario: {layout.userdata} (nunca tocados por uma "
+          f"atualizacao)")
+    print(f"[OK] Para rodar: {layout.launcher}")
+
+
+def run_update(assume_yes: bool = False) -> None:
+    """Rule 1: this is a command somebody typed, never part of booting."""
+    _ensure_import_path()
+    from pacct.update import (
+        Layout,
+        UpdateError,
+        check_latest,
+        perform_update,
+        restart,
+        update_available,
+    )
+    current = read_version_file()
+    layout = Layout.detect(ROOT)
+    if layout is None:
+        sys.exit("[ERRO] Esta e' uma copia de desenvolvimento (nao esta' em "
+                 "versions/<versao>/). A atualizacao automatica so' roda numa "
+                 "instalacao versionada -- aqui, use git.")
+    try:
+        release = check_latest()
+    except UpdateError as exc:
+        sys.exit(f"[ERRO] {exc}")
+
+    if not update_available(release, current):
+        print(f"[OK] Versao {current} e' a mais nova publicada "
+              f"({release.tag or 'sem release'}). Nada a fazer.")
+        return
+    print(f"[INFO] Disponivel: {release.version} (voce tem {current})")
+    if release.notes.strip():
+        print("-" * 60)
+        print(release.notes.strip()[:2000])
+        print("-" * 60)
+    if not assume_yes:
+        answer = input("Atualizar agora? [s/N] ").strip().lower()
+        if answer not in ("s", "sim", "y", "yes"):
+            print("[INFO] Nada foi alterado.")
+            return
+    try:
+        target = perform_update(layout, release)
+    except UpdateError as exc:
+        sys.exit(f"[ERRO] {exc}")
+    print(f"[OK] {target} instalado e `current` apontado para ele.")
+    restart(layout, ["--web"])
+
+
+def run_rollback() -> None:
+    _ensure_import_path()
+    from pacct.update import Layout, UpdateError, rollback
+    layout = Layout.detect(ROOT)
+    if layout is None:
+        sys.exit("[ERRO] Esta e' uma copia de desenvolvimento; nao ha' "
+                 "`current` para repontar.")
+    try:
+        target = rollback(layout)
+    except UpdateError as exc:
+        sys.exit(f"[ERRO] {exc}")
+    print(f"[OK] `current` agora aponta para {target}.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Launcher do PAC CT (venv + dependencias + CLI/dashboard)"
@@ -250,7 +366,34 @@ def main() -> None:
                         help="Roda dashboard web (em vez do CLI)")
     parser.add_argument("--port", type=int, default=8765,
                         help="Porta do dashboard web (default 8765)")
+    parser.add_argument("--offline", action="store_true",
+                        help="Instala as dependencias so' de vendor/ "
+                             "(pacote offline; nunca consulta um indice)")
+    parser.add_argument("--versao", "--version", dest="show_version",
+                        action="store_true",
+                        help="Mostra a versao e sai")
+    parser.add_argument("--instalar", action="store_true",
+                        help="Primeira instalacao de um pacote descompactado "
+                             "em PAC-CT/versions/<versao>/")
+    parser.add_argument("--atualizar", action="store_true",
+                        help="Consulta as releases publicas e atualiza (precisa "
+                             "de internet; nunca acontece sozinho)")
+    parser.add_argument("--sim", "--yes", dest="assume_yes", action="store_true",
+                        help="Nao pergunta antes de atualizar")
+    parser.add_argument("--reverter", action="store_true",
+                        help="Aponta `current` para a versao anterior")
     args, unknown = parser.parse_known_args()
+
+    # Before anything else, and without a venv or an import: asking a broken
+    # install what it is must always work.
+    if args.show_version:
+        print(read_version_file())
+        return
+
+    # A bundle installs from its own wheels. Saying so here rather than making
+    # the engineer remember a second flag is the difference between one command
+    # in INSTALAR.txt and two.
+    offline = args.offline or args.instalar
 
     use_break_system = args.no_venv
     if not args.no_venv and not is_inside_target_venv():
@@ -259,11 +402,22 @@ def main() -> None:
         else:
             use_break_system = True
 
+    if args.reverter:
+        run_rollback()
+        return
+
     if args.update_deps:
         install_requirements(allow_break=use_break_system, upgrade=True)
         return
     if not args.skip_install:
-        install_requirements(allow_break=use_break_system)
+        install_requirements(allow_break=use_break_system, offline=offline)
+
+    if args.instalar:
+        run_install()
+        return
+    if args.atualizar:
+        run_update(assume_yes=args.assume_yes)
+        return
 
     extra = list(unknown)
     if args.config:

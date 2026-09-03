@@ -11,18 +11,12 @@ so a release cannot disagree with itself.
 
 from __future__ import annotations
 
-from pathlib import Path
+from pacct.version import read_version
 
-
-def _read_version() -> str:
-    for base in (Path(__file__).resolve().parent, *Path(__file__).resolve().parents):
-        candidate = base / "VERSION"
-        if candidate.is_file():
-            return candidate.read_text(encoding="utf-8").strip()
-    return "0.0.0+unknown"
-
-
-__version__ = _read_version()
+# The rules that give this string its meaning -- what a MAJOR means for a tool
+# that writes into a relay, and why a snapshot is never offered as an update --
+# are in `pacct/version.py`, next to the code that enforces them.
+__version__ = read_version()
 
 
 def _configure_selfiles() -> None:

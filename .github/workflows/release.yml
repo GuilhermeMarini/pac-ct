@@ -1,0 +1,52 @@
+name: Release
+
+# Pushing a `v*` tag builds the offline bundles and publishes them.
+#
+# CI is the backstop for the pre-push hook: hooks are not versioned, so a
+# machine that never ran `tools/install_hooks.sh` still cannot cut a release
+# whose bundle does not build. The tag is checked against `VERSION` before
+# anything is built -- a release whose contents do not match its number is the
+# one artefact this project must never produce, because it is what the updater
+# trusts.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: The tag and VERSION must agree
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          file="$(cat VERSION)"
+          if [ "$tag" != "$file" ]; then
+            echo "::error::tag v$tag != VERSION $file"
+            exit 1
+          fi
+
+      - name: Build both bundles
+        # The portable bundle first, then the Windows one; the second run adds
+        # its artefact to the same manifest.json rather than replacing it.
+        run: |
+          python -m pip install --upgrade pip wheel
+          python tools/build_dist.py --release
+          python tools/build_dist.py --release --windows
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "PAC CT $GITHUB_REF_NAME" \
+            --generate-notes \
+            dist/pac-ct-*.zip dist/manifest.json dist/SHA256SUMS

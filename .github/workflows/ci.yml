@@ -31,3 +31,10 @@ jobs:
         # The IEC 61850 fixtures that need the factory ICD corpus skip on CI:
         # those files are the manufacturer's and are not in this repository.
         run: python -m pytest tests/ -q
+
+      - name: Bundle
+        # The distributable has to still BUILD from this tree. `--no-vendor`
+        # keeps it to seconds -- the wheels are fetched by the release job,
+        # and they are not what breaks. This is the backstop for the pre-push
+        # hook, which is not versioned and may never have been installed.
+        run: python tools/build_dist.py --no-vendor

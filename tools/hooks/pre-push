@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Builds the snapshot bundle for the commit being pushed.
+#
+# Two jobs, and the second is the one that earns the hook: it proves the
+# distributable still BUILDS from this tree, locally, before CI or a tag finds
+# out. A bundle that cannot be built is a release that cannot be cut, and that
+# is a bad thing to discover from a tag.
+#
+# It runs `--no-vendor` by default: fetching a wheel for every dependency on
+# every push would need the network and take a minute, and the wheels are not
+# what breaks. Set PACCT_PREPUSH_VENDOR=1 for the full bundle.
+#
+# Install it with `tools/install_hooks.sh` -- git hooks are not versioned, so
+# the file lives in the tree and a script copies it into `.git/hooks/`.
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+PY="$ROOT/.venv/bin/python"
+[ -x "$PY" ] || PY="$(command -v python3)"
+
+# `dist/snapshot/`, not `dist/`: `dist/manifest.json` is the one path in dist/
+# that git TRACKS (see .gitignore), and it describes a published release. A
+# hook that rewrote it on every push would leave the tree dirty immediately
+# after each push, describing a zip that exists on one machine.
+ARGS=(--out "$ROOT/dist/snapshot")
+if [ "${PACCT_PREPUSH_VENDOR:-0}" != "1" ]; then
+  ARGS+=(--no-vendor)
+fi
+
+echo "[pre-push] Gerando o snapshot em dist/ ..."
+if ! "$PY" "$ROOT/tools/build_dist.py" "${ARGS[@]}"; then
+  echo "[pre-push] O bundle nao compilou. Push abortado." >&2
+  echo "[pre-push] Para pular (e' um gate, pense antes): git push --no-verify" >&2
+  exit 1
+fi

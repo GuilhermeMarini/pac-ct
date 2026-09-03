@@ -133,6 +133,71 @@ python3 app.py --web
 #    -> menu with the nine tools, ALL up at the same time
 ```
 
+That is the development clone. A machine in a substation gets the offline
+bundle instead -- see below.
+
+## Installing in a substation
+
+A substation has no internet. That single fact shapes the whole distribution,
+the same way it already shapes the boot path (`app.py` calls `pip` only when an
+import actually fails, never to check for a newer version).
+
+**The bundle carries its own dependencies.** `pac-ct-<version>.zip` holds the
+source plus `vendor/`, one wheel per dependency, and the install never reaches
+for an index:
+
+```bash
+# On a machine with internet, from a clone:
+python3 tools/build_dist.py --release              # dist/pac-ct-1.4.0.zip
+python3 tools/build_dist.py --release --windows    # the win_amd64 wheels
+```
+
+**The install is versioned, so an update cannot eat the engineer's data.**
+
+```
+PAC-CT/
+├── pac-ct.sh / pac-ct.cmd      the launcher -- always runs `current`
+├── versions/1.4.0/  1.5.0/     one directory per version, own .venv
+├── current -> versions/1.5.0   a junction on Windows
+└── userdata/                   config.ini, cache/, rdbs/
+                                NEVER read, moved or migrated by an update
+```
+
+`config.ini` is where a live substation's ACC/2AC passwords are typed and
+`cache/rdb/` can hold gigabytes of extracted RDBs. Both sit outside the version
+being replaced, which is what `PACCT_ROOT` and `PACCT_DATA_DIR` in
+`paths.py` are for -- the launcher sets them.
+
+```bash
+# unzip into PAC-CT/versions/1.4.0/, then once:
+python3 PAC-CT/versions/1.4.0/app.py --instalar    # venv from vendor/, no network
+PAC-CT/pac-ct.sh                                   # and from then on, this
+```
+
+**Updating is a command somebody types, never something that happens on
+boot.** It reads the public repository's releases anonymously (no token lives
+anywhere), checks the sha256 from the release's own `manifest.json` **before**
+unpacking anything, installs the new version beside the running one and only
+then repoints `current`:
+
+```bash
+PAC-CT/pac-ct.sh --atualizar     # needs internet; asks before doing anything
+PAC-CT/pac-ct.sh --reverter      # `current` back one version
+python3 app.py --versao          # what am I running?
+```
+
+A `1.4.0.dev0+g<sha>` snapshot is never offered as an update: the commit it
+names may never become a release. The rules, and why each one exists, are in
+the module docstring of `src/pacct/update.py`.
+
+**Releases are cut by a tag.** Pushing `v1.4.0` builds both bundles and
+publishes them, after checking the tag against `VERSION` -- a release whose
+contents do not match its number is the one artefact this project must never
+produce, because the updater trusts it sight unseen. Between releases the
+`pre-push` hook builds a snapshot; install it with `tools/install_hooks.sh`
+(git does not version hooks, so the tree carries them and a script copies them
+across).
+
 ## How it works
 
 Three things you cannot guess by reading a single file.
@@ -300,13 +365,16 @@ the same extraction.
 .venv/bin/python -m pytest tests/ -q
 ```
 
-783 tests, all passing, ~13 s. `app.py` only bootstraps `requirements.txt`, so
-pytest is the one `pip` you run by hand.
+639 tests, all passing, ~14 s. (881 across the three repositories: 639 here,
+225 in `selfiles`, 17 in `cfbwrite`.) `app.py` only bootstraps
+`requirements.txt`, so `requirements-dev.txt` is the one `pip` you run by
+hand.
 
 The suite covers the parsers (GLE -> SVG with a golden file, SCD, RDB
 extraction, `SET_D`, OLE rebuild), the RDB <-> SCD cross-match, the SELOGIC
-parser and comparator, the TARGET region, RDB writing and the model of the
-Editor de Mapa DNP.
+parser and comparator, the TARGET region, RDB writing, the model of the
+Editor de Mapa DNP, and the distribution -- what a bundle may and may not
+carry, and each of the updater's five rules.
 
 What it does **not** cover, and why:
 

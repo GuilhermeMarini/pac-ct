@@ -7,13 +7,27 @@ olefile>=0.47
 # `pacct/parsers/ole_rebuild.py`) and became a library of its own because there
 # is nothing SEL-specific inside it:
 # https://github.com/GuilhermeMarini/cfbwrite
-cfbwrite>=1.0
+#
+# A DIRECT REFERENCE, and not `cfbwrite>=1.0`, for one reason: the package is
+# not on PyPI. `pip install -r` answered `No matching distribution found` and
+# `app.py` exits on that, so a clean clone booted no tool at all -- exactly
+# the failure `py61850` used to have, and CI was red on it from the day the
+# library was extracted. The sha is pinned rather than `@main` because a
+# moving branch is not a dependency, it is a wish; `tests/test_requirements.py`
+# refuses a git line that names neither a commit nor a tag.
+#
+# This becomes `cfbwrite>=1.0` the day it is published.
+cfbwrite @ git+https://github.com/GuilhermeMarini/cfbwrite@ce2afd36f91d9d9887fa93f0b96fa4f1806edda2
 # The file formats an SEL project is made of: RDB, SET_*.TXT, DNP maps, GLE,
 # SELOGIC, SCL/IEC 61850, and the per-model registries. This was
 # `pacct/parsers/`, `pacct/core/` and `pacct/matchers/` -- the layer that
 # already did not know the web existed:
 # https://github.com/GuilhermeMarini/selfiles
-selfiles>=1.0
+#
+# Same direct reference, same reason, same one-line change the day it is on
+# PyPI. Both are pure Python, so `tools/build_dist.py` builds one
+# `py3-none-any` wheel from each and the Windows bundle carries it unchanged.
+selfiles @ git+https://github.com/GuilhermeMarini/selfiles@9f7958fe8cddd2c920488ca34ed53ec0acaab33b
 openpyxl>=3.1
 # py61850 (the GLV's MMS transport). Until 2026-08-31 this was a commit pin
 # (`py61850 @ git+https://...@<sha>`), because PyPI carried only 0.0.1 and the

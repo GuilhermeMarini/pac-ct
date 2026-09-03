@@ -29,13 +29,13 @@ with it red.
 | 2 what moves | **Done** — 319 files; the vendor documents stayed behind |
 | 3 defect fixes | **Done** — D1..D5, each with a test that fails without it |
 | 4 library extraction | **Done** — `cfbwrite` and `selfiles`, both consumed by the app |
-| 5 dist + auto-update | Not started |
+| 5 dist + auto-update | **Done** — bundle, versioned install, updater; see below |
 
-Verification as it stands, across the three repositories: **837 tests pass**
-(the 828 that came across, plus 9 new regressions) — 595 in `pac-ct`, 225 in
-`selfiles`, 17 in `cfbwrite`, conserved exactly by the split. `ruff` and `mypy`
-are clean in all three, and the app boots and serves all eleven screens with
-both libraries behind it.
+Verification as it stands, across the three repositories: **881 tests pass**
+(the 828 that came across, plus 9 Phase 3/4 regressions and 44 for Phase 5) —
+639 in `pac-ct`, 225 in `selfiles`, 17 in `cfbwrite`, conserved exactly by the
+split. `ruff` and `mypy` are clean in all three, and the app boots and serves
+all eleven screens with both libraries behind it.
 
 Phase 4 as built, with three departures from the plan above worth naming:
 
@@ -390,6 +390,100 @@ Rules, all of which follow from facts already established in this project:
    is what makes this safe rather than clever.
 4. **Only releases.** A `-dev+g<sha>` snapshot is never offered.
 5. `userdata/` is never read, moved or migrated by the updater.
+
+---
+
+## Phase 5 as built — 2026-09-03
+
+Everything in §5.1–5.5 landed as decided. Six things are worth naming, because
+they are either a departure or a fact the plan did not have.
+
+**A blocker the plan did not price: neither library is on PyPI.** `cfbwrite`
+and `selfiles` were extracted, committed and pushed in Phase 4, and
+`requirements.txt` was left saying `cfbwrite>=1.0`. That resolves to nothing.
+CI had been **red on every push since Phase 4** (`No matching distribution
+found for cfbwrite>=1.0`), a fresh venv could not be built, and
+`pip download -r requirements.txt` — which is how `vendor/` is filled — could
+not run at all, so Phase 5 could not start on top of it. Both are now PEP 508
+direct references pinned to a **commit**, which is the shape `py61850` carried
+for the same reason while it was unpublished, and which
+`tests/test_requirements.py` already knew how to judge. `pyproject.toml`
+carries the identical pin and `tests/test_version.py` fails when the two
+disagree. Each becomes `>=1.0` again in one line the day it is published.
+
+**`VERSION` names the release being prepared, and the build adds the `.dev`.**
+It went from `1.4.0.dev0` to `1.4.0`. The dev marker belongs to the build,
+where the sha is known: `build_version()` stamps `1.4.0.dev0+g<sha>` into the
+bundle's own `VERSION`, so an installed snapshot reports the commit it came
+from rather than the release it was heading towards. A `VERSION` that already
+said `.dev0` would make `--release` unbuildable and every snapshot read
+`.dev0.dev0`.
+
+**The snapshot is spelled the PEP 440 way.** `1.4.0-dev+g<sha>` (as §5.1 wrote
+it) and `1.4.0.dev0+g<sha>` are the *same version* — PEP 440 normalises the
+first into the second — and the second is what `pip` and
+`importlib.metadata` report back. Writing the first would guarantee the bundle
+and the installed package disagree on screen for no gain.
+
+**The zip has a top-level `pac-ct-<version>/`**, which §5.2's sketch did not
+show. It is what makes unzipping safe in whatever directory the engineer is
+standing in, and it is the directory the updater stages into. `unpack()`
+refuses an archive with any other shape — including one whose members climb
+out of the destination, which is a real concern for a file fetched over the
+internet and extracted with the caller's rights.
+
+**The two halves of `requirements.txt` are fetched by different commands.**
+`pip download --only-binary=:all:` refuses a direct reference (it would have to
+build one), so `build_dist.py` splits by shape: direct references go through
+`pip wheel --no-deps`, the rest through `pip download` with the platform flags.
+Both libraries are pure Python, so the `py3-none-any` wheel built on Linux is
+the same wheel the Windows bundle carries.
+
+**The pre-push hook builds `--no-vendor`.** Fetching a wheel for every
+dependency on every push needs the network and costs a minute, and the wheels
+are not what breaks; what the hook is for is proving the bundle still *builds*
+from this tree before a tag finds out. `PACCT_PREPUSH_VENDOR=1` asks for the
+full one. CI runs the same source-only build as a step, because hooks are not
+versioned and a machine that never ran `tools/install_hooks.sh` must still not
+be able to cut a release whose bundle does not build.
+
+**The repository has its own `.venv` now.** Until this phase it borrowed the
+archive repo's, which is where `cfbwrite` and `selfiles` were installed
+editable — the only reason anything ran at all while `requirements.txt` was
+unresolvable. It is built from the pins, exactly as CI builds one, which is
+also what proved the pins work: 639 tests, `ruff` and `mypy` green in it with
+the two libraries installed as regular wheels rather than editable checkouts.
+When working *on* a library, `pip install -e ../selfiles` is one command away.
+
+**`dist/snapshot/` is where the hook writes.** `dist/manifest.json` is the one
+path under `dist/` that git tracks, and it describes a *published* release; a
+hook that rewrote it on every push would leave the tree dirty immediately after
+each push, describing a zip that exists on one machine.
+
+What Phase 5 added, by file:
+
+| File | What it is |
+|---|---|
+| `src/pacct/version.py` | The SemVer rules for *this* project, the snapshot spelling, and `is_newer` — which is the whole of rule 4 |
+| `src/pacct/update.py` | `Layout` (versions/current/userdata), check, download, verify, unpack, venv, swap, rollback, restart |
+| `tools/build_dist.py` | The offline bundle, `manifest.json` and `SHA256SUMS` |
+| `tools/dist/` | `pac-ct.sh`, `pac-ct.cmd`, `INSTALAR.txt` — what a bundle carries for the engineer |
+| `tools/hooks/pre-push`, `tools/install_hooks.sh` | The build trigger, and the installer hooks need because git does not version them |
+| `.github/workflows/release.yml` | A `v*` tag builds both bundles and publishes them; the tag must match `VERSION` |
+| `app.py` | `--versao`, `--offline`, `--instalar`, `--atualizar`, `--reverter` |
+| `tests/test_version.py`, `test_build_dist.py`, `test_update.py` | 44 tests; every one of the updater's five rules is pinned |
+
+`paths.py` needed **no change at all** — the three-root split done in Phase 1
+(`PACKAGE_DIR` / `PROJECT_ROOT` / `DATA_ROOT`, with `PACCT_ROOT` and
+`PACCT_DATA_DIR`) is exactly what the launcher sets, and
+`tests/test_update.py::test_the_paths_module_reads_the_two_variables_the_launcher_sets`
+is now the thing that says so out loud.
+
+The one part that cannot be verified here: the Windows half — the `mklink /J`
+junction, `pac-ct.cmd`, and a venv built from `win_amd64` wheels — has been
+written against the documented behaviour and reviewed, but there is no Windows
+machine in this environment. It needs one pass on Windows before 1.4.0 is
+tagged.
 
 ---
 

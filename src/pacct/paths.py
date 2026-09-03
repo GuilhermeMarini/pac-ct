@@ -60,7 +60,16 @@ DATA_ROOT: Path = Path(
 # (`ensure_config_file`).
 CONFIG_DIR: Path = DATA_ROOT / "config"
 DEFAULT_CONFIG_FILE: Path = CONFIG_DIR / "config.ini"
-EXAMPLE_CONFIG_FILE: Path = CONFIG_DIR / "config.ini.example"
+
+# The MODEL, on the other hand, belongs to the VERSION and not to the data:
+# it is a file this repository ships, it is the marker `_find_project_root`
+# looks for, and a new version may add settings to it. Resolving it under
+# DATA_ROOT was wrong the moment the two roots could differ -- in a versioned
+# install `userdata/config/` holds `config.ini` and nothing else, so a fresh
+# install found no model, `ensure_config_file` raised, and the app refused to
+# boot with "Nao ha modelo para copiar". Measured on a real bundle installed
+# into PAC-CT/versions/<v>/: the dashboard died before opening the port.
+EXAMPLE_CONFIG_FILE: Path = PROJECT_ROOT / "config" / "config.ini.example"
 
 # The per-model data OVERLAY. The registries themselves (relay profiles, the
 # valid Relay Word names, the bit -> MMS item tables) belong to the `selfiles`
