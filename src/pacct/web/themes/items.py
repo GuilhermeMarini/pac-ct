@@ -1,13 +1,13 @@
-"""O catalogo de ferramentas e as notas da home, como dados puros.
+"""The tool catalogue and the home's notes, as plain data.
 
-Antes isto era HTML escrito a mao dentro de `dashboard.py`, o que amarrava o
-menu a uma unica marcacao -- a da folha. Aqui e' so conteudo: cada direcao le
-esta lista e emite a estrutura dela (tabela numerada na folha, fichas com
-clipe no caderno, bornes com cor de fio na regua).
+This used to be HTML written by hand inside `dashboard.py`, which tied the
+menu to a single markup -- Folha's. Here it is content only: each direction
+reads this list and emits its own structure (a numbered table in Folha,
+clipped cards in Caderno, wire-coloured terminal blocks in Régua).
 
-`short` existe porque o mockup do caderno usa rotulos curtos nas divisorias
-("Comparador", "Exportador") e a folha usa os completos; `hint` e' o subtitulo
-que so a regua mostra, dentro do borne.
+`short` exists because Caderno's mockup uses short labels on its dividers
+("Comparador", "Exportador") while Folha uses the full ones; `hint` is the
+subtitle only Régua shows, inside the terminal block.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ class Tool:
 
     key: str            # o mesmo slug que o handler usa pra se marcar ativo
     group: str          # a key de um Group. OBRIGATORIO: um default silencioso
-                        # poe a ferramenta nova no grupo errado sem ninguem ver
+                        # would put a new tool in the wrong group unseen
     href: str | None  # None = ainda nao existe, aparece desabilitada
     name: str           # nome completo (folha, regua)
     short: str          # nome curto (caderno)
@@ -37,12 +37,12 @@ class Tool:
 
 @dataclass(frozen=True)
 class Group:
-    """Um grupo do menu: o fabricante que a ferramenta serve, ou a ausencia de
-    um.
+    """One menu group: the manufacturer a tool serves, or the absence of one.
 
-    O eixo NAO e' marca por marca -- e' o que a ferramenta come. Quem le SCD
-    (IEC 61850) serve GE e Siemens igual, quem le RDB do QuickSet so serve SEL.
-    Por isso `eats` viaja junto: e' o que transforma uma secao vazia em roteiro.
+    The axis is NOT brand by brand -- it is what the tool EATS. A tool that
+    reads an SCD (IEC 61850) serves GE and Siemens alike; one that reads a
+    QuickSet RDB serves only SEL. That is why `eats` travels with the group:
+    it is what turns an empty section into a roadmap.
     """
 
     key: str      # o slug, usado por Tool.group e pelos testes
@@ -52,9 +52,9 @@ class Group:
     empty: str = ""   # o que dizer quando o grupo nao tem ferramenta
 
 
-# A ordem dos grupos e' a ordem do menu, e a numeracao 1..9 corre por cima
-# dela: do generico ao especifico. GE e Siemens entram declarados e VAZIOS de
-# proposito -- ver o design de 2026-09-01.
+# Group order is menu order, and the 1..9 numbering runs over it: generic
+# first, specific after. GE and Siemens are declared and EMPTY on purpose --
+# see the 2026-09-01 design note.
 GROUPS: list[Group] = [
     Group("geral", "Independentes de fabricante", "Geral",
           "SCD (IEC 61850) — serve qualquer relé"),
@@ -131,32 +131,32 @@ TOOLS: list[Tool] = [
 
 
 def tools_of(group: str) -> list[Tool]:
-    """As ferramentas de um grupo, na ordem do catalogo. Lista vazia e' uma
-    resposta legitima: GE e Siemens estao declarados e ainda sem ferramenta."""
+    """A group's tools, in catalogue order. An empty list is a legitimate answer:
+    GE and Siemens are declared and have no tool yet."""
     return [t for t in TOOLS if t.group == group]
 
 
-# O ordinal de cada ferramenta, 1..9, na ordem dos grupos. UMA fonte, e e'
-# esta: seis renderizadores imprimem este numero (a tira e as fichas da regua
-# entre eles), e um `enumerate()` por renderizador sobre uma lista que quatro
-# deles ainda filtram e' exatamente como os dois lados se separam.
+# Each tool's ordinal, 1..9, in group order. ONE source, and this is it: six
+# renderers print this number (Régua's rail and its cards among them), and an
+# `enumerate()` per renderer over a list four of them additionally filter is
+# exactly how the two sides drift apart.
 ORDINAL: dict[str, int] = {t.key: i for i, t in enumerate(TOOLS, start=1)}
 
 
-# O item "Menu" da tira de navegacao. A regua nao o usa: la a home se alcanca
-# pelo "← Menu" da barra superior, como no mockup.
+# The navigation rail's "Menu" item. Régua does not use it: there the home is
+# reached through the "← Menu" in the top bar, as in the mockup.
 MENU_ITEM = ("menu", "/", "Menu", "Menu", "todas as ferramentas")
 
-# A aba dos arquivos do projeto. Como o "Menu", NAO e' uma ferramenta: e' a
-# superficie de entrada, a unica tela que aceita um RDB ou um SCD. Fora de
-# TOOLS de proposito -- ela nao tem "does" nem "takes" pra declarar, e contar
-# como ferramenta estragaria os numeros da home.
+# The project files tab. Like "Menu", it is NOT a tool: it is the way in, the
+# only screen that accepts an RDB or an SCD. Kept out of TOOLS on purpose --
+# it has no "does" or "takes" to declare, and counting it as a tool would
+# spoil the home's numbers.
 FILES_ITEM = ("files", "/files/", "Arquivos do Projeto",
               "Arquivos", "RDB e SCD do projeto")
 
-# As notas de rodape da home. A folha as ancora na coluna de margem pelo
-# numero; o caderno as escreve a mao embaixo do conteudo; a regua as achata na
-# footbar. O texto e' o mesmo nas tres.
+# The home's footnotes. Folha anchors them in the margin column by number;
+# Caderno writes them by hand below the content; Régua flattens them into the
+# footbar. The text is the same in all three.
 NOTES: list[str] = [
     "Exige telnet liberado até o relé. O banner de login é drenado antes da "
     "sessão Fast Message: relés 3xx anunciam quatro linhas e estouram as "

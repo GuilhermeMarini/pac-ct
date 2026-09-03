@@ -1,13 +1,13 @@
-"""Home do toolkit e ponto de entrada do servidor web.
+"""The toolkit's home, and the web server's entry point.
 
-Serve o menu de ferramentas em `/` e sobe o `main()`, que monta as seis
-ferramentas num unico `ThreadingHTTPServer` (ver `pacct/web/mount.py`).
+Serves the tool menu at `/` and provides `main()`, which mounts the tools on a
+single `ThreadingHTTPServer` (see `pacct/web/mount.py`).
 
-O Graphical Logic Viewer morava aqui -- eram 4.150 das 4.462 linhas deste
-arquivo. Foi pra `pacct/web/glv/`, que agora abre N diagramas ao mesmo tempo,
-cada um com o seu rele.
+The Graphical Logic Viewer used to live here -- 4,150 of this file's 4,462
+lines. It moved to `pacct/web/glv/`, which now opens N diagrams at once, each
+with its own relay.
 
-Uso:
+Usage:
     python3 app.py --web
 """
 
@@ -31,14 +31,16 @@ from pacct.web.session import SessionHandler, SessionManager
 # Home / menu: lista de ferramentas de comissionamento
 # -----------------------------------------------------------------------------
 
-# A home nao serve mais o proprio `<style>`: os tokens e a casca vem de
-# /theme.css (`pacct/web/themes/`), injetado no `<head>` pelo dispatcher.
+# The home no longer serves its own `<style>`: the tokens and the shell come
+# from /theme.css (`pacct/web/themes/`), injected into the `<head>` by the
+# dispatcher.
 #
-# E nao serve mais a propria LISTA: as tres direcoes nao concordam na estrutura
-# do menu (tabela numerada na folha, bornes com cor de fio na regua, fichas com
-# clipe no caderno), entao o corpo e' o marcador `<!--HOME-->`, resolvido por
-# requisicao com o tema do visitante. O catalogo em si e' dado, em
-# `pacct/web/themes/items.py`. Aqui sobrou so a casca da tela.
+# Nor does it serve its own LIST any more: the three directions do not agree
+# on the menu's structure (a numbered table in Folha, wire-coloured terminal
+# blocks in Régua, clipped cards in Caderno), so the body is the `<!--HOME-->`
+# marker, resolved per request with the visitor's theme in hand. The catalogue
+# itself is data, in `pacct/web/themes/items.py`. What is left here is the
+# screen's shell.
 HOME_HTML = r"""<!doctype html>
 <html lang="pt-br">
 <head>
@@ -69,11 +71,11 @@ HOME_HTML = r"""<!doctype html>
 
 
 def build_home_handler(logger: logging.Logger) -> type:
-    """Devolve a classe de handler da home (menu de ferramentas).
+    """Return the home's handler class -- the tool menu.
 
-    Montada na raiz pelo dispatcher de `pacct.web.mount`; fica no ar durante
-    toda a sessao, entao os cards sao links diretos pra `/<ferramenta>/` em vez
-    do antigo POST /go que derrubava a home pra ceder a porta.
+    Mounted at the root by `pacct.web.mount`'s dispatcher, and up for the whole
+    session, so the cards are direct links to `/<tool>/` rather than the old
+    POST /go that took the home down to free the port.
     """
 
     class HomeHandler(SessionHandler):
@@ -81,8 +83,9 @@ def build_home_handler(logger: logging.Logger) -> type:
             from urllib.parse import urlparse
             path = urlparse(self.path).path
             if path in ("/", "/index.html"):
-                # A nav e o corpo do menu sao resolvidos pelo dispatcher, que e'
-                # quem sabe o tema do visitante (`mount.py:_resolve_markup`).
+                # The nav and the menu body are resolved by the dispatcher,
+                # which is what knows the visitor's theme
+                # (`mount.py:_resolve_markup`).
                 self._send(200, HOME_HTML, "text/html; charset=utf-8")
             elif path == "/home-state":
                 self._send(200, '{"ok": true}', "application/json")
@@ -93,14 +96,15 @@ def build_home_handler(logger: logging.Logger) -> type:
 
 
 def _glv_scan_mode(cfg, logger) -> str:
-    """`[web] glv_scan_mode`: qual modo vem marcado na tela de selecao.
+    """`[web] glv_scan_mode`: which mode comes pre-selected on the picker.
 
-    E' so' o PADRAO da tela -- o modo e' por diagrama, e o usuario troca no
-    radio. Existe pra uma subestacao que ja padronizou o 61850 nao ter que
-    trocar o radio a cada diagrama aberto.
+    Only the screen's DEFAULT -- the mode is per diagram and the user changes
+    it with the radio. It exists so a substation that has standardised on
+    61850 does not have to change that radio for every diagram it opens.
 
-    Um valor desconhecido nao pode passar em silencio: `pick_transport` cai
-    pro telnet e a tela mostraria um radio marcado num modo que nao existe.
+    An unknown value must not pass in silence: `pick_transport` would fall back
+    to telnet and the screen would show a radio selected on a mode that does
+    not exist.
     """
     raw = (cfg.get("web", "glv_scan_mode", fallback=SCAN_TELNET) or "").strip().lower()
     if raw in (SCAN_TELNET, SCAN_MMS):
@@ -129,11 +133,11 @@ def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logger = logging.getLogger("dashboard")
 
-    # `config/config.ini` nao e' versionado -- e' o arquivo onde se digitam as
-    # senhas ACC/2AC reais do rele. Num clone limpo ele nao existe, e o
-    # ConfigParser leria o vazio sem reclamar: cada `cfg.get(...)` cairia no
-    # fallback e a app subiria com a configuracao errada em silencio. Entao
-    # semeamos do modelo versionado antes de ler.
+    # `config/config.ini` is not versioned -- it is where the relay's real
+    # ACC/2AC passwords are typed. A clean clone has none, and ConfigParser
+    # would read the nothing without complaining: every `cfg.get(...)` would
+    # take its fallback and the app would come up misconfigured, in silence.
+    # So we seed one from the versioned model before reading.
     try:
         ensure_config_file(Path(args.config), logger)
     except FileNotFoundError as exc:
@@ -142,18 +146,18 @@ def main():
     cfg = configparser.ConfigParser(inline_comment_prefixes=(";", "#"))
     cfg.read(args.config, encoding="utf-8")
 
-    # Um unico servidor serve todas as ferramentas, cada uma sob seu prefixo.
-    # Antes elas se revezavam na porta (abrir uma derrubava a outra); agora
-    # ficam todas no ar ao mesmo tempo, e so uma porta precisa estar liberada
-    # no firewall / portproxy do WSL.
+    # One server serves every tool, each under its own prefix. They used to
+    # take turns on the port -- opening one took the other down -- and now they
+    # are all up at once, with a single port to open in the firewall or the
+    # WSL portproxy.
     from pacct.web import gle_exporter, settings_compare, vb_updater, vlan_mapper
     from pacct.web.dnp_map.handler import build_dnp_map_handler
     from pacct.web.project_files.handler import build_project_files_handler
 
-    # Cada visitante ganha estado e diretorio de upload proprios, identificados
-    # por um cookie. Sem isso, o upload de um substituia o do outro em silencio
-    # -- e como nomes de rele se repetem entre subestacoes, dava pra exportar
-    # dados da obra errada sem nenhum erro aparente.
+    # Every visitor gets their own state and upload directory, identified by
+    # a cookie. Without that, one person's upload replaced another's in
+    # silence -- and since relay names repeat across substations, you could
+    # export the wrong job's data with no visible error at all.
     ttl_hours = args.session_ttl_hours
     if ttl_hours is None:
         ttl_hours = cfg.getfloat("web", "session_ttl_hours", fallback=8.0)
@@ -161,13 +165,13 @@ def main():
         root=CACHE_DIR / "sessions", logger=logger,
         ttl_seconds=ttl_hours * 3600,
     )
-    # Nenhum cookie sobrevive a um restart, entao o que sobrou no disco de uma
-    # execucao anterior e' lixo.
+    # No cookie survives a restart, so whatever an earlier run left on disk
+    # is rubbish.
     sessions.purge_root()
 
-    # O cache de RDB (`cache/rdb/<sha256>/`) nao tem dono: nenhuma sessao e'
-    # responsavel por ele e ele sobrevive ao restart de proposito. Quem o poda
-    # e' o mesmo sweeper das sessoes, mais uma passada no boot.
+    # The RDB cache has no owner: no session is responsible for it and it
+    # survives a restart on purpose. What prunes it is the sessions' own
+    # sweeper, plus one pass at start-up.
     cache_gb = cfg.getfloat("web", "rdb_cache_max_gb", fallback=8.0)
     cache_days = cfg.getfloat("web", "rdb_cache_max_age_days", fallback=30.0)
 
@@ -179,9 +183,9 @@ def main():
     _sweep_rdb_cache()
     sessions.start_sweeper()
 
-    # O config.ini e' a fonte dos valores PADRAO do GLV, lida uma vez aqui.
-    # Cada diagrama carrega o proprio IP: abrir o segundo apontando pra outro
-    # rele nao pode reescrever o do primeiro.
+    # config.ini is the source of the GLV's DEFAULT values, read once here.
+    # Each diagram carries its own IP: opening a second one pointed at another
+    # relay must not rewrite the first one's.
     glv_defaults = GlvDefaults(
         ip=cfg.get("tcp", "ip_address", fallback=""),
         port=cfg.getint("tcp", "port", fallback=23),
@@ -218,9 +222,9 @@ def main():
               build_dnp_map_handler(logger, sessions),
               "DNP Map Editor"),
     ]
-    # Tema padrao de quem ainda nao escolheu. De fabrica e' "caderno" (10
-    # Caderno de Campo); a chave existe pra uma equipe padronizar outra. Valor
-    # ausente ou invalido cai no padrao.
+    # The default theme for someone who has not chosen. The factory setting
+    # is "caderno" (10 Caderno de Campo); the key exists so a team can
+    # standardise on another. An absent or invalid value falls back to it.
     from pacct.web import theme as themes
     default_theme = themes.normalize(
         cfg.get("web", "theme", fallback=themes.DEFAULT_THEME).strip().lower())
@@ -246,8 +250,8 @@ def main():
     finally:
         srv.shutdown()
         srv.server_close()
-        # Apaga os diretorios de sessao: sao scratch, e nenhum cookie continua
-        # valido depois daqui.
+        # Delete the session directories: they are scratch, and no cookie
+        # stays valid past this point.
         sessions.shutdown()
 
 

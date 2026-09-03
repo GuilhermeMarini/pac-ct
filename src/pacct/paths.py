@@ -1,8 +1,8 @@
-"""Caminhos canonicos do projeto.
+"""The project's canonical paths.
 
-Toda a app deve resolver paths a partir das constantes deste modulo --
-nunca via `Path(__file__).parent` em cada arquivo. Assim, se o layout
-mudar, so este arquivo precisa ser editado.
+Everything in the app resolves paths from the constants here -- never with a
+`Path(__file__).parent` of its own. When the layout changes, this is the only
+file that has to.
 """
 
 from __future__ import annotations
@@ -12,29 +12,30 @@ import os
 import shutil
 from pathlib import Path
 
-# Diretorio do PACOTE. Tudo o que viaja DENTRO dele -- os templates .html, as
-# fontes .woff2 -- sai daqui, e nao da raiz do projeto: sob `src/` (e mais
-# ainda depois de um `pip install`) o pacote e a raiz deixaram de ser vizinhos.
+# The PACKAGE's directory. Everything that travels INSIDE it -- the .html
+# templates, the .woff2 fonts -- comes from here rather than from the project
+# root: under `src/` (and more so after a `pip install`) the package and the
+# root stopped being siblings.
 PACKAGE_DIR: Path = Path(__file__).resolve().parent
 
 
 def _find_project_root() -> Path:
-    """A raiz do PROJETO: onde ficam `data/`, `config/`, `cache/`, `rdbs/`.
+    """The PROJECT's root: where `config/`, `cache/`, `rdbs/` and the data overlay
+    live.
 
-    Nao e' mais "o pai do pacote". Com o layout `src/`, o pai e' `src/`; num
-    `pip install`, e' o `site-packages`. Entao procuramos o marcador -- um
-    diretorio que tenha `data/` e `config/` -- subindo a partir do pacote, e
-    `PACCT_ROOT` no ambiente vence tudo (e' o que a instalacao versionada da
-    Fase 5 usa, com o `current/` apontando pra uma versao e os dados do
-    engenheiro fora dela).
+    No longer "the package's parent". Under the `src/` layout the parent is
+    `src/`; after a `pip install` it is `site-packages`. So we look upward from
+    the package for a marker, and `PACCT_ROOT` in the environment beats
+    everything -- which is what a versioned install uses, with `current/`
+    pointing at one version and the engineer's data outside it.
     """
     env = os.environ.get("PACCT_ROOT")
     if env:
         return Path(env).expanduser().resolve()
-    # O marcador e' `config/config.ini.example` mais o `app.py`: os dois
-    # existem em toda instalacao e em todo clone. NAO e' mais `data/` -- os
-    # registros por modelo mudaram de dono para a biblioteca `selfiles`, e a
-    # pasta que sobrou aqui e' um overlay que comeca inexistente.
+    # The marker is `config/config.ini.example` plus `app.py`: both exist in
+    # every install and every clone. It is no longer `data/` -- the per-model
+    # registries changed owner to the `selfiles` library, and the directory
+    # left here is an overlay that starts out absent.
     for parent in PACKAGE_DIR.parents:
         if (parent / "config" / "config.ini.example").is_file() \
                 and (parent / "app.py").is_file():
@@ -44,54 +45,59 @@ def _find_project_root() -> Path:
 
 PROJECT_ROOT: Path = _find_project_root()
 
-# Onde mora o estado MUTAVEL (config.ini com as senhas, cache, rdbs). Separado
-# da raiz porque uma instalacao versionada troca de versao a cada atualizacao e
-# esses arquivos nao podem viajar junto: `PACCT_DATA_DIR` os deixa fora.
+# Where MUTABLE state lives (config.ini with the passwords, the caches, the
+# RDBs). Kept apart from the root because a versioned install swaps versions on
+# every update and these files must not travel with it: `PACCT_DATA_DIR` keeps
+# them outside.
 DATA_ROOT: Path = Path(
     os.environ.get("PACCT_DATA_DIR") or PROJECT_ROOT
 ).expanduser().resolve()
 
-# Configuracao (config.ini, etc.). O `config.ini` NAO e' versionado -- e' onde
-# se digitam as senhas ACC/2AC reais do rele, e uma senha de subestacao
-# commitada fica no historico pra sempre. Quem vai pro git e' o `.example`, e a
-# app semeia um a partir do outro no primeiro boot (`ensure_config_file`).
+# Configuration (config.ini and friends). `config.ini` is NOT versioned: it
+# is where a relay's real ACC/2AC passwords are typed, and a substation
+# password committed to git is in history for ever. What goes to git is the
+# `.example`, and the app seeds one from the other on first boot
+# (`ensure_config_file`).
 CONFIG_DIR: Path = DATA_ROOT / "config"
 DEFAULT_CONFIG_FILE: Path = CONFIG_DIR / "config.ini"
 EXAMPLE_CONFIG_FILE: Path = CONFIG_DIR / "config.ini.example"
 
-# OVERLAY de dados por modelo. Os registros (perfis de rele, nomes validos da
-# Relay Word, tabelas bit -> item MMS) sao da BIBLIOTECA `selfiles` e viajam
-# dentro dela: sao conhecimento sobre reles, nao configuracao desta app. O que
-# mora aqui e' o que o USUARIO acrescentou em tempo de execucao -- o "Importar
-# perfil DNP" do editor de mapa grava um `wordbits/<MODELO>.json` aqui --, e o
-# overlay e' procurado ANTES do que vem empacotado, por modelo. Comeca
-# inexistente numa instalacao nova, e isso e' o estado normal.
+# The per-model data OVERLAY. The registries themselves (relay profiles, the
+# valid Relay Word names, the bit -> MMS item tables) belong to the `selfiles`
+# LIBRARY and travel inside it: they are knowledge about relays, not
+# configuration of this app. What lives here is whatever the USER added at
+# runtime -- the DNP map editor's "Importar perfil DNP" writes a
+# `wordbits/<MODEL>.json` here -- and the overlay is searched BEFORE the
+# packaged files, per model. On a fresh install it does not exist yet, and
+# that is the normal state.
 #
-# Fica sob DATA_ROOT (e nao sob a raiz do projeto) porque e' dado do
-# engenheiro: uma atualizacao troca a versao instalada e nao pode levar junto
-# o perfil que ele importou.
+# It sits under DATA_ROOT rather than under the project root because it is the
+# engineer's data: an update swaps the installed version and must not carry
+# away the profile they imported.
 DATA_DIR: Path = DATA_ROOT / "data"
 RELAY_MODELS_DIR: Path = DATA_DIR / "relay_models"
 WORDBITS_DIR: Path = DATA_DIR / "wordbits"
 MMS_MAP_DIR: Path = DATA_DIR / "mms_map"
 
-# Estaticos servidos pelo dispatcher web em /static/ (fontes .woff2 embarcadas,
-# licencas e NOTICE). Ficam no projeto de proposito: a subestacao pode nao ter
-# internet, e nenhuma pagina deve pedir fonte a CDN.
+# Static files the web dispatcher serves at /static/ (the embedded .woff2
+# fonts, their licences and the NOTICE). They ship with the project on
+# purpose: a substation may have no internet, and no page may ask a CDN for a
+# font.
 STATIC_DIR: Path = PACKAGE_DIR / "web" / "static"
 
-# Cache local (descoberta de bits TARGET, dumps de diagnostico, anotacoes
-# do dashboard). Conteudo nao versionado.
+# The local cache (TARGET bit discovery, diagnostic dumps, the dashboard's
+# annotations). Its contents are not versioned.
 CACHE_DIR: Path = DATA_ROOT / "cache"
 
-# Extracoes de RDB, chaveadas pelo sha256 do arquivo. Dois arquivos iguais SAO
-# o mesmo arquivo, entao a extracao e' unica no processo e sobrevive ao
-# restart -- diferente de cache/sessions/, que e' apagado no boot.
+# RDB extractions, keyed by the file's sha256. Two identical files ARE the
+# same file, so an extraction is unique in the process and survives a restart
+# -- unlike cache/sessions/, which is wiped at start-up.
 RDB_CACHE_DIR: Path = CACHE_DIR / "rdb"
 
-# Templates HTML do GLV. Sao arquivos .html de verdade (e nao string no .py)
-# porque ~1.400 das 2.500 linhas sao JavaScript: assim o editor colore e o
-# linter enxerga. A mecanica de substituicao ("${PAGES_JSON}") nao mudou.
+# The GLV's HTML templates. Real .html files rather than strings in a .py,
+# because ~1,400 of their 2,500 lines are JavaScript: this way an editor
+# colours them and a linter can see them. The substitution mechanism
+# ("${PAGES_JSON}") did not change.
 GLV_TEMPLATES_DIR: Path = PACKAGE_DIR / "web" / "glv" / "templates"
 
 # HTML templates for the DNP map editor. Same reason as the GLV: real .html
@@ -138,26 +144,27 @@ SAMPLES_DIR: Path = PROJECT_ROOT / "samples"
 # Documentacao (manuais SEL, application guides).
 DOCS_DIR: Path = PROJECT_ROOT / "docs"
 
-# Insumos e relatorios de analise que nao sao codigo nem amostra: os ICD/CID de
-# fabrica, os perfis DNP e os .txt que `tools/` gera a partir deles. Ficam fora
-# de `samples/` porque nao sao entrada de teste -- sao a materia-prima e o
-# resultado das analises de cobertura.
+# Inputs and analysis reports that are neither code nor sample: the factory
+# ICD/CID files, the DNP profiles, and the .txt files `tools/` generates from
+# them. Kept out of `samples/` because they are not test input -- they are the
+# raw material and the result of the coverage analyses.
 FIXTURES_DIR: Path = PROJECT_ROOT / "fixtures"
 
 
 def ensure_dirs() -> None:
-    """Cria diretorios mutaveis (cache, rdbs) se ainda nao existirem."""
+    """Create the mutable directories (cache, rdbs) if they do not exist yet."""
     for d in (CACHE_DIR, RDB_CACHE_DIR, RDBS_DIR):
         d.mkdir(parents=True, exist_ok=True)
 
 
 def is_within(target: Path, roots) -> bool:
-    """Diz se `target` esta dentro de algum diretorio de `roots`.
+    """Whether `target` sits inside any of `roots`.
 
-    Usado pelo sandbox dos endpoints `/download` (anti path traversal).
-    Compara via `Path.relative_to`, e nao concatenando `"/"` -- no Windows
-    o separador e `\\`, e a comparacao textual rejeitaria todo caminho
-    valido (403 em qualquer download).
+    This is the sandbox behind the `/download` endpoints, against path
+    traversal. It compares with `Path.relative_to` rather than by concatenating
+    `"/"`: on Windows
+    the separator is `\\`, and a textual comparison would reject every valid
+    path -- a 403 on every download.
     """
     target = Path(target).resolve()
     for root in roots:
@@ -170,12 +177,12 @@ def is_within(target: Path, roots) -> bool:
 
 
 def resolve_gle_path(value: str) -> Path:
-    """Resolve um caminho de GLE vindo do config.ini ou da CLI.
+    """Resolve a GLE path coming from config.ini or the CLI.
 
-    Ordem de tentativa:
-      1. Caminho absoluto (retorna como esta).
-      2. Relativo a `PROJECT_ROOT` (compatibilidade com config antigo).
-      3. Relativo a `SAMPLES_DIR` (default da nova estrutura).
+    Tried in order:
+      1. An absolute path, returned as it is.
+      2. Relative to `PROJECT_ROOT`, for compatibility with an older config.
+      3. Relative to `SAMPLES_DIR`, the current default.
     """
     p = Path(value)
     if p.is_absolute():
@@ -187,23 +194,23 @@ def resolve_gle_path(value: str) -> Path:
 
 
 def ensure_config_file(path: Path, logger: logging.Logger | None = None) -> bool:
-    """Garante que o arquivo de configuracao exista, semeando do `.example`.
+    """Make sure the configuration file exists, seeding it from the `.example`.
 
-    `config/config.ini` e' gitignored (e' o arquivo onde vao as senhas reais
-    do rele), entao um clone limpo simplesmente nao tem um. Sem isto, a app
-    subia lendo um .ini inexistente e caia nos fallbacks de cada
-    `cfg.get(...)`, silenciosamente -- que e' o pior jeito de errar.
+    `config/config.ini` is gitignored -- it is where the relay's real
+    passwords go -- so a clean clone simply has none. Without this, the app
+    came up reading a file that was not there and quietly took the fallback of
+    every `cfg.get(...)`, which is the worst possible way to be wrong.
 
-    Devolve True se copiou o modelo, False se o arquivo ja existia. Levanta
-    `FileNotFoundError` se nem o arquivo nem um modelo existirem: a app nao
-    tem o que ler e dizer isso alto e' melhor que adivinhar.
+    Returns True if it copied the model, False if the file already existed.
+    Raises `FileNotFoundError` when neither the file nor a model exists: there
+    is nothing to read, and saying so out loud beats guessing.
     """
     path = Path(path)
     if path.is_file():
         return False
 
-    # Modelo irmao do proprio caminho pedido (cobre `--config outro.ini`), com
-    # o config/config.ini.example do projeto como ultimo recurso.
+    # A model beside the requested path (which covers `--config other.ini`),
+    # with the project's own config/config.ini.example as the last resort.
     candidates = [Path(str(path) + ".example"), EXAMPLE_CONFIG_FILE]
     candidates = list(dict.fromkeys(candidates))
     for example in candidates:

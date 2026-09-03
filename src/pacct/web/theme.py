@@ -1,13 +1,13 @@
-"""Reexport do pacote `pacct.web.themes`.
+"""A re-export of the `pacct.web.themes` package.
 
-O tema deixou de ser um arquivo e virou um pacote: cada direcao passou a ser
-dona do proprio CSS **e** da propria marcacao, porque os tres mockups nao
-concordam na estrutura das telas -- so no menu eles compartilham 7 classes de
-53. Ver `pacct/web/themes/__init__.py`.
+The theme stopped being one file and became a package: each direction owns its
+own CSS **and** its own markup, because the three mockups do not agree on the
+structure of the screens -- on the home they share 7 classes out of 53. See
+`pacct/web/themes/__init__.py`.
 
-Este modulo sobrevive so pra nao quebrar `from pacct.web import theme as
-themes` (`pacct/web/mount.py`) e os imports pontuais das ferramentas. Codigo
-novo deve importar `pacct.web.themes` direto.
+This module survives only so `from pacct.web import theme as themes` keeps
+working in `mount.py` and in the tools' occasional imports. New code should
+import `pacct.web.themes` directly.
 """
 
 from __future__ import annotations

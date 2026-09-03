@@ -1,12 +1,12 @@
-"""Régua de Bornes -- a régua do painel como linguagem.
+"""Régua de Bornes -- the panel's terminal strip, as a language.
 
-Escuro, industrial, cor = cor de fio. A assinatura da direcao e' a **régua
-vertical** (`.strip` de `.borne`, cada um com o numero em bloco cor de borne e
-uma cabeca de parafuso), e no menu as **fichas com o topo na cor do fio**
-daquele sinal, cada uma anunciando o borne que ocupa.
+Dark, industrial, colour meaning wire colour. The direction's signature is the
+**vertical rail** (a `.strip` of `.borne`, each with its number in a
+terminal-coloured block and a screw head), and in the menu the **cards topped
+in that signal's wire colour**, each announcing which terminal it occupies.
 
-Referencia: `mockups/03-regua/`. Diferente da folha e do caderno, a regua nao
-tem item "Menu" na régua: a volta pra home e' o "← Menu" da barra superior.
+Reference: `mockups/03-regua/`. Unlike Folha and Caderno, Régua has no "Menu"
+item on the rail: the way back to the home is the "← Menu" in the top bar.
 """
 
 from __future__ import annotations
@@ -21,8 +21,8 @@ from pacct.web.themes.items import (
     tools_of,
 )
 
-# A ordem das cores de fio segue a ordem dos bornes, como no mockup: o borne 1
-# fica no azul padrao da `.card` e os seguintes recebem a cor do proprio sinal.
+# Wire colours follow terminal order, as in the mockup: terminal 1 keeps the
+# `.card` default blue and the rest take their own signal's colour.
 _WIRES = ["", "w-green", "w-red", "w-yellow", "w-violet"]
 
 DELTA_CSS = r"""
@@ -126,15 +126,15 @@ DELTA_CSS = r"""
 
 
 def nav(active: str = "") -> str:
-    """A régua: um borne por ferramenta, agrupados por fabricante.
+    """The rail: one terminal per tool, grouped by manufacturer.
 
-    Cada grupo e' uma régua com a sua capa (X1..X4); a X0 e' a entrada, e ela
-    existe porque o borne "A" (Arquivos do Projeto) ficaria parecendo do
-    primeiro grupo assim que os grupos ganharam capa. A regua nao tem borne de
-    Menu -- a volta pra home e' o "← Menu" da barra superior.
+    Each group is a strip with its own header (X1..X4); X0 is the way in, and
+    it exists because terminal "A" (the project files) would otherwise look
+    like part of the first group once the groups gained headers. Régua has no
+    Menu terminal -- the way home is the "← Menu" in the top bar.
 
-    Um grupo sem ferramenta e' um borne de reserva: numa régua de verdade isso
-    nao e' defeito, e' previsao.
+    A group with no tools is a spare terminal: on a real strip that is not a
+    defect, it is a forecast.
     """
     fkey, fhref, fname, _fshort, fhint = FILES_ITEM
     out = ['<nav class="strip" aria-label="Ferramentas">',
@@ -165,7 +165,7 @@ def _borne(on: bool, href: str | None, n: str, label: str, hint: str) -> str:
 
 
 def home() -> str:
-    """O menu como fichas de borne, agrupadas, cada uma com a cor do fio."""
+    """The menu as terminal cards, grouped, each in its wire's colour."""
     blocks = []
     for g in GROUPS:
         group_tools = tools_of(g.key)

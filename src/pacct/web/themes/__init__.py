@@ -1,25 +1,26 @@
-"""Os três temas do toolkit: tokens, casca compartilhada e marcação por direção.
+"""The toolkit's three themes: tokens, a shared shell, and markup per direction.
 
-Antes disto cada ferramenta servia o proprio `<style>` com a propria copia da
-paleta, e as copias ja tinham derivado. O `theme.py` juntou a paleta num lugar
-so -- e foi longe demais: juntou tambem a *marcacao*, e as nove telas passaram
-a ser a marcacao da folha pintada de tres jeitos. O menu virou tabela nos tres
-temas porque a tabela e' o que o mockup da folha pede; as fichas com clipe do
-caderno e os bornes da regua nao tinham onde existir.
+Before this, each tool served its own `<style>` with its own copy of the
+palette, and the copies had already drifted. Pulling the palette into one
+place fixed that -- and then went too far: it pulled in the *markup* as well,
+and the nine screens became one direction's markup painted three ways. The
+menu became a table in all three themes because a table is what the Folha
+mockup asks for; Caderno's clipped index cards and Régua's terminal blocks had
+nowhere to exist.
 
-Aqui cada direcao e' dona das duas coisas, no mesmo arquivo:
+Here each direction owns both, in one file:
 
-    folha.py    Folha de Dados   -- sumario `.toc` + tabela de referencia
-    regua.py    Régua de Bornes  -- régua vertical `.strip`/`.borne` + fichas de fio
-    caderno.py  Caderno de Campo -- divisorias `.tabs`/`.tab` + fichas com clipe
+    folha.py    Folha de Dados   -- a `.toc` summary plus a reference table
+    regua.py    Régua de Bornes  -- a vertical `.strip`/`.borne` rail with wire cards
+    caderno.py  Caderno de Campo -- `.tabs`/`.tab` dividers plus clipped cards
 
-`shell.py` guarda so o que os tres mockups escrevem igual, e `tokens.py` guarda
-o vocabulario -- um nome faltando quebra no boot, entao os tres nao podem
-divergir em silencio.
+`shell.py` holds only what all three mockups write identically, and
+`tokens.py` holds the vocabulary -- a missing name breaks at import, so the
+three cannot diverge in silence.
 
-A escolha do visitante mora no cookie `seltheme`, nao no estado de sessao: o
-GLV e' compartilhado de proposito (um rele fisico, um telnet), e mesmo la cada
-visitante mantem o proprio tema.
+The visitor's choice lives in the `seltheme` cookie, not in session state: the
+GLV is shared on purpose (one physical relay, one telnet), and even there each
+visitor keeps their own theme.
 """
 
 from __future__ import annotations
@@ -34,7 +35,7 @@ from pacct.web.themes.tokens import DEFAULT_THEME, THEMES, token_css
 
 COOKIE_NAME = "seltheme"
 
-# Um tema e' preferencia, nao sessao: tem que sobreviver ao TTL de 8 h.
+# A theme is a preference, not session state: it has to outlive the 8 h TTL.
 COOKIE_MAX_AGE = 365 * 24 * 3600
 
 # slug -> o modulo que sabe pintar e emitir aquela direcao.
@@ -42,26 +43,26 @@ _DIRECOES = {"folha": folha, "regua": regua, "caderno": caderno}
 
 
 # -----------------------------------------------------------------------------
-# Fontes embutidas
+# The embedded fonts
 # -----------------------------------------------------------------------------
 #
-# Os nove .woff2 acompanham o projeto: a interface tem que abrir com a
-# tipografia certa num notebook de subestacao sem internet. Nunca um CDN.
-# `fonts.css` declara os @font-face com url *relativa* (pra poder ser servido do
-# mesmo diretorio dos arquivos); dobrado no /theme.css ela vira absoluta, que o
-# dispatcher responde de qualquer prefixo de montagem.
+# The nine .woff2 files ship with the project: the interface has to open with
+# the right typography on a substation laptop with no internet. Never a CDN.
+# `fonts.css` declares its @font-face rules with *relative* urls, so it can be
+# served from the same directory as the files; folded into /theme.css they
+# become absolute, which the dispatcher answers under any mount prefix.
 
 _FONT_URL_RE = re.compile(r"url\((['\"]?)([^'\")]+)\1\)")
 
 
 def _font_faces() -> str:
-    """O bloco @font-face do projeto, com as urls reescritas p/ /static/fonts/."""
+    """The project's @font-face block, with its urls rewritten to /static/fonts/."""
     src = STATIC_DIR / "fonts" / "fonts.css"
     try:
         css = src.read_text(encoding="utf-8")
     except OSError:
-        # Fonte faltando nunca pode derrubar a interface: todo token guarda uma
-        # pilha de sistema atras da familia embutida.
+        # A missing font must never take the interface down: every token
+        # keeps a system stack behind the embedded family.
         return "/* fonts.css ausente -- caindo na pilha de sistema */\n"
     return _FONT_URL_RE.sub(
         lambda m: f"url('/static/fonts/{m.group(2).lstrip('./')}')", css,
@@ -73,14 +74,14 @@ def _font_faces() -> str:
 # -----------------------------------------------------------------------------
 
 def normalize(theme: str | None, fallback: str = DEFAULT_THEME) -> str:
-    """Reduz qualquer coisa a um slug de tema conhecido."""
+    """Reduce anything to a known theme slug."""
     if theme and theme in THEMES:
         return theme
     return fallback if fallback in THEMES else DEFAULT_THEME
 
 
 def theme_css(theme: str = DEFAULT_THEME) -> str:
-    """A folha de estilo inteira de um tema: fontes, tokens, casca e direcao."""
+    """One theme's whole stylesheet: fonts, tokens, shell and direction."""
     theme = normalize(theme)
     return (
         f"/* PAC CT -- tema \"{THEMES[theme]}\" ({theme}).\n"
@@ -92,17 +93,19 @@ def theme_css(theme: str = DEFAULT_THEME) -> str:
 
 
 def nav_html(theme: str = DEFAULT_THEME, active: str = "") -> str:
-    """A navegacao da direcao pedida, com `active` marcado como tela atual.
+    """The requested direction's navigation, with `active` marked as the current
+    screen.
 
-    Cada direcao emite a propria estrutura: `.toc` na folha, `.strip`/`.borne`
-    na regua, `.tabs`/`.tab` no caderno. Nao existe uma "nav" comum -- foi
-    justamente ela que padronizou as telas.
+    Each direction emits its own structure: `.toc` in Folha, `.strip`/`.borne`
+    in Régua, `.tabs`/`.tab` in Caderno. There is no common "nav" -- that is
+    precisely what had flattened the screens into one another.
     """
     return _DIRECOES[normalize(theme)].nav(active)
 
 
 def home_html(theme: str = DEFAULT_THEME) -> str:
-    """O corpo do menu na direcao pedida: tabela, bornes ou fichas com clipe."""
+    """The menu body in the requested direction: a table, terminal blocks, or
+    clipped cards."""
     return _DIRECOES[normalize(theme)].home()
 
 
@@ -120,11 +123,11 @@ def resolve(cookie_header: str | None, default: str = DEFAULT_THEME) -> str:
 
 
 def build_cookie(theme: str) -> str:
-    """Set-Cookie da escolha de tema, na mesma forma do `selsid`.
+    """The Set-Cookie for a theme choice, shaped like the `selsid` one.
 
-    Sem `HttpOnly`: diferente do id de sessao nao ha o que proteger aqui, e uma
-    pagina pode querer ler o proprio tema. Sem `Secure`: o toolkit roda em HTTP
-    na LAN da subestacao.
+    No `HttpOnly`: unlike a session id there is nothing to protect here, and a
+    page may want to read its own theme. No `Secure`: the toolkit runs over
+    HTTP on the substation's LAN.
     """
     return (
         f"{COOKIE_NAME}={normalize(theme)}; Path=/; SameSite=Lax; "

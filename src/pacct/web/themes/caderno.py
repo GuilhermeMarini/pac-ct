@@ -1,13 +1,12 @@
-"""Caderno de Campo -- o caderno do comissionador como linguagem.
+"""Caderno de Campo -- the commissioning engineer's notebook, as a language.
 
-Papel quadriculado de 5 mm, folha presa por divisórias, carimbo de veredito. A
-assinatura da direcao sao as **divisórias** (`.tabs`/`.tab`, 00, A e 01-09, com
-rotulos de grupo entre as corridas e rotulo curto), a **folha** presa sob elas
-(`.sheet-body`) e, no menu, as
-**fichas com clipe** (`.card` + `::before`), cada uma com a etiqueta do estado
-em cima.
+5 mm graph paper, a sheet held by dividers, a verdict stamped on it. The
+direction's signature is the **dividers** (`.tabs`/`.tab`, 00, A and 01-09,
+with group labels between the runs and a short label on each), the **sheet**
+held beneath them (`.sheet-body`) and, in the menu, the **clipped index
+cards** (`.card` + `::before`), each with its status label on top.
 
-Referencia: `mockups/10-caderno/`.
+Reference: `mockups/10-caderno/`.
 """
 
 from __future__ import annotations
@@ -139,11 +138,11 @@ DELTA_CSS = r"""
 
 
 def nav(active: str = "") -> str:
-    """As divisórias: rotulo curto e numero de dois digitos, como no mockup.
+    """The dividers: a short label and a two-digit number, as in the mockup.
 
-    Os grupos entram como etiqueta entre corridas de divisorias -- e' o que uma
-    divisoria de caderno faz. Os arquivos do projeto levam "A" no lugar do
-    numero: as ferramentas continuam 01..09, que e' a ordem que a home conta.
+    Groups appear as a label between runs of dividers -- which is what a
+    notebook divider does. The project files carry "A" instead of a number:
+    the tools stay 01..09, which is the order the home counts in.
     """
     out = ['<nav class="tabs" aria-label="Ferramentas">']
     key, href, _name, short, _hint = MENU_ITEM
@@ -175,10 +174,11 @@ def _tab(on: bool, href: str | None, n: str, label: str) -> str:
 
 
 def home() -> str:
-    """O menu como fichas presas na folha, agrupadas por fabricante.
+    """The menu as cards clipped to the sheet, grouped by manufacturer.
 
-    Um grupo sem ferramenta vira folha em branco reservada, com a linha do que
-    vai cair ali: vazio e mudo e' vapor, vazio com roteiro e' previsao.
+    A group with no tools becomes a reserved blank sheet, carrying the line
+    that says what will land there: empty and silent is vapour, empty with a
+    roadmap is a forecast.
     """
     blocks = []
     for g in GROUPS:

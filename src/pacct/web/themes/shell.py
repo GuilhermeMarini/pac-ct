@@ -1,14 +1,15 @@
-"""O que as tres direcoes fazem igual.
+"""What all three directions do identically.
 
-Regra de admissao deste arquivo: uma regra so entra aqui se os tres mockups
-(`mockups/06-folha/`, `mockups/03-regua/`, `mockups/10-caderno/`) a escrevem do
-mesmo jeito, a menos de token. Tudo que uma direcao desenha do proprio jeito --
-a navegacao, o menu, o invólucro da tela, a marca de veredito -- mora no
-arquivo dela, junto com a marcacao que o emite.
+The admission rule for this file: a rule belongs here only if all three
+mockups (`mockups/06-folha/`, `mockups/03-regua/`, `mockups/10-caderno/`)
+write it the same way, up to tokens. Anything a direction draws its own way --
+the navigation, the menu, the screen's wrapper, the verdict mark -- lives in
+that direction's file, next to the markup that emits it.
 
-Foi o excesso de coisa aqui que padronizou as telas: a navegacao era uma lista
-so, pintada de tres jeitos, quando os mockups pedem `.toc`, `.strip/.borne` e
-`.tabs/.tab` -- estruturas diferentes, nao a mesma com outra cor.
+Too much living here is what flattened the screens into one another: the
+navigation was a single list painted three ways, when the mockups ask for
+`.toc`, `.strip/.borne` and `.tabs/.tab` -- different structures, not one
+structure in another colour.
 """
 
 from __future__ import annotations

@@ -1,32 +1,31 @@
-"""Sessoes por usuario para as ferramentas web.
+"""Per-visitor sessions for the web tools.
 
-Antes cada ferramenta guardava a sessao num singleton de modulo (`_state =
-_SessionState()`), que e' por PROCESSO, nao por visitante. Com duas pessoas na
-mesma ferramenta, o upload da segunda substituia o da primeira sem aviso -- e
-como os nomes de rele se repetem entre subestacoes, a primeira podia exportar
-dados da outra obra sem perceber.
+Each tool used to keep its session in a module-level singleton (`_state =
+_SessionState()`), which is per PROCESS, not per visitor. With two people in
+the same tool, the second one's upload replaced the first's without warning --
+and since relay names repeat across substations, the first could export
+another job's data without noticing.
 
-Aqui cada visitante ganha:
+Here every visitor gets:
 
-- um id de sessao num cookie (`selsid`), emitido na primeira resposta;
-- um estado proprio por ferramenta (`SessionHandler.sess()`);
-- um diretorio proprio em `cache/sessions/<sid>/` pros uploads.
+- a session id in a cookie (`selsid`), issued on the first response;
+- their own state per tool (`SessionHandler.sess()`);
+- their own directory under `cache/sessions/<sid>/` for uploads.
 
-O diretorio proprio importa tanto quanto o estado: e' onde ficam os uploads
-que sao mesmo desta sessao (o SCD) e TODA saida derivada (o .rdb com os
-comentarios atualizados, a planilha). O `/download` de cada ferramenta so
-serve de dentro dele, entao um visitante nunca baixa o arquivo gerado por
-outro, e a limpeza na expiracao e' um `rmtree` -- sem contar referencias.
+The directory matters as much as the state: it holds the uploads that really
+are this session's (the SCD) and EVERY derived output (the .rdb with updated
+comments, the spreadsheet). Each tool's `/download` serves only from inside
+it, so a visitor can never download a file another one generated, and cleaning
+up on expiry is one `rmtree` -- no reference counting.
 
-Os RDB sao a excecao, e de proposito: eles vao pro cache por conteudo
-(`cache/rdb/<sha256>/`, ver `selfiles.rdb_cache`), que e' compartilhado
-e read-only pras ferramentas. Dois arquivos iguais sao o mesmo arquivo, entao
-guardar uma copia de 40-140 MB por sessao so gastava disco e tempo de
-extracao.
+RDBs are the exception, on purpose: they go to the content-addressed cache
+(see `selfiles.rdb_cache`), which is shared and read-only to the tools. Two
+identical files are the same file, so keeping a 40-140 MB copy per session
+only cost disk and extraction time.
 
-O GLV fica de fora de proposito: ele fala com UM rele fisico por vez, entao a
-sessao dele e' unica e compartilhada -- varias pessoas podem acompanhar o
-mesmo dashboard, mas nao ter cada uma o seu.
+The GLV stays out of this deliberately: it talks to ONE physical relay at a
+time, so its session is single and shared -- several people can watch the same
+diagram, but they cannot each have their own.
 """
 
 from __future__ import annotations
@@ -51,16 +50,18 @@ from pacct.web.project_files.client import inject_library_runtime
 
 COOKIE_NAME = "selsid"
 
-#: Teto de um corpo JSON de requisicao. Nenhuma rota desta aplicacao manda
-#: JSON grande: a maior e' a copia de mapa DNP, com algumas centenas de chaves
-#: -- ordens de grandeza abaixo disto. Os arquivos de verdade (RDB de 40-140 MB,
-#: XLSX) NAO passam por aqui; entram por `project_files`, em pedacos e com os
-#: tetos de `library.py`. Sem um limite, `rfile.read(Content-Length)` aloca o
-#: que o cliente disser que vai mandar.
+#: Ceiling on a JSON request body. No route in this application sends large
+#: JSON: the biggest is the DNP map copy, a few hundred keys -- orders of
+#: magnitude below this. The real files (a 40-140 MB RDB, an XLSX) do NOT come
+#: through here; they enter through `project_files`, in chunks and under
+#: `library.py`'s own ceilings. Without a limit,
+#: `rfile.read(Content-Length)` allocates whatever the client claims it will
+#: send.
 MAX_JSON_BODY = 4 << 20  # 4 MiB
 
-# O sid vira nome de diretorio: aceitar so o alfabeto do token_urlsafe evita
-# que um cookie forjado ("../../etc") escape de cache/sessions/.
+# The sid becomes a directory name: accepting only token_urlsafe's alphabet
+# is what stops a forged cookie ("../../etc") escaping the sessions
+# directory.
 _SID_RE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 
 DEFAULT_TTL_SECONDS = 8 * 3600
@@ -69,7 +70,7 @@ _SWEEP_INTERVAL_SECONDS = 900
 
 @dataclass
 class Session:
-    """Estado de um visitante: um objeto por ferramenta + um diretorio."""
+    """One visitor's state: an object per tool, plus a directory."""
 
     sid: str
     dir: Path
@@ -93,9 +94,9 @@ class SessionManager:
         self.root = Path(root)
         self.logger = logger
         self.ttl = ttl_seconds
-        # Chamado a cada volta do sweeper, depois de expirar as sessoes. E' por
-        # onde o cache de RDB (que nao tem dono nem TTL proprio) e' podado, e
-        # por onde os diagramas do GLV de uma sessao expirada sao fechados.
+        # Called on every sweeper turn, after the sessions have expired. It
+        # is how the RDB cache (which has no owner and no TTL of its own) gets
+        # pruned, and how an expired session's GLV diagrams get closed.
         self.on_sweep: Callable[[], None] | None = None
         self.on_expire: Callable[[Session], None] | None = None
         self._sessions: dict[str, Session] = {}
@@ -105,12 +106,12 @@ class SessionManager:
     # -- ciclo de vida ------------------------------------------------------
 
     def peek(self, cookie_header: str | None) -> Session | None:
-        """A sessao do cookie, ou None. NUNCA cria uma.
+        """The cookie's session, or None. NEVER creates one.
 
-        E' o que as rotas de infraestrutura usam (`/library`, `/progress`,
-        `/theme.css`, `/static/...`): elas nao sao donas de identidade
-        nenhuma. Criar sessao ali enchia o servidor de sessoes fantasma --
-        uma folha de estilo nao e' um visitante.
+        This is what the infrastructure routes use (`/library`, `/progress`,
+        `/theme.css`, `/static/...`): none of them owns any identity. Creating
+        a session there filled the server with phantom ones -- a stylesheet is
+        not a visitor.
         """
         sid = _parse_sid(cookie_header)
         if sid is None:
@@ -132,9 +133,10 @@ class SessionManager:
                 if sess is not None:
                     sess.last_seen = now
                     return sess, False
-            # Sem cookie, cookie invalido, ou sessao ja expirada: comeca uma
-            # nova. Um sid vindo do cliente nunca e' reaproveitado -- senao
-            # daria pra escolher o proprio id e cair na sessao de outro.
+            # No cookie, an invalid one, or a session already expired: start
+            # a new one. A sid coming from the client is never reused -- that
+            # would let someone choose their own id and land in another
+            # visitor's session.
             new_sid = secrets.token_urlsafe(18)
             sess = Session(
                 sid=new_sid,
@@ -143,12 +145,12 @@ class SessionManager:
                 last_seen=now,
             )
             self._sessions[new_sid] = sess
-            # O MOTIVO vai junto, e nao so o id. "sem cookie" e "cookie
-            # desconhecido" sao problemas diferentes: o primeiro e' o
-            # navegador que nao guardou (ou nao mandou) o `selsid`, o segundo
-            # e' o servidor que reiniciou ou varreu a sessao. Sem essa
-            # distincao o log so dizia que uma sessao nasceu, o que nao ajuda
-            # ninguem a entender por que o acervo do projeto esvaziou.
+            # The REASON travels with the id, not just the id. "no cookie"
+            # and "unknown cookie" are different problems: the first is a
+            # browser that did not keep (or did not send) the `selsid`, the
+            # second is a server that restarted or swept the session. Without
+            # that distinction the log only said a session was born, which
+            # helps nobody understand why the project's files emptied out.
             if sid is not None:
                 motivo = f"cookie desconhecido ({sid[:8]})"
             elif not cookie_header:
@@ -162,7 +164,7 @@ class SessionManager:
             return sess, True
 
     def state(self, sess: Session, key: str, factory: Callable[[], Any]) -> Any:
-        """Estado da ferramenta `key` nessa sessao, criado no primeiro acesso."""
+        """The state of tool `key` in this session, created on first access."""
         with sess.lock:
             st = sess.data.get(key)
             if st is None:
@@ -181,8 +183,9 @@ class SessionManager:
                 self._sessions.pop(s.sid, None)
         for s in expired:
             if self.on_expire is not None:
-                # Antes do rmtree: a sessao pode ter recursos vivos fora do
-                # diretorio dela (conexoes do GLV), e some sem soltar nada.
+                # Before the rmtree: a session may hold live resources
+                # outside its own directory (GLV connections), and would
+                # otherwise vanish without releasing any of them.
                 try:
                     self.on_expire(s)
                 except Exception as e:
@@ -210,15 +213,15 @@ class SessionManager:
         threading.Thread(target=loop, name="session-sweeper", daemon=True).start()
 
     def shutdown(self) -> None:
-        """Para o sweeper e apaga os diretorios de todas as sessoes vivas."""
+        """Stop the sweeper and delete the directories of every live session."""
         self._stop.set()
         with self._lock:
             sessions = list(self._sessions.values())
             self._sessions.clear()
         for s in sessions:
             self._discard_dir(s)
-        # Restos de execucoes anteriores (kill -9, queda de energia) tambem
-        # somem aqui, ja que nenhuma sessao sobrevive ao processo.
+        # Leftovers from earlier runs (kill -9, a power cut) go here too,
+        # since no session outlives the process.
         try:
             if self.root.is_dir() and not any(self.root.iterdir()):
                 self.root.rmdir()
@@ -226,9 +229,8 @@ class SessionManager:
             pass
 
     def purge_root(self) -> None:
-        """Limpa `cache/sessions/` inteiro. Chamado no boot: nenhum cookie
-        antigo continua valido depois de reiniciar, entao o que ficou no disco
-        e' lixo."""
+        """Wipe the whole sessions directory. Called at start-up: no old cookie
+        is still valid after a restart, so whatever is on disk is rubbish."""
         if not self.root.is_dir():
             return
         n = 0
@@ -275,20 +277,22 @@ def _parse_sid(cookie_header: str | None) -> str | None:
 # -----------------------------------------------------------------------------
 
 class SessionHandler(BaseHTTPRequestHandler):
-    """Base comum das ferramentas montadas: sessao, cookie e envio de resposta.
+    """The common base of the mounted tools: session, cookie and response.
 
-    O dispatcher resolve a sessao e deixa `self.session` / `self._set_cookie`
-    na instancia ANTES de trocar `self.__class__` pra ca, entao esses atributos
-    ja estao prontos quando `do_GET`/`do_POST` da ferramenta roda.
+    The dispatcher resolves the session and leaves `self.session` and
+    `self._set_cookie` on the instance BEFORE swapping `self.__class__` to
+    this one, so those attributes are already in place when the tool's
+    `do_GET`/`do_POST` runs.
     """
 
-    # Preenchidos na montagem (`mount.Mount`) e pelo dispatcher.
+    # Filled in at mount time (`mount.Mount`) and by the dispatcher.
     mount_prefix: str = ""
     session_key: str = ""
     session: Session | None = None
-    # Tema ativo do visitante (cookie `seltheme`), resolvido pelo dispatcher
-    # antes de trocar `self.__class__` pra ca. O literal aqui e' so o valor de
-    # partida do atributo de classe: quem responde de verdade e' o dispatcher.
+    # The visitor's active theme (the `seltheme` cookie), resolved by the
+    # dispatcher before it swaps `self.__class__` to this class. The literal
+    # here is only the class attribute's starting value; the dispatcher is what
+    # actually answers.
     theme: str = themes.DEFAULT_THEME
 
     def log_message(self, fmt, *args):
@@ -307,22 +311,22 @@ class SessionHandler(BaseHTTPRequestHandler):
         return self.session.subdir(f"{self.session_key}-{name}")
 
     def library_entry(self, ref: str, kind: str = ""):
-        """O arquivo do acervo do visitante que `ref` nomeia, ou None.
+        """The file in this visitor's library that `ref` names, or None.
 
-        `ref` pode ser o sha256 inteiro ou o sha CURTO -- as URLs das
-        ferramentas carregam o curto (`?rdb=0f5f8eff0d07`) e o acervo e'
-        indexado pelo inteiro. A varredura e' sobre os arquivos de UM
-        visitante, que sao uma dezena, nao um indice que valha manter.
+        `ref` may be the full sha256 or the SHORT one -- the tools' URLs carry
+        the short form (`?rdb=0f5f8eff0d07`) while the library is indexed by
+        the full one. The scan covers ONE visitor's files, a dozen of them,
+        which is not worth an index of its own.
 
-        Existe pra que escolher um arquivo deixe de ter duas etapas. Cada
-        ferramenta guarda os arquivos que ja "adotou" (`st.rdbs`), e as rotas
-        respondiam 404 pra qualquer chave que nao estivesse la -- mesmo com o
-        arquivo no acervo, na mesma sessao, atras do mesmo cookie. Era o
-        resto de quando cada ferramenta tinha o proprio upload: o
-        `/select-rdb` e' o rabo daquele handler. Com isto a adocao vira
-        cache, nao pre-requisito: a lista da tela e' a do PROJETO, clicar
-        numa linha ja mostra os IEDs, e um link com `?rdb=` continua valendo
-        depois que a ferramenta esqueceu.
+        It exists so that choosing a file stopped being a two-step affair.
+        Each tool used to keep the files it had "adopted" (`st.rdbs`), and its
+        routes answered 404 for any key not in there -- even with the file in
+        the library, in the same session, behind the same cookie. That was the
+        last stone of the era when every tool had its own upload:
+        `/select-rdb` is the tail of that handler. With this, adoption is a
+        cache rather than a prerequisite: the list on screen is the PROJECT's,
+        clicking a row goes straight to the IEDs, and a `?rdb=` link keeps
+        working after the tool has forgotten.
         """
         from pacct.web.project_files import library as filelib
 
@@ -344,14 +348,14 @@ class SessionHandler(BaseHTTPRequestHandler):
 
     def publish_output(self, path, origin: str, job=None,
                        logger=None) -> dict | None:
-        """Poe o arquivo que a ferramenta acabou de gerar no acervo do projeto.
+        """Put the file a tool has just produced into the project's library.
 
-        E' o outro lado do `/upload` de `/files/`: a saida de uma
-        ferramenta e' entrada da proxima, e ate aqui o unico caminho entre as
-        duas era baixar e subir de novo o mesmo arquivo de 140 MB. Devolve o
-        resumo pro JSON da resposta (`project_file`), ou None quando nao deu --
-        e nao dar nunca derruba a exportacao: o arquivo foi gerado do mesmo
-        jeito e o link de download da propria ferramenta continua valendo.
+        This is the other half of `/files/`'s `/upload`: one tool's output is
+        the next one's input, and until this existed the only path between
+        them was downloading and re-uploading the same 140 MB file. Returns the
+        summary for the response JSON (`project_file`), or None when it did not
+        work -- and failing here never breaks the export: the file was produced
+        all the same, and the tool's own download link still works.
         """
         from pacct.web.project_files import derived
 
@@ -371,8 +375,8 @@ class SessionHandler(BaseHTTPRequestHandler):
     # -- resposta -----------------------------------------------------------
 
     def end_headers(self):
-        # O cookie so vai na primeira resposta da sessao; nas seguintes o
-        # cliente ja manda o dele de volta.
+        # The cookie goes out only on the session's first response; after
+        # that the client sends its own back.
         cookie = getattr(self, "_set_cookie", None)
         if cookie:
             self.send_header("Set-Cookie", cookie)
@@ -380,10 +384,10 @@ class SessionHandler(BaseHTTPRequestHandler):
         super().end_headers()
 
     def job(self) -> JobReporter:
-        """Reporter do job que o cliente abriu pra esta requisicao.
+        """The reporter for the job the client opened for this request.
 
-        Vira no-op quando nao veio `X-Job-Id` (chamada sem a barra de
-        progresso), entao o handler nao precisa checar nada.
+        Becomes a no-op when no `X-Job-Id` arrived (a call made without the
+        progress bar), so a handler never has to check.
         """
         return JobReporter(self.headers.get("X-Job-Id"))
 
@@ -404,13 +408,13 @@ class SessionHandler(BaseHTTPRequestHandler):
         self._send(code, json.dumps(payload), "application/json")
 
     def _read_json_body(self, max_bytes: int = MAX_JSON_BODY) -> dict:
-        """Corpo JSON da requisicao como dict. Sempre um dict: corpo vazio,
-        JSON invalido ou JSON que nao e' objeto (uma lista, um numero) viram
-        `{}`, entao quem chama nunca leva AttributeError de um `.get()`.
+        """The request's JSON body as a dict -- always a dict. An empty body,
+        invalid JSON, or JSON that is not an object (a list, a number) all
+        become `{}`, so a caller never takes an AttributeError off a `.get()`.
 
-        Um corpo maior que `max_bytes` tambem vira `{}`, e nao e' lido: o
-        `Content-Length` vem do cliente, e sem teto ele escolhe quanta memoria
-        o servidor aloca."""
+        A body larger than `max_bytes` also becomes `{}`, and is not read: the
+        `Content-Length` comes from the client, and without a ceiling the
+        client chooses how much memory the server allocates."""
         try:
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:

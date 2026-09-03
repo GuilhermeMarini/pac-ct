@@ -1,19 +1,21 @@
-"""Os tres vocabularios de token, um por direcao.
+"""The three token vocabularies, one per direction.
 
-Os NOMES vivem aqui e so aqui; `_TOKENS` carrega valores, nao nomes. Antes
-disto a mesma paleta estava copiada em seis arquivos e ja tinha derivado.
+The NAMES live here and only here; `_TOKENS` carries values, not names. Before
+this the same palette was copied across six files, and the copies had drifted.
 
-Quem pinta com estes tokens sao `shell.py` (o que as tres direcoes fazem igual)
-e o `DELTA_CSS` de cada direcao (`folha.py`, `regua.py`, `caderno.py`).
+What paints with these tokens is `shell.py` (everything the three directions
+do identically) and each direction's own `DELTA_CSS` (`folha.py`, `regua.py`,
+`caderno.py`).
 """
 
 from __future__ import annotations
 
-# O tema de quem ainda nao escolheu (sem cookie `seltheme` e sem [web] theme
-# no config.ini). "caderno" = Caderno de Campo.
+# The theme for someone who has not chosen (no `seltheme` cookie and no
+# [web] theme in config.ini). "caderno" is Caderno de Campo.
 DEFAULT_THEME = "caderno"
 
-# slug -> nome de tela (portugues, acentuado -- e' o que aparece no seletor)
+# slug -> display name. Portuguese and accented: this is what the picker
+# shows, and the people using it read Portuguese.
 THEMES: dict[str, str] = {
     "folha": "Folha de Dados",
     "regua": "Régua de Bornes",
@@ -89,7 +91,7 @@ _TOKENS: dict[str, dict[str, str]] = {
         "tint-vb": "rgba(107,63,160,.07)",
         "tint-err": "rgba(179,38,30,.07)",
         "tint-missing": "rgba(118,123,131,.08)",
-        # Selecao e linha de campo: nao sao veredito, sao estado de interface.
+        # Selection and field rules: not a verdict, just interface state.
         "tint-sel": "rgba(43,74,111,.09)",
         "tint-field": "rgba(0,0,0,.02)",
 
@@ -358,9 +360,9 @@ _TOKEN_CSS = """\
 """
 
 
-# Os tres temas preenchem exatamente o mesmo vocabulario. A checagem e' no
-# import de proposito: um nome faltando tem que quebrar no boot, nao numa tela
-# especifica que ninguem abriu ainda.
+# All three themes fill exactly the same vocabulary. The check runs at import
+# on purpose: a missing name has to break at start-up, not on some particular
+# screen nobody has opened yet.
 _NAMES = set(_TOKENS[DEFAULT_THEME])
 for _slug, _vals in _TOKENS.items():
     _missing = _NAMES - set(_vals)
@@ -371,10 +373,10 @@ for _slug, _vals in _TOKENS.items():
             f"falta {sorted(_missing)}, sobra {sorted(_extra)}")
 
 def token_css(theme: str) -> str:
-    """O bloco de tokens de um tema.
+    """One theme's token block.
 
-    Sai tambem em `:root` puro, sem seletor de tema: o `data-theme` no `<html>`
-    e' escrito pelo dispatcher, e uma pagina servida antes dele (ou salva) tem
-    que abrir com a paleta certa mesmo assim.
+    Also emitted on a bare `:root`, with no theme selector: `data-theme` on
+    `<html>` is written by the dispatcher, and a page served before it (or
+    saved to disk) still has to open with the right palette.
     """
     return f":root,\n:root[data-theme={theme}] {{\n{_TOKEN_CSS % _TOKENS[theme]}}}\n"

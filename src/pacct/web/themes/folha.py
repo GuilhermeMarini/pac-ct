@@ -1,12 +1,12 @@
-"""Folha de Dados -- o manual do relé como linguagem.
+"""Folha de Dados -- the relay manual, as a language.
 
-Papel claro, filete de 1 px, canto vivo, densidade alta e uma coluna de margem
-com notas numeradas. A assinatura da direcao e' o **sumario numerado** (`.toc`)
-e a **tabela de referencia**: no menu, cada ferramenta e' uma linha com Ref.,
-Funcao, Entrada e Estado -- nao uma ficha.
+Pale paper, a 1 px rule, sharp corners, high density and a margin column of
+numbered notes. The direction's signature is the **numbered contents** (`.toc`)
+and the **reference table**: in the menu each tool is a row with Ref., Function,
+Input and Status -- not a card.
 
-Referencia: `mockups/06-folha/`. As regras de `.toc` sao as do `theme.css` de
-la, com os valores trocados por token.
+Reference: `mockups/06-folha/`. The `.toc` rules are that mockup's own
+`theme.css`, with its values swapped for tokens.
 """
 
 from __future__ import annotations
@@ -62,14 +62,14 @@ DELTA_CSS = r"""
 
 
 def nav(active: str = "") -> str:
-    """O sumario: Menu, os arquivos do projeto e as nove ferramentas.
+    """The contents: Menu, the project files, and the nine tools.
 
-    Um sumario de folha de dados lista os TITULOS DE SECAO, entao o nome do
-    grupo entra antes de cada corrida. O rotulo da ferramenta e' texto solto
-    dentro do `<a>`, sem `<span class=lbl>`: a folha nao tem subtitulo.
+    A data sheet's contents lists SECTION TITLES, so the group name comes
+    before each run. The tool's label is bare text inside the `<a>`, with no
+    `<span class=lbl>`: Folha has no subtitle.
 
-    Os arquivos levam "A" e nao um numero: as ferramentas seguem numeradas de
-    1 a 9 e a home as conta por essa mesma ordem.
+    The files carry "A" rather than a number: the tools stay numbered 1 to 9,
+    and the home counts them in that same order.
     """
     out = ['<nav class="toc" aria-label="Ferramentas">']
     key, href, name, _short, _hint = MENU_ITEM
@@ -98,11 +98,11 @@ def _link(on: bool, href: str | None, n: int | str, label: str) -> str:
 
 
 def home() -> str:
-    """O menu como tabela de referencia, uma secao numerada por grupo.
+    """The menu as a reference table, one numbered section per group.
 
-    A coluna Ref. vira `<secao>.<linha>` -- e' como uma folha de dados numera
-    de verdade. O ordinal global (1..9) continua sendo o que a régua e o
-    caderno imprimem; o dado oferece os dois e cada direcao escolhe.
+    The Ref. column becomes `<section>.<row>`, which is how a real data sheet
+    numbers. The global ordinal (1..9) is still what Régua and Caderno print;
+    the data offers both and each direction chooses.
     """
     sections = []
     for i, g in enumerate(GROUPS, start=1):
