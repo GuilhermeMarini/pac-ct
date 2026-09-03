@@ -1,0 +1,68 @@
+__pycache__/
+*.pyc
+.venv/
+selprotopy_example.log
+
+# Configuracao local: e' aqui que se digitam as senhas ACC/2AC reais do rele.
+# O que vai pro git e' o modelo, config/config.ini.example -- a app copia o
+# modelo pra ca sozinha na primeira execucao.
+config/config.ini
+
+# Cache local (descoberta TARGET, dumps de diagnostico, anotacoes do dashboard)
+cache/*
+!cache/.gitkeep
+
+# RDBs e extracoes geradas pela landing page (binarios pesados, gerados localmente)
+rdbs/
+
+# Extracoes de RDBs de amostra (regerados do .rdb pelo rdb_loader)
+samples/extracted/
+
+# RDBs de amostra grandes demais para o GitHub (teto de 100 MB). O nome do
+# arquivo nao entra aqui: nome de RDB e' nome de subestacao, e um .gitignore
+# e' tao publico quanto o resto do repositorio.
+samples/*.rdb
+!samples/substation_demo.rdb
+
+# Windows alternate-data-stream metadata (created when files cross from Windows)
+*:Zone.Identifier
+
+# Backup do venv anterior (Python 3.12), gerado localmente
+.venv-py312-backup/
+
+# Scratch do Playwright MCP (snapshots de pagina, logs de console, screenshots)
+.playwright-mcp/
+
+# Cache do pytest (gerado localmente a cada rodada da suite)
+.pytest_cache/
+
+# Arquivos SCL/ICD dos IEDs (fornecidos pelo fabricante, pesados, nao redistribuiveis)
+*.icd
+*.ICD
+*.cid
+*.CID
+*.scd
+*.SCD
+*.iid
+*.IID
+*.sed
+*.SED
+fixtures/ICD files/
+# Perfis DNP3 do fabricante: 4,7 MB de .zip que ficam locais, mesma
+# regra dos ICD acima.
+fixtures/DNP Profiles/
+# Capturas de tela soltas na raiz -- rascunho, nao documentacao.
+/*.png
+
+# Fixtures pequenas, versionadas de proposito -- a regra acima e' pros arquivos do fabricante
+!tests/fixtures/*.scd
+# `samples/substation_demo.scd` e' um SCD anonimizado, versionado de proposito:
+# e' o unico SCD que os testes (e as medicoes do mapa MMS) tem sempre em maos.
+# Sem esta negacao o `*.scd` acima escondia um arquivo JA RASTREADO, e um
+# `git add -A` depois de edita-lo nao levava a mudanca junto.
+!samples/*.scd
+
+# Bundles gerados (Fase 5). O manifesto e' versionado; os .zip nao.
+dist/*
+!dist/manifest.json
+!dist/.gitkeep
