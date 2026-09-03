@@ -35,7 +35,7 @@ import logging
 import re
 from dataclasses import dataclass
 
-from pacct.parsers.gle import element_info, is_const_symbol_name
+from selfiles.gle import element_info, is_const_symbol_name
 
 _logger = logging.getLogger(__name__)
 

@@ -8,7 +8,7 @@ that, and this module owns both:
    ``write_stream`` each one. Everything outside the touched streams stays
    byte-identical.
 2. Anything changed size. Rebuild the whole container through
-   ``pacct.parsers.ole_rebuild``, which reopens its own output and compares
+   ``cfbwrite``, which reopens its own output and compares
    every stream against the source before handing it over.
 
 There is deliberately no third path that pads a settings file until it fits.
@@ -34,9 +34,8 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import cfbwrite
 import olefile
-
-from pacct.parsers import ole_rebuild
 
 _logger = logging.getLogger(__name__)
 
@@ -124,11 +123,11 @@ def write_streams(src: Path, dst: Path,
             return "in-place"
         if job:
             job.stage("Reconstruindo o RDB", 40)
-        ole_rebuild.rebuild(src, dst, dict(streams))
+        cfbwrite.rebuild(src, dst, dict(streams))
         return "rebuild"
     except RdbWriteError:
         raise
-    except ole_rebuild.OleRebuildError as e:
+    except cfbwrite.CfbWriteError as e:
         raise RdbWriteError(str(e)) from e
     except Exception as e:                       # olefile, disk full, etc.
         _logger.exception("[rdb_write] falha ao gravar %s", dst)
@@ -162,7 +161,7 @@ def _write_in_place(src: Path, dst: Path,
                     streams: dict[StreamPath, bytes], job=None) -> None:
     """Copy ``src`` and ``write_stream`` each replacement, atomically onto ``dst``.
 
-    Mirrors the idiom ``ole_rebuild.rebuild`` already uses: the result is built
+    Mirrors the idiom ``cfbwrite.rebuild`` already uses: the result is built
     in a temp file beside ``dst``, and only ``os.replace`` puts it at the final
     name, after every stream has been written. ``dst`` itself is never opened,
     let alone modified, before that last step.

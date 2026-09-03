@@ -30,9 +30,9 @@ import json
 import re
 from pathlib import Path
 
-from pacct.core.mms_tables import norm_part  # noqa: F401  (re-exportado)
-from pacct.parsers.scd import load_scd as _ied_infos
-from pacct.parsers.scd import sel_short_addresses
+from selfiles.scl.mms_tables import norm_part  # noqa: F401  (re-exportado)
+from selfiles.scl.read import load_scd as _ied_infos
+from selfiles.scl.read import sel_short_addresses
 
 
 def load_scd(path: Path) -> dict:

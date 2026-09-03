@@ -2,22 +2,22 @@
 
 from __future__ import annotations
 
+import cfbwrite as cfb
 import olefile
 
-from pacct.parsers import ole_rebuild as ore
 from pacct.web.dnp_map import export as exp
-from tests.test_set_dnp import SAMPLE_411L
+from tests.dnp_fixtures import SAMPLE_411L
 
 
 def _make_rdb(tmp_path):
     """A fake RDB with one relay and two sessions, plus its extraction."""
     rdb = tmp_path / "obra.rdb"
-    ore.write_ole(rdb, [
-        ore.Entry(name="Relays", is_storage=True, size=0, read=None, children=[
-            ore.Entry(name="R1", is_storage=True, size=0, read=None, children=[
-                ore.Entry(name="SET_D1.TXT", is_storage=False,
+    cfb.write_ole(rdb, [
+        cfb.Entry(name="Relays", is_storage=True, size=0, read=None, children=[
+            cfb.Entry(name="R1", is_storage=True, size=0, read=None, children=[
+                cfb.Entry(name="SET_D1.TXT", is_storage=False,
                           size=len(SAMPLE_411L), read=lambda: SAMPLE_411L),
-                ore.Entry(name="SET_D2.TXT", is_storage=False,
+                cfb.Entry(name="SET_D2.TXT", is_storage=False,
                           size=len(SAMPLE_411L), read=lambda: SAMPLE_411L),
             ]),
         ]),
@@ -185,11 +185,11 @@ def test_export_txt_sanitizes_a_crafted_ole_storage_name(tmp_path):
     """
     crafted_relay = "R1\r\nX-Evil: injected"
     rdb = tmp_path / "obra.rdb"
-    ore.write_ole(rdb, [
-        ore.Entry(name="Relays", is_storage=True, size=0, read=None, children=[
-            ore.Entry(name=crafted_relay, is_storage=True, size=0, read=None,
+    cfb.write_ole(rdb, [
+        cfb.Entry(name="Relays", is_storage=True, size=0, read=None, children=[
+            cfb.Entry(name=crafted_relay, is_storage=True, size=0, read=None,
                       children=[
-                          ore.Entry(name="SET_D1.TXT", is_storage=False,
+                          cfb.Entry(name="SET_D1.TXT", is_storage=False,
                                     size=len(SAMPLE_411L),
                                     read=lambda: SAMPLE_411L),
                       ]),

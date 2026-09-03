@@ -32,8 +32,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
-from pacct.parsers import scd as scd_loader
-from pacct.parsers.scd import GooseSubscription, GseAddress, IedInfo
+from selfiles.scl import read as scd_loader
+from selfiles.scl.read import GooseSubscription, GseAddress, IedInfo
+
 from pacct.paths import VLAN_MAPPER_TEMPLATES_DIR
 from pacct.web.project_files import library as filelib
 from pacct.web.session import SessionHandler

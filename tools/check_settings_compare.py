@@ -26,8 +26,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from pacct.core.logic_compare import compare
-from pacct.parsers.sel_settings import parse_settings_file
+from selfiles.selogic.compare import compare
+from selfiles.settings import parse_settings_file
+
 from pacct.paths import RDB_CACHE_DIR, RDBS_DIR
 
 # Coloque cada caso como (a, b, kind, dialect, expected_verdict, label).

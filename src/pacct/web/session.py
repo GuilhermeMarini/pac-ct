@@ -19,7 +19,7 @@ serve de dentro dele, entao um visitante nunca baixa o arquivo gerado por
 outro, e a limpeza na expiracao e' um `rmtree` -- sem contar referencias.
 
 Os RDB sao a excecao, e de proposito: eles vao pro cache por conteudo
-(`cache/rdb/<sha256>/`, ver `pacct.parsers.rdb_cache`), que e' compartilhado
+(`cache/rdb/<sha256>/`, ver `selfiles.rdb_cache`), que e' compartilhado
 e read-only pras ferramentas. Dois arquivos iguais sao o mesmo arquivo, entao
 guardar uma copia de 40-140 MB por sessao so gastava disco e tempo de
 extracao.

@@ -18,9 +18,9 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from olefile.olefile import OleFileError
+from selfiles import rdb as rdb_loader
+from selfiles.scl import read as scd_loader
 
-from pacct.parsers import rdb as rdb_loader
-from pacct.parsers import scd as scd_loader
 from pacct.web.project_files import library, load_template
 from pacct.web.session import SessionHandler
 

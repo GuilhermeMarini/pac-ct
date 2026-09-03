@@ -21,8 +21,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from urllib.parse import parse_qs, quote, urlparse
 
-from pacct.core import relay_models
-from pacct.parsers.rdb import find_gle, relays_to_dict
+from selfiles.models import relay_models
+from selfiles.rdb import find_gle, relays_to_dict
+
 from pacct.paths import resolve_gle_path
 from pacct.web.glv import load_template
 from pacct.web.glv.diagram import build_diagram

@@ -1,6 +1,17 @@
 pyserial>=3.5
 telnetlib3>=4.0.2
 olefile>=0.47
+# Escrita de Compound File (MS-CFB v3): o `olefile` LE bem e so' troca um
+# stream por outro do mesmo tamanho, entao qualquer edicao que cresca precisa
+# do container reconstruido. Saiu deste projeto (era `pacct/parsers/
+# ole_rebuild.py`) e virou biblioteca propria porque nao tem nada de SEL
+# dentro: https://github.com/GuilhermeMarini/cfbwrite
+cfbwrite>=1.0
+# Os formatos de arquivo de um projeto SEL: RDB, SET_*.TXT, mapa DNP, GLE,
+# SELOGIC, SCL/IEC 61850, e os registros por modelo. Era pacct/parsers/,
+# pacct/core/ e pacct/matchers/ -- a camada que ja nao sabia que a web
+# existia: https://github.com/GuilhermeMarini/selfiles
+selfiles>=1.0
 openpyxl>=3.1
 # py61850 (transporte MMS do GLV). Ate' 2026-08-31 isto era um pin de commit
 # (`py61850 @ git+https://...@<sha>`), porque o PyPI so' tinha a 0.0.1 e o

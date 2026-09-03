@@ -5,7 +5,7 @@ sob o IED correspondente).
 
 Fluxo:
   1. Usuario faz upload de um RDB e de um SCD.
-  2. App faz cross-match RDB <-> SCD usando `pacct.matchers.relay_scd`.
+  2. App faz cross-match RDB <-> SCD usando `selfiles.match`.
   3. Pra cada par casado, mostra um seletor de GLE + botao "Verify GLE comments".
   4. Clicar no botao abre uma pagina dedicada com a tabela de comparacao
      (VBxxx | comment do GLE | desc do SCD); celulas vazias mostram
@@ -25,11 +25,12 @@ from html import escape
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from pacct.matchers import relay_scd as matcher
-from pacct.parsers import rdb as rdb_loader
-from pacct.parsers import scd as scd_loader
-from pacct.parsers.gle import parse_gle
-from pacct.parsers.rdb import RdbInfo
+from selfiles import match as matcher
+from selfiles import rdb as rdb_loader
+from selfiles.gle import parse_gle
+from selfiles.rdb import RdbInfo
+from selfiles.scl import read as scd_loader
+
 from pacct.paths import VB_UPDATER_TEMPLATES_DIR, is_within
 from pacct.web import rdb_write
 from pacct.web.project_files import library as filelib

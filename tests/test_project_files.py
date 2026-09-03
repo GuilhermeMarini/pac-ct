@@ -220,8 +220,7 @@ def test_a_non_ole_file_is_a_client_error_not_a_server_error():
     mistake -- a corrupt or wrong file -- into an HTTP 500."""
     import pytest
     from olefile.olefile import OleFileError
-
-    from pacct.parsers import rdb as rdb_loader
+    from selfiles import rdb as rdb_loader
 
     with pytest.raises(OleFileError):
         rdb_loader.process_upload(b"nao sou um OLE2" * 100, "lixo.rdb")
@@ -369,7 +368,7 @@ def test_the_payload_says_whether_a_file_was_generated():
 def test_the_download_source_follows_the_kind(tmp_path):
     """An SCD lives in the session's files/; an RDB lives in the shared
     content cache and has no session path at all."""
-    from pacct.parsers.rdb import RdbInfo
+    from selfiles.rdb import RdbInfo
 
     scd = tmp_path / "abc.scd"
     e = _entry("a" * 64, kind=library.KIND_SCD, name="sub.scd", path=scd)
@@ -467,19 +466,20 @@ def _minimal_rdb(tmp_path) -> bytes:
     count -- see the gotcha in docs/ENGINEERING-NOTES.md. The label changed; the population
     it counts did not.
     """
-    from pacct.parsers import ole_rebuild as ore
+    import cfbwrite as cfb
+
     from tests import gle_fixtures as fx
 
     def stream(name, data):
-        return ore.Entry(name=name, is_storage=False, size=len(data),
+        return cfb.Entry(name=name, is_storage=False, size=len(data),
                          read=lambda d=data: d, children=[])
 
     def storage(name, children):
-        return ore.Entry(name=name, is_storage=True, size=0, read=None,
+        return cfb.Entry(name=name, is_storage=True, size=0, read=None,
                          children=list(children))
 
     path = tmp_path / "SE_TESTE.rdb"
-    ore.write_ole(path, [
+    cfb.write_ole(path, [
         storage("Relays", [
             storage("QPC1_LT1_UPC1", [
                 storage("Misc", [stream("GL1.gle", fx.SAMPLE_GLE)]),

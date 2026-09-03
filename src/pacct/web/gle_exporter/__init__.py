@@ -30,9 +30,10 @@ from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
-from pacct.parsers import rdb as rdb_loader
-from pacct.parsers.gle import parse_gle
-from pacct.parsers.rdb import RdbInfo
+from selfiles import rdb as rdb_loader
+from selfiles.gle import parse_gle
+from selfiles.rdb import RdbInfo
+
 from pacct.paths import GLE_EXPORTER_TEMPLATES_DIR, is_within
 from pacct.web import rdb_write
 from pacct.web.project_files import library as filelib
@@ -521,7 +522,7 @@ def apply_xlsx_updates_to_rdb(
     Retorna {ok, output_path, results, succeeded, failed, totals, method}.
     Com `ok: False`, NENHUM arquivo foi escrito e `output_path` nao existe.
     """
-    from pacct.core import relay_models as _rm
+    from selfiles.models import relay_models as _rm
 
     # Cache do RelayModel por nome (resolve so uma vez por relay).
     model_cache: dict[str, object] = {}
@@ -787,7 +788,7 @@ def build_gle_exporter_handler(logger: logging.Logger, sessions) -> type:
                 if rdb is None:
                     self._send_json(409, {"error": "RDB nao carregado"})
                     return
-                from pacct.core import relay_models as _rm
+                from selfiles.models import relay_models as _rm
                 model_cache: dict[str, object] = {}
                 def _model_for(relay_name: str):
                     if relay_name in model_cache:

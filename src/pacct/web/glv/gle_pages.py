@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from pacct.parsers.gle import element_info, is_const_symbol_name
+from selfiles.gle import element_info, is_const_symbol_name
 
 
 def list_pages(gle_root) -> list[tuple[str, str]]:

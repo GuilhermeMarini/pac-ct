@@ -11,18 +11,18 @@ Two halves:
 
 Everything runs against a synthetic Compound File built here, not against
 `samples/*.rdb`: a 42 MB fixture makes a failing assertion unreadable and the
-suite slow, and `ole_rebuild.write_ole` already produces containers `olefile`
-accepts (see `test_ole_rebuild.py`).
+suite slow, and `cfbwrite.write_ole` already produces containers `olefile`
+accepts (see `cfbwrite's own test suite`).
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
+import cfbwrite as cfb
 import olefile
 import pytest
 
-from pacct.parsers import ole_rebuild as ore
 from pacct.web import rdb_write
 from tests import gle_fixtures as fx
 
@@ -38,13 +38,13 @@ SECOND_GLE = fx.gle(fx.symbol_element("100", "VB900", out_comment="OUTRA PAGINA"
 SETTINGS = b'[1]\r\nRID,"QPC1 LT1 UPC1"\x1c\r\nTID,"SE TESTE"\x1c\r\n'
 
 
-def _stream(name: str, data: bytes) -> ore.Entry:
-    return ore.Entry(name=name, is_storage=False, size=len(data),
+def _stream(name: str, data: bytes) -> cfb.Entry:
+    return cfb.Entry(name=name, is_storage=False, size=len(data),
                      read=lambda d=data: d, children=[])
 
 
-def _storage(name: str, children) -> ore.Entry:
-    return ore.Entry(name=name, is_storage=True, size=0, read=None,
+def _storage(name: str, children) -> cfb.Entry:
+    return cfb.Entry(name=name, is_storage=True, size=0, read=None,
                      children=list(children))
 
 
@@ -52,7 +52,7 @@ def _storage(name: str, children) -> ore.Entry:
 def rdb(tmp_path: Path) -> Path:
     """A minimal RDB: one relay, two GLE pages and a settings file."""
     path = tmp_path / "SE_TESTE.rdb"
-    ore.write_ole(path, [
+    cfb.write_ole(path, [
         _storage("Relays", [
             _storage(RELAY, [
                 _stream("SET_1.TXT", SETTINGS),
@@ -202,7 +202,7 @@ class TestWriteStreams:
 
     def test_refuses_to_write_onto_the_source(self, rdb):
         """Rebuilding a file onto itself would read from what it is
-        overwriting. `ole_rebuild` already refuses; this checks the refusal
+        overwriting. `cfbwrite` already refuses; this checks the refusal
         survives the wrapper."""
         longer = _read(rdb, GLE_PARTS).replace(b"FALHA", b"FALHA LONGA")
         with pytest.raises(rdb_write.RdbWriteError):
@@ -289,7 +289,7 @@ class TestApplyXlsxUpdatesToRdb:
 
     @pytest.fixture
     def project(self, rdb, tmp_path):
-        from pacct.parsers.rdb import GleEntry, RdbInfo, RelayEntry
+        from selfiles.rdb import GleEntry, RdbInfo, RelayEntry
 
         extract = tmp_path / "extracted"
         misc = extract / "Relays" / RELAY / "Misc"

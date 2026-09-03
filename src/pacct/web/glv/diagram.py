@@ -15,7 +15,8 @@ from __future__ import annotations
 import re
 import threading
 
-from pacct.parsers.gle import parse_gle, render_page
+from selfiles.gle import parse_gle, render_page
+
 from pacct.web.glv.connectors import extract as extract_connectors
 from pacct.web.glv.connectors import nets_on_page as connectors_on_page
 from pacct.web.glv.gle_pages import (

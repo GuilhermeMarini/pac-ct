@@ -15,7 +15,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from pacct.parsers.rdb import RdbInfo, short_sha
+from selfiles.rdb import RdbInfo, short_sha
 
 # The key the library lives under in `Session.data`. It is deliberately the
 # SAME for every tool: that is what makes the library one library.

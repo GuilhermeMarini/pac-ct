@@ -14,10 +14,13 @@ import logging
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from pacct.core import wordbits
-from pacct.parsers import dnp_profile, set_dnp
-from pacct.parsers.rdb import short_sha as _short_sha
-from pacct.paths import WORDBITS_DIR, is_within
+import selfiles
+from selfiles import dnp_map as set_dnp
+from selfiles import dnp_profile
+from selfiles.models import wordbits
+from selfiles.rdb import short_sha as _short_sha
+
+from pacct.paths import is_within
 from pacct.web.dnp_map import export as exporter
 from pacct.web.dnp_map import load_template, model
 from pacct.web.project_files import library as filelib
@@ -100,7 +103,7 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
             that on every keystroke just to resolve one relay's sessions.
             Caching it for the session's lifetime is sound because `key`
             names a sha256-addressed extraction directory
-            (`cache/rdb/<sha256>/`, see `pacct.parsers.rdb`): the files
+            (`cache/rdb/<sha256>/`, see `selfiles.rdb`): the files
             under it cannot change while this key is in use -- any change in
             content would produce a different sha256 and therefore a
             different key. See `DnpMapState.relay_cache` for the same note.
@@ -360,7 +363,9 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
                     "ok": False,
                     "error": "O perfil não identifica um modelo de relé."})
                 return
-            dest = WORDBITS_DIR / f"SEL-{base}.json"
+            # The library owns the registry; the host owns the overlay it
+            # writes into, and `writable_data_dir` is where the two meet.
+            dest = selfiles.writable_data_dir("wordbits") / f"SEL-{base}.json"
             existing = {}
             if dest.is_file():
                 try:
@@ -370,7 +375,6 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
             entry = wordbits.entry_from_profiles([prof], existing,
                                                  merge_kinds=True)
             try:
-                WORDBITS_DIR.mkdir(parents=True, exist_ok=True)
                 dest.write_text(
                     json.dumps(entry, indent=2, ensure_ascii=False) + "\n",
                     encoding="utf-8")

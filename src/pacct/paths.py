@@ -31,8 +31,13 @@ def _find_project_root() -> Path:
     env = os.environ.get("PACCT_ROOT")
     if env:
         return Path(env).expanduser().resolve()
+    # O marcador e' `config/config.ini.example` mais o `app.py`: os dois
+    # existem em toda instalacao e em todo clone. NAO e' mais `data/` -- os
+    # registros por modelo mudaram de dono para a biblioteca `selfiles`, e a
+    # pasta que sobrou aqui e' um overlay que comeca inexistente.
     for parent in PACKAGE_DIR.parents:
-        if (parent / "data").is_dir() and (parent / "config").is_dir():
+        if (parent / "config" / "config.ini.example").is_file() \
+                and (parent / "app.py").is_file():
             return parent
     return PACKAGE_DIR.parent
 
@@ -54,18 +59,20 @@ CONFIG_DIR: Path = DATA_ROOT / "config"
 DEFAULT_CONFIG_FILE: Path = CONFIG_DIR / "config.ini"
 EXAMPLE_CONFIG_FILE: Path = CONFIG_DIR / "config.ini.example"
 
-# Dados estaticos versionados (definicoes de modelo de rele em JSON, etc.)
-DATA_DIR: Path = PROJECT_ROOT / "data"
+# OVERLAY de dados por modelo. Os registros (perfis de rele, nomes validos da
+# Relay Word, tabelas bit -> item MMS) sao da BIBLIOTECA `selfiles` e viajam
+# dentro dela: sao conhecimento sobre reles, nao configuracao desta app. O que
+# mora aqui e' o que o USUARIO acrescentou em tempo de execucao -- o "Importar
+# perfil DNP" do editor de mapa grava um `wordbits/<MODELO>.json` aqui --, e o
+# overlay e' procurado ANTES do que vem empacotado, por modelo. Comeca
+# inexistente numa instalacao nova, e isso e' o estado normal.
+#
+# Fica sob DATA_ROOT (e nao sob a raiz do projeto) porque e' dado do
+# engenheiro: uma atualizacao troca a versao instalada e nao pode levar junto
+# o perfil que ele importou.
+DATA_DIR: Path = DATA_ROOT / "data"
 RELAY_MODELS_DIR: Path = DATA_DIR / "relay_models"
-
-# Lists of valid word bits per relay model, used by the DNP map editor to
-# warn (never block) about a name the relay does not know.
 WORDBITS_DIR: Path = DATA_DIR / "wordbits"
-
-# Mapa bit da Relay Word -> item MMS, derivado dos ICD de fabrica. E' o
-# FALLBACK do modo MMS do GLV: o SCD do projeto vem primeiro, porque e' o
-# como-construido. Terceiro registro por modelo -- ver a nota sobre deriva em
-# docs/ENGINEERING-NOTES.md e o teste que a guarda.
 MMS_MAP_DIR: Path = DATA_DIR / "mms_map"
 
 # Estaticos servidos pelo dispatcher web em /static/ (fontes .woff2 embarcadas,

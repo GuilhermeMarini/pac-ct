@@ -7,7 +7,7 @@ Two paths, chosen by one blunt rule -- exact size or rebuild:
    outside the streams we touched. Pure rearrangement inside a block always
    lands here, since moving values conserves the byte multiset.
 2. Anything changed size. Rebuild the whole container via
-   ``pacct.parsers.ole_rebuild``, which verifies its own output.
+   ``cfbwrite``, which verifies its own output.
 
 Both live in ``pacct.web.rdb_write`` now -- the VB Updater and the GLE
 Exporter write RDBs too, and there must be exactly one answer to "how".
@@ -23,8 +23,9 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from pacct.parsers import set_dnp
-from pacct.parsers.rdb import sanitize_name
+from selfiles import dnp_map as set_dnp
+from selfiles.rdb import sanitize_name
+
 from pacct.web import rdb_write
 from pacct.web.dnp_map.model import apply_edits
 

@@ -69,7 +69,6 @@ pac-ct/
 |   |   +-- rdb.py                (OLE extractor for the RDB + cache by content)
 |   |   +-- scd.py                (IEC 61850: IEDs, GSE, GOOSE subscriptions)
 |   |   +-- set_dnp.py            (SET_D; contract: parse(b).serialize() == b)
-|   |   +-- ole_rebuild.py        (rebuilds the Compound File; verifies its own output)
 |   +-- matchers/relay_scd.py     (RDB <-> SCD cross-match by IP / RID)
 |   +-- cli/runner.py             (CLI mode: polling in the terminal)
 |   +-- web/
@@ -192,7 +191,7 @@ library.
   per port of each `SYMBOL`/`PLT`/`ALT`/`PCNDTIMER`/`PCN`/`AST`/`PSV`/`LATCH`/
   `TIMER`/`COUNTER`. Edit the `Comment` column and re-import. **A comment longer
   than the original works**: when the stream changes size the whole RDB is
-  rebuilt (`pacct/parsers/ole_rebuild.py`), which verifies its own output before
+  rebuilt (by `cfbwrite`, a separate library), which verifies its own output before
   handing it over. The rebuilt file comes out much smaller than the original --
   that is expected, QuickSet never compacts.
 
@@ -217,11 +216,11 @@ python3 app.py --no-venv              # without a virtualenv (--break-system-pac
 With the cwd at the project's root directory:
 
 ```python
-from pacct.parsers.rdb import process_upload
-from pacct.parsers.scd import (
+from selfiles.rdb import process_upload
+from selfiles.scl.read import (
     load_scd, extract_gse_communication_map, extract_goose_subscriptions_by_ied,
 )
-from pacct.matchers.relay_scd import compare_rdb_to_scd
+from selfiles.match import compare_rdb_to_scd
 from pacct.core import relay_models
 from pacct.web.vb_updater import (
     extract_vb_instances_from_gle, extract_vb_descriptions_from_scd_ied,
@@ -336,7 +335,7 @@ files (`SEL-411L.json`, `SEL-487E.json`, `SEL-751.json`). The JSON declares:
 - `analog_symbols` / `analog_name_aliases` -- families of analog channels
   (AMV, MV, MAG, ...) and GLE -> Fast Meter aliasing rules (e.g. IAS -> IA1)
 
-The loader in `pacct/core/relay_models.py` discovers the JSON automatically.
+The loader in `selfiles.models.relay_models` discovers the JSON automatically.
 
 ## Known limitations
 
@@ -358,7 +357,7 @@ The loader in `pacct/core/relay_models.py` discovers the JSON automatically.
 - **It is still to be confirmed with AcSELerator QuickSet** that it accepts an
   RDB rebuilt by the Exportador de Comentários GLE and by the VB Updater when
   the new comment changes the stream's size. The Editor de Mapa DNP has used the
-  same `ole_rebuild` since August with no trouble, but that is evidence for the
+  same writer (now `cfbwrite`) since August with no trouble, but that is evidence for the
   `SET_D` stream, not for the `.gle`. Before taking it to the field, export one
   and open it in QuickSet.
 

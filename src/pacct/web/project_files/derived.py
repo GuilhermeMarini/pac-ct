@@ -27,8 +27,9 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from pacct.parsers import rdb as rdb_loader
-from pacct.parsers import scd as scd_loader
+from selfiles import rdb as rdb_loader
+from selfiles.scl import read as scd_loader
+
 from pacct.web.project_files import library
 
 # The output-only kind. Deliberately absent from `library.kind_for`, which is

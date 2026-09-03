@@ -25,6 +25,8 @@ dependencies = [
     "pyserial>=3.5",
     "telnetlib3>=4.0.2",
     "olefile>=0.47",
+    "cfbwrite>=1.0",
+    "selfiles>=1.0",
     "openpyxl>=3.1",
     # PRE-RELEASE on purpose: the MMS client the GLV calls exists from
     # 0.2.0.dev1 and 0.2.0 final does not exist. Naming a pre-release in the

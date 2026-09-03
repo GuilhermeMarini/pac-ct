@@ -24,9 +24,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import cfbwrite  # noqa: E402
 import olefile  # noqa: E402
+from selfiles import dnp_map as set_dnp  # noqa: E402
 
-from pacct.parsers import ole_rebuild, set_dnp  # noqa: E402
 from pacct.paths import RDB_CACHE_DIR, RDBS_DIR  # noqa: E402
 
 
@@ -72,8 +73,8 @@ def check_rebuild(src: Path) -> int:
     with tempfile.TemporaryDirectory() as tmp:
         dst = Path(tmp) / "rebuilt.rdb"
         try:
-            ole_rebuild.rebuild(src, dst, {})
-        except ole_rebuild.OleRebuildError as e:
+            cfbwrite.rebuild(src, dst, {})
+        except cfbwrite.CfbWriteError as e:
             print(f"FALHOU {src.name}: {e}")
             return 1
         print(f"{src.name}: {src.stat().st_size} -> {dst.stat().st_size} bytes, "

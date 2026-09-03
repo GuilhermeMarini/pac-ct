@@ -657,8 +657,8 @@ def test_prepare_bits_disambiguates_logical_devices_that_share_a_prefix(
     The common prefix eats the `C`, so the fallback splits them as `FG` / `ON`
     and the table's `CON` group resolves to no device at all.
     """
-    from pacct.core import mms_tables
-    from pacct.core.mms_tables import is_boolean_status
+    from selfiles.scl import mms_tables
+    from selfiles.scl.mms_tables import is_boolean_status
 
     defs, _, _ = recorded
     table = mms_tables.lookup("451")
@@ -934,7 +934,8 @@ def test_unreachable_cannot_tell_before_there_is_a_map():
 
 def _dbpos_transport(value, alternatives=(0, 1, 2, 3), nbits=2):
     """Dois bits (`52A`, `52B`) no mesmo item, que responde `value`."""
-    from pacct.core.mms_tables import BitRule
+    from selfiles.scl.mms_tables import BitRule
+
     from pacct.web.glv.mms_map import MmsMap, MmsPoint
 
     item = "BKR1CSWI1$ST$Pos$stVal"

@@ -16,8 +16,8 @@ from __future__ import annotations
 import copy
 from dataclasses import dataclass, field
 
-from pacct.parsers.rdb import RdbInfo
-from pacct.parsers.set_dnp import DnpRelay, SetDnpFile
+from selfiles.dnp_map import DnpRelay, SetDnpFile
+from selfiles.rdb import RdbInfo
 
 
 @dataclass

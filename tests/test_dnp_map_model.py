@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import threading
 
-from pacct.parsers import set_dnp
+from selfiles import dnp_map as set_dnp
+
 from pacct.web.dnp_map import model
-from tests.test_set_dnp import SAMPLE_411L
+from tests.dnp_fixtures import SAMPLE_411L
 
 
 def _fresh():

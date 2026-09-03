@@ -21,11 +21,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import cfbwrite as cfb
 import pytest
+from selfiles import match as m
+from selfiles.rdb import RelayEntry
 
-from pacct.matchers import relay_scd as m
-from pacct.parsers import ole_rebuild as ore
-from pacct.parsers.rdb import RelayEntry
 from tests import gle_fixtures as fx
 
 # `SET_*.TXT` lines end `KEY,"VALUE"\x1c\r\n` -- the File Separator sits INSIDE
@@ -389,13 +389,13 @@ class TestReport:
 # The whole pipeline, RDB file in / report out
 # -----------------------------------------------------------------------------
 
-def _stream(name: str, data: bytes) -> ore.Entry:
-    return ore.Entry(name=name, is_storage=False, size=len(data),
+def _stream(name: str, data: bytes) -> cfb.Entry:
+    return cfb.Entry(name=name, is_storage=False, size=len(data),
                      read=lambda d=data: d, children=[])
 
 
-def _storage(name: str, children) -> ore.Entry:
-    return ore.Entry(name=name, is_storage=True, size=0, read=None,
+def _storage(name: str, children) -> cfb.Entry:
+    return cfb.Entry(name=name, is_storage=True, size=0, read=None,
                      children=list(children))
 
 
@@ -408,7 +408,7 @@ def test_compare_rdb_to_scd_extracts_and_matches(tmp_path, scd_path):
     being read from the extracted tree (they are read from disk after
     extraction, not from the OLE streams)."""
     rdb = tmp_path / "SE_TESTE.rdb"
-    ore.write_ole(rdb, [
+    cfb.write_ole(rdb, [
         _storage("Relays", [
             _storage("QPC1_TR1_UPC1", [
                 _stream("SET_P5.TXT",

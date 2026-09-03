@@ -23,8 +23,8 @@ import json
 from pathlib import Path
 
 import pytest
+from selfiles.scl.read import ScdPoint
 
-from pacct.parsers.scd import ScdPoint
 from pacct.web.glv.mms_map import ld_suffixes, resolve_map
 
 FIX = Path(__file__).parent / "fixtures" / "mms"
@@ -256,9 +256,10 @@ SAMPLES = Path(__file__).parent.parent / "samples"
 
 @pytest.fixture(scope="module")
 def lt2():
-    from pacct.core.mms_tables import da_parts
-    from pacct.parsers.gle import parse_gle
-    from pacct.parsers.scd import sel_short_addresses
+    from selfiles.gle import parse_gle
+    from selfiles.scl.mms_tables import da_parts
+    from selfiles.scl.read import sel_short_addresses
+
     from pacct.web.glv.gle_pages import collect_bits_per_page
 
     doc = parse_gle(SAMPLES / "LT2_UPC1_R1e_GL1.gle.xml")
@@ -353,7 +354,7 @@ class TestDecoratedPoints:
 
     def _point(self, bit, index, alternatives=(0, 1, 2, 3), nbits=2,
                do="Pos", da="stVal"):
-        from pacct.core.mms_tables import BitRule
+        from selfiles.scl.mms_tables import BitRule
         return ScdPoint(bit=bit, ld_inst="PRO", ln="BKR1CSWI1", do=do, da=da,
                         rule=BitRule(alternatives=alternatives, index=index,
                                      nbits=nbits))
@@ -414,8 +415,8 @@ class TestDecoratedPoints:
 def test_the_breaker_position_reaches_the_map_on_the_real_relay(lt2):
     """Fim a fim no corpus: `QPC2_TR1_UPC1` -- o rele cujo GL1 abriu o
     assunto -- so' enderaca `52A` pelo ponto decorado."""
-    from pacct.core.mms_tables import da_parts
-    from pacct.parsers.scd import sel_short_addresses
+    from selfiles.scl.mms_tables import da_parts
+    from selfiles.scl.read import sel_short_addresses
 
     points = sel_short_addresses(SAMPLES / "substation_demo.scd")["QPC2_TR1_UPC1"]
     directory: dict = {}

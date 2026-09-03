@@ -39,11 +39,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from pacct.core.wordbits import (  # noqa: E402
+from selfiles.models.wordbits import (  # noqa: E402
     DEFAULT_ALWAYS_VALID,
     KINDS,
     check_kinds_for,
 )
+
 from pacct.paths import WORDBITS_DIR  # noqa: E402
 
 _QUOTED = re.compile(r'"([^"]*)"')

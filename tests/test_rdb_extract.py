@@ -18,7 +18,7 @@ to break silently:
   everyone sees the name of whoever uploaded the bytes first.
 
 Everything runs against a synthetic Compound File built with
-`ole_rebuild.write_ole` (the same idiom as `test_ole_rebuild.py` and
+`cfbwrite.write_ole` (the same idiom as `cfbwrite's own test suite` and
 `test_rdb_write.py`) and a `tmp_path` cache root. The real
 `samples/*.rdb` is 42 MB and the real `cache/` belongs to the user.
 """
@@ -27,10 +27,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import cfbwrite as cfb
 import pytest
+from selfiles import rdb
 
-from pacct.parsers import ole_rebuild as ore
-from pacct.parsers import rdb
 from tests import gle_fixtures as fx
 
 FS = "\x1c"
@@ -43,13 +43,13 @@ ALIM = "QPC1_ALIM_01"
 CONC = "QPC1_2440_CONC"
 
 
-def _stream(name: str, data: bytes) -> ore.Entry:
-    return ore.Entry(name=name, is_storage=False, size=len(data),
+def _stream(name: str, data: bytes) -> cfb.Entry:
+    return cfb.Entry(name=name, is_storage=False, size=len(data),
                      read=lambda d=data: d, children=[])
 
 
-def _storage(name: str, children) -> ore.Entry:
-    return ore.Entry(name=name, is_storage=True, size=0, read=None,
+def _storage(name: str, children) -> cfb.Entry:
+    return cfb.Entry(name=name, is_storage=True, size=0, read=None,
                      children=list(children))
 
 
@@ -61,7 +61,7 @@ def _rdb_bytes(tmp_path: Path, name: str = "src.rdb") -> bytes:
     """A three-relay RDB: a 487E with two pages, a relay with no `Cfg.txt`,
     and a concentrator with settings and no diagram at all."""
     path = tmp_path / name
-    ore.write_ole(path, [
+    cfb.write_ole(path, [
         _stream("Info", b"QuickSet\r\n"),
         _storage("Relays", [
             _storage(TRAFO, [

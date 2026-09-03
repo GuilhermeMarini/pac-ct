@@ -72,8 +72,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from py61850.core import ber  # noqa: E402
 from py61850.core import data as mms_data  # noqa: E402
+from selfiles.scl import mms_tables  # noqa: E402
 
-from pacct.core import mms_tables  # noqa: E402
 from pacct.paths import PROJECT_ROOT  # noqa: E402
 
 OUT = PROJECT_ROOT / "tests" / "fixtures" / "mms"

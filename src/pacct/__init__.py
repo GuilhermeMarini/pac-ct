@@ -23,3 +23,23 @@ def _read_version() -> str:
 
 
 __version__ = _read_version()
+
+
+def _configure_selfiles() -> None:
+    """Tell `selfiles` where this host keeps its overlay and its cache.
+
+    Done at package import, once, because every entry point that reaches a
+    registry goes through `import pacct.<something>` first, and a registry
+    memoises the first answer it gets. Two answers to "where do relay models
+    come from" is a bug, not a feature -- so the question is settled before
+    anything can ask it.
+    """
+    import selfiles
+
+    from pacct import paths
+
+    selfiles.configure(user_data_dir=paths.DATA_DIR,
+                       cache_dir=paths.RDB_CACHE_DIR)
+
+
+_configure_selfiles()

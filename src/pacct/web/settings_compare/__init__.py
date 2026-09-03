@@ -24,21 +24,22 @@ import re
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
-from pacct.core.logic_compare import Kind as CmpKind
-from pacct.core.logic_compare import compare
-from pacct.core.settings_catalog import (
+from selfiles.rdb import RdbInfo
+from selfiles.rdb import short_sha as _short_sha
+from selfiles.selogic.catalog import (
     Family,
     family_from_relaytype,
     groups_for_family,
     is_relay_device,
 )
-from pacct.core.settings_model import (
+from selfiles.selogic.compare import Kind as CmpKind
+from selfiles.selogic.compare import compare
+from selfiles.selogic.model import (
     RelayModel,
     Variable,
     normalize_relay,
 )
-from pacct.parsers.rdb import RdbInfo
-from pacct.parsers.rdb import short_sha as _short_sha
+
 from pacct.paths import SETTINGS_COMPARE_TEMPLATES_DIR
 from pacct.web.project_files import library as filelib
 from pacct.web.session import SessionHandler

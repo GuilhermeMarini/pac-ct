@@ -28,12 +28,35 @@ with it red.
 | 1 skeleton | **Done** — `src/` layout, `pyproject.toml`, ruff, mypy, CI |
 | 2 what moves | **Done** — 319 files; the vendor documents stayed behind |
 | 3 defect fixes | **Done** — D1..D5, each with a test that fails without it |
-| 4 library extraction | Not started |
+| 4 library extraction | **Done** — `cfbwrite` and `selfiles`, both consumed by the app |
 | 5 dist + auto-update | Not started |
 
-Verification as it stands: **837 tests pass** (the 828 that came across, plus 9
-new regressions), `ruff check .` clean, `mypy` clean, and the app boots and
-serves all eleven screens.
+Verification as it stands, across the three repositories: **837 tests pass**
+(the 828 that came across, plus 9 new regressions) — 595 in `pac-ct`, 225 in
+`selfiles`, 17 in `cfbwrite`, conserved exactly by the split. `ruff` and `mypy`
+are clean in all three, and the app boots and serves all eleven screens with
+both libraries behind it.
+
+Phase 4 as built, with three departures from the plan above worth naming:
+
+- **The corpus stayed in one place.** The plan implied tests move with their
+  code; the ones that need the 63 MB sample corpus stayed in `pac-ct`, where
+  the corpus lives, rather than duplicating it into a second public repo. So
+  `selfiles`'s own suite is self-contained (it builds its fixtures with
+  `cfbwrite`), and the corpus-driven tests exercise the library from the app.
+- **`selfiles.gle` was not split into `parse.py` + `render.py`.** The two
+  halves share the geometry constants and always travel together, and the
+  refactor that actually earns a split is REVIEW.md S1 (drive the renderer
+  from the model registry, which is where the black-counter bug came from).
+  Splitting first would mean moving the same code twice.
+- **No compatibility shim was left behind.** The plan proposed re-export
+  modules; instead all 45 call sites were rewritten in the same change, since
+  the tests could verify it immediately. A shim nothing imports is dead code.
+
+One bug the migration itself surfaced: the rewrite missed a multi-name import
+in `dnp_map/handler.py`, and **no test caught it** — the route handlers live
+inside a factory closure and nothing can import them (REVIEW.md S2). It failed
+at boot instead. That is the cost of S2, priced.
 
 **The samples were anonymised, not dropped.** The demo RDB was rebuilt through
 this project's own `ole_rebuild` — 6 relay storages renamed, 147 of 1008

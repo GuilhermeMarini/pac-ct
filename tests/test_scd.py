@@ -1,4 +1,4 @@
-"""What `pacct.parsers.scd` is allowed to read out of an IEC 61850 SCD.
+"""What `selfiles.scl.read` is allowed to read out of an IEC 61850 SCD.
 
 These pin behaviour that already exists. That makes them characterization
 tests, so each one names, in its docstring, the production change that would
@@ -26,8 +26,7 @@ import re
 from pathlib import Path
 
 import pytest
-
-from pacct.parsers import scd
+from selfiles.scl import read as scd
 
 # -----------------------------------------------------------------------------
 # Fixture documents
@@ -284,7 +283,7 @@ class TestIndexes:
         doc = _BODY.replace('<P type="ip">192.0.2.61</P>',
                             '<P type="ip">192.0.2.60</P>')
         ieds = scd.load_scd(_write(tmp_path, doc))
-        with caplog.at_level(logging.WARNING, logger="pacct.parsers.scd"):
+        with caplog.at_level(logging.WARNING, logger="selfiles.scl.read"):
             idx = scd.index_by_ip(ieds)
         assert idx["192.0.2.60"].name == "QPC1_TR1_UPC1"
         assert "IP duplicado" in caplog.text

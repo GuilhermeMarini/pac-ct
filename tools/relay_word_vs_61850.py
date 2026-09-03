@@ -42,8 +42,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from selfiles.models import relay_models  # noqa: E402
+
 import _sel61850 as maps  # noqa: E402
-from pacct.core import relay_models  # noqa: E402
 from pacct.paths import (  # noqa: E402
     CACHE_DIR,
     FIXTURES_DIR,
