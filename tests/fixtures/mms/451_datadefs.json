@@ -1,0 +1,2486 @@
+{
+ "provenance": "relay 203.0.113.61 SEL-451-5-R331-V1-Z033014-D20250919",
+ "datadefs": {
+  "PLT1GGIO1$ST": {
+   "mmsDeletable": false,
+   "type": {
+    "structure": [
+     {
+      "name": "Beh",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": {
+          "integer": 8
+         }
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind01",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind02",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind03",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind04",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind05",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind06",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind07",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind08",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind09",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind10",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind11",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind12",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind13",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind14",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind15",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind16",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind17",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind18",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind19",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind20",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind21",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind22",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind23",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind24",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind25",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind26",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind27",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind28",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind29",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind30",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind31",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind32",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  "ALT1GGIO1$ST": {
+   "mmsDeletable": false,
+   "type": {
+    "structure": [
+     {
+      "name": "Beh",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": {
+          "integer": 8
+         }
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind01",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind02",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind03",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind04",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind05",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind06",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind07",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind08",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind09",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind10",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind11",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind12",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind13",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind14",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind15",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind16",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind17",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind18",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind19",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind20",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind21",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind22",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind23",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind24",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind25",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind26",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind27",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind28",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind29",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind30",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind31",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind32",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  "VB1XGGIO1$ST": {
+   "mmsDeletable": false,
+   "type": {
+    "structure": [
+     {
+      "name": "Beh",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": {
+          "integer": 8
+         }
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind01",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind02",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind03",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind04",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind05",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind06",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind07",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind08",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind09",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind10",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind11",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind12",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind13",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind14",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind15",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind16",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind17",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind18",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind19",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind20",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind21",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind22",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind23",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind24",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind25",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind26",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind27",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind28",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind29",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind30",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind31",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind32",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  "IN1XGGIO1$ST": {
+   "mmsDeletable": false,
+   "type": {
+    "structure": [
+     {
+      "name": "Beh",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": {
+          "integer": 8
+         }
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind01",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind02",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind03",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind04",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind05",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind06",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind07",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  },
+  "OUT1GGIO1$ST": {
+   "mmsDeletable": false,
+   "type": {
+    "structure": [
+     {
+      "name": "Beh",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": {
+          "integer": 8
+         }
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind01",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind02",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind03",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind04",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind05",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind06",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind07",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     },
+     {
+      "name": "Ind08",
+      "type": {
+       "structure": [
+        {
+         "name": "stVal",
+         "type": "boolean"
+        },
+        {
+         "name": "q",
+         "type": {
+          "bit-string": -13
+         }
+        },
+        {
+         "name": "t",
+         "type": "utc-time"
+        }
+       ]
+      }
+     }
+    ]
+   }
+  }
+ }
+}

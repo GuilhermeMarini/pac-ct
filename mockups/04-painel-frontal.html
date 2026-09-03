@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>04 · Painel Frontal — SEL Toolkit</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../sellib/web/static/fonts/fonts.css">
+<style>
+/* ===========================================================================
+   DIRECAO 04 — PAINEL FRONTAL
+   Referencia: a frente do proprio rele. Coluna de LEDs de target a esquerda,
+   visor de LCD verde para o dado vivo, botoeira embaixo. A tela na bancada
+   passa a "combinar" com o equipamento em teste.
+   =========================================================================== */
+:root{
+  --panel:#0b0b0c; --brushed:#17181a; --bezel:#0f1011; --edge:#292b2e;
+  --led-amber:#ffae00; --led-green:#48e06a; --led-red:#ff3b30; --led-off:#2a2b2d;
+  --lcd-bg:#0d1a0d; --lcd:#9fe870; --text:#e9e9ea; --muted:#8a8d92;
+  --sans:'Barlow',system-ui,sans-serif;
+  --cond:'Barlow Semi Condensed',system-ui,sans-serif;
+  --lcdfont:'Share Tech Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#050506;color:var(--text);font:14.5px/1.5 var(--sans)}
+.unit{max-width:1220px;margin:18px auto;background:var(--panel);border:1px solid var(--edge);
+  border-radius:3px;box-shadow:0 0 0 1px #000 inset,0 18px 40px rgba(0,0,0,.6);overflow:hidden}
+.brand{display:flex;align-items:center;gap:14px;padding:12px 18px;background:
+  linear-gradient(180deg,#1c1d1f,#111213);border-bottom:1px solid var(--edge)}
+.brand h1{margin:0;font:600 17px/1 var(--cond);letter-spacing:.16em;text-transform:uppercase}
+.brand .model{font:400 11px var(--lcdfont);color:var(--muted);letter-spacing:.1em}
+.brand .lcd{margin-left:auto;background:var(--lcd-bg);color:var(--lcd);font:400 12px var(--lcdfont);
+  padding:6px 12px;border:1px solid #1e3a1e;box-shadow:inset 0 0 12px rgba(159,232,112,.12);
+  letter-spacing:.06em}
+
+.body{display:grid;grid-template-columns:196px minmax(0,1fr)}
+
+/* --- ASSINATURA: coluna de LEDs de target -------------------------------- */
+.targets{background:var(--brushed);border-right:1px solid var(--edge);padding:12px 0}
+.targets .cap{font:600 9.5px var(--cond);letter-spacing:.22em;text-transform:uppercase;
+  color:var(--muted);padding:0 14px 9px}
+.t{display:flex;align-items:center;gap:11px;padding:8px 14px;text-decoration:none;color:inherit;
+  border-bottom:1px solid #1e1f21}
+.t .led{width:11px;height:11px;border-radius:2px;background:var(--led-off);flex:none;
+  box-shadow:inset 0 0 0 1px #000}
+.t.on .led{background:var(--led-green);box-shadow:0 0 8px rgba(72,224,106,.75),inset 0 0 0 1px #0c3d19}
+.t.warn .led{background:var(--led-amber);box-shadow:0 0 8px rgba(255,174,0,.7),inset 0 0 0 1px #4a3200}
+.t .name{font:500 12.5px/1.15 var(--cond);letter-spacing:.06em;text-transform:uppercase}
+.t small{display:block;color:var(--muted);font-size:10.5px;letter-spacing:.02em;text-transform:none}
+.t:hover{background:#1e1f22}
+.t:focus-visible{outline:2px solid var(--led-amber);outline-offset:-2px}
+.t.off{opacity:.4}
+
+.screen{padding:16px 18px 18px;min-width:0}
+h2{margin:0 0 10px;font:600 10.5px var(--cond);letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+.readout{background:var(--lcd-bg);border:1px solid #1e3a1e;color:var(--lcd);font:400 13px/1.7 var(--lcdfont);
+  padding:12px 14px;margin-bottom:18px;box-shadow:inset 0 0 22px rgba(159,232,112,.08)}
+.readout .dim{color:#5f8a4b}
+.wrap{border:1px solid var(--edge);background:#0f1012;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:#191a1c;text-align:left;padding:8px 12px;font:600 10px var(--cond);letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--edge)}
+td{padding:7px 12px;border-bottom:1px solid #1c1d20;font-family:var(--lcdfont);font-size:12.5px;white-space:nowrap}
+td.var{color:var(--text)}td.val{color:#a9adb2}
+tr:hover td{background:#151618}
+.st{display:inline-flex;align-items:center;gap:7px;font:600 10.5px var(--cond);letter-spacing:.14em;text-transform:uppercase}
+.st::before{content:"";width:9px;height:9px;border-radius:2px;background:currentColor;box-shadow:0 0 7px currentColor}
+.s-ok{color:var(--led-green)}.s-dif{color:var(--led-red)}.s-vb{color:#59b7ff}.s-falta{color:var(--muted)}
+.s-falta::before{box-shadow:none}
+/* --- botoeira ------------------------------------------------------------ */
+.keys{display:flex;gap:8px;flex-wrap:wrap;padding:14px 18px;background:linear-gradient(180deg,#121315,#0b0c0d);
+  border-top:1px solid var(--edge)}
+.key{background:linear-gradient(180deg,#2a2c30,#1b1d20);border:1px solid #3a3d42;color:var(--text);
+  font:600 11px var(--cond);letter-spacing:.14em;text-transform:uppercase;padding:9px 16px;border-radius:2px;
+  cursor:pointer;box-shadow:0 2px 0 #000,inset 0 1px 0 rgba(255,255,255,.09)}
+.key:hover{background:linear-gradient(180deg,#34373c,#212428)}
+.key:active{transform:translateY(1px);box-shadow:0 1px 0 #000}
+.key.pri{background:linear-gradient(180deg,#4a3200,#2e1f00);border-color:#6b4a06;color:var(--led-amber)}
+.key .num{color:var(--muted);margin-right:6px}
+.tokens{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:14px 18px;border-top:1px solid var(--edge)}
+.sw{width:74px}.sw i{display:block;height:30px;border:1px solid var(--edge)}
+.sw span{font:600 9px var(--cond);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-top:5px}
+.badge{position:fixed;right:14px;bottom:14px;padding:6px 11px;font:600 10px var(--cond);letter-spacing:.16em;
+  text-transform:uppercase;color:var(--text);background:#17181a;border:1px solid var(--edge);text-decoration:none}
+.badge:hover{color:var(--led-amber)}
+@media (max-width:820px){.body{grid-template-columns:1fr}.targets{border-right:0;border-bottom:1px solid var(--edge)}}
+</style></head>
+<body>
+
+<div class="unit">
+  <div class="brand">
+    <h1>Comissionamento</h1>
+    <span class="model">SE EXEMPLO III · 25 IED</span>
+    <span class="lcd">GRUPO 1 &nbsp;|&nbsp; 7 RELÉS &nbsp;|&nbsp; 5 DIF</span>
+  </div>
+
+  <div class="body">
+    <nav class="targets">
+      <div class="cap">Ferramentas</div>
+      <a class="t" href="#"><i class="led"></i><span class="name">Lógica ao vivo<small>GLE + Fast Meter</small></span></a>
+      <a class="t on" href="#"><i class="led"></i><span class="name">Comparador<small>ajustes lado a lado</small></span></a>
+      <a class="t" href="#"><i class="led"></i><span class="name">VB Updater<small>GLE ↔ SCD</small></span></a>
+      <a class="t warn" href="#"><i class="led"></i><span class="name">VLAN Mapper<small>GOOSE por porta</small></span></a>
+      <a class="t" href="#"><i class="led"></i><span class="name">Exportador GLE<small>comentários em Excel</small></span></a>
+      <span class="t off"><i class="led"></i><span class="name">RDB ↔ SCD<small>em breve</small></span></span>
+    </nav>
+
+    <div class="screen">
+      <h2>Leitura</h2>
+      <div class="readout">
+        RELÉS &nbsp;QPC2_TR1_UPC1 … UPC6, QPC2_TR2_UPC1<br>
+        GRUPO &nbsp;Lógica 1 &nbsp;<span class="dim">(25 grupos comparados)</span><br>
+        RESULTADO &nbsp;659 variáveis &nbsp;654 iguais &nbsp;5 diferentes &nbsp;16 difere VB
+      </div>
+
+      <h2>Lógica 1</h2>
+      <div class="wrap">
+        <table>
+          <thead><tr><th>Variável</th><th>Campo</th><th>UPC1</th><th>UPC2</th><th>UPC3</th><th>Situação</th></tr></thead>
+          <tbody>
+            <tr><td class="var">51G2TC</td><td class="val">value</td><td class="val">0.40</td><td class="val">0.40</td><td class="val">0.40</td><td><span class="st s-ok">Igual</span></td></tr>
+            <tr><td class="var">52A</td><td class="val">set</td><td class="val">NOT IN101 AND IN102</td><td class="val">NOT IN101 AND IN102</td><td class="val">NOT IN101 AND IN102</td><td><span class="st s-ok">Igual</span></td></tr>
+            <tr><td class="var">LT14</td><td class="val">set</td><td class="val">VB102 OR VB103</td><td class="val">VB101 OR VB102</td><td class="val">VB101 OR VB102</td><td><span class="st s-vb">Difere VB</span></td></tr>
+            <tr><td class="var">LT17</td><td class="val">set</td><td class="val">SV02 AND LT03</td><td class="val">SV02 AND LT03</td><td class="val">SV02 AND LT04</td><td><span class="st s-dif">Diferente</span></td></tr>
+            <tr><td class="var">27I1CFA</td><td class="val">value</td><td class="val">1.00</td><td class="val">1.00</td><td class="val">—</td><td><span class="st s-falta">Faltante</span></td></tr>
+            <tr><td class="var">50P1P</td><td class="val">value</td><td class="val">5.00</td><td class="val">5.00</td><td class="val">5.00</td><td><span class="st s-ok">Igual</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="keys">
+    <button class="key pri"><span class="num">F1</span>Comparar</button>
+    <button class="key"><span class="num">F2</span>Só diferenças</button>
+    <button class="key"><span class="num">F3</span>Trocar grupos</button>
+    <button class="key"><span class="num">F4</span>Trocar relés</button>
+    <button class="key"><span class="num">F5</span>Exportar</button>
+  </div>
+
+  <div class="tokens">
+    <div class="sw"><i style="background:#0b0b0c"></i><span>painel</span></div>
+    <div class="sw"><i style="background:#17181a"></i><span>escovado</span></div>
+    <div class="sw"><i style="background:#0d1a0d"></i><span>lcd</span></div>
+    <div class="sw"><i style="background:#9fe870"></i><span>lcd texto</span></div>
+    <div class="sw"><i style="background:#48e06a"></i><span>led verde</span></div>
+    <div class="sw"><i style="background:#ffae00"></i><span>led âmbar</span></div>
+    <div class="sw"><i style="background:#ff3b30"></i><span>led vermelho</span></div>
+    <div style="flex:1;min-width:260px;font-size:12px;color:var(--muted)">
+      <b style="color:var(--text)">Barlow Semi Condensed</b> nos rótulos serigrafados ·
+      <b style="color:var(--text)">Share Tech Mono</b> em tudo que o relé “mostra”.
+      LED aceso = ferramenta com sessão ativa.
+    </div>
+  </div>
+</div>
+
+<a class="badge" href="index.html">04 · Painel frontal</a>
+</body></html>

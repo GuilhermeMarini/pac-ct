@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02 · Oscilografia — SEL Toolkit</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../sellib/web/static/fonts/fonts.css">
+<style>
+/* ===========================================================================
+   DIRECAO 02 — OSCILOGRAFIA
+   Referencia: a tela de oscilografia do proprio rele. Fundo de papel
+   milimetrado, tracos de fosforo, tudo alinhado a uma grade de 8 px que
+   aparece de verdade. Cada verdict e' um canal com sua cor de traco.
+   =========================================================================== */
+:root{
+  --bg:#07100c; --grid:#0e1f18; --grid-strong:#153126; --panel:#0a1712;
+  --phos:#3ef58b; --amber:#ffb020; --magenta:#ff5fa2; --cyan:#57d9ff;
+  --text:#cfe8dc; --muted:#6f9284; --edge:#173a2c;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 var(--sans);
+  background-image:
+    linear-gradient(var(--grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px),
+    linear-gradient(var(--grid-strong) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-strong) 1px,transparent 1px);
+  background-size:8px 8px,8px 8px,80px 80px,80px 80px}
+main{max-width:1200px;margin:0 auto;padding:0 16px 90px}
+
+/* --- ASSINATURA: a faixa de trace no topo e' o cabecalho ------------------ */
+.scope{position:relative;margin:16px auto 0;max-width:1200px;border:1px solid var(--edge);
+  background:linear-gradient(180deg,rgba(62,245,139,.05),transparent 60%),var(--panel)}
+.scope svg{display:block;width:100%;height:96px}
+.scope .hud{position:absolute;inset:0;display:flex;align-items:center;gap:18px;padding:0 18px;pointer-events:none;
+  /* scrim: o traco continua visivel no meio, o texto ganha fundo solido */
+  background:linear-gradient(90deg,rgba(10,23,18,.97) 0 34%,rgba(10,23,18,.15) 55% 72%,rgba(10,23,18,.95) 88%)}
+.scope h1{margin:0;font:600 20px/1 var(--sans);letter-spacing:-.01em;
+  text-shadow:0 0 14px rgba(62,245,139,.35)}
+.scope .sub{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.scope .live{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--phos);
+  border:1px solid var(--phos);padding:3px 9px;background:rgba(62,245,139,.08)}
+.scope .live b{animation:blink 1.6s steps(2) infinite}
+@keyframes blink{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.scope .live b{animation:none}}
+
+h2{font:600 11px var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--muted);
+  margin:30px 0 10px;display:flex;gap:10px;align-items:center}
+h2::before{content:"";width:10px;height:10px;border:1px solid var(--phos);background:rgba(62,245,139,.25)}
+
+/* --- canais = ferramentas ------------------------------------------------- */
+.chans{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px}
+.chan{display:flex;gap:12px;padding:12px 14px;background:var(--panel);border:1px solid var(--edge);
+  text-decoration:none;color:inherit;position:relative;transition:border-color .12s,background .12s}
+.chan:hover{border-color:var(--phos);background:#0c1d16}
+.chan:focus-visible{outline:2px solid var(--phos);outline-offset:2px}
+.chan .lvl{width:3px;background:var(--phos);flex:none}
+.chan.off .lvl{background:var(--muted)}
+.chan h3{margin:0 0 3px;font:500 15px/1.2 var(--sans)}
+.chan p{margin:0;font-size:12.5px;color:var(--muted)}
+.chan .ch{position:absolute;top:10px;right:12px;font:500 10px var(--mono);color:var(--muted);letter-spacing:.1em}
+.chan.off{opacity:.5}
+
+/* --- tabela: cada linha e' um canal com cor de traco ---------------------- */
+.wrap{border:1px solid var(--edge);background:var(--panel);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px;font-family:var(--mono)}
+th{position:sticky;top:0;background:#0b1a14;text-align:left;padding:9px 12px;font-weight:500;
+  font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+  border-bottom:1px solid var(--edge)}
+td{padding:7px 12px;border-bottom:1px solid #102a20;white-space:nowrap}
+td.var{font-weight:600;color:var(--text);border-left:3px solid transparent}
+tr.ok td.var{border-left-color:var(--phos)}
+tr.dif td.var{border-left-color:var(--magenta)}
+tr.vb td.var{border-left-color:var(--cyan)}
+tr.falta td.var{border-left-color:var(--muted)}
+td.val{color:#9fc4b3}
+tr:hover td{background:#0d211a}
+.tag{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
+tr.ok .tag{color:var(--phos)}tr.dif .tag{color:var(--magenta)}
+tr.vb .tag{color:var(--cyan)}tr.falta .tag{color:var(--muted)}
+.readout{display:flex;gap:22px;flex-wrap:wrap;padding:11px 14px;margin-top:8px;font-family:var(--mono);
+  font-size:11.5px;color:var(--muted);background:var(--panel);border:1px solid var(--edge)}
+.readout b{color:var(--phos);font-weight:600;font-variant-numeric:tabular-nums}
+.tokens{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:14px;background:var(--panel);border:1px solid var(--edge)}
+.sw{width:76px;font-family:var(--mono)}.sw i{display:block;height:32px}
+.sw span{font-size:9.5px;color:var(--muted);display:block;margin-top:5px;letter-spacing:.08em}
+.badge{position:fixed;right:14px;bottom:14px;padding:6px 11px;font:500 10px var(--mono);letter-spacing:.14em;
+  color:var(--text);background:var(--panel);border:1px solid var(--edge);text-decoration:none}
+.badge:hover{border-color:var(--phos);color:var(--phos)}
+</style></head>
+<body>
+
+<div class="scope">
+  <svg viewBox="0 0 1200 96" preserveAspectRatio="none" aria-hidden="true">
+    <polyline fill="none" stroke="#3ef58b" stroke-width="1.5" opacity=".9"
+      points="0,60 40,58 80,20 120,86 160,30 200,64 240,48 280,49 320,48 360,49 400,48 440,20 480,84 520,32 560,60 600,48 640,49 680,48 720,49 760,48 800,26 840,80 880,34 920,58 960,48 1000,49 1040,48 1080,49 1120,48 1160,48 1200,48"/>
+    <polyline fill="none" stroke="#ffb020" stroke-width="1.2" opacity=".55"
+      points="0,72 60,71 100,44 140,92 180,52 240,74 300,72 360,71 420,72 460,46 500,90 540,54 600,72 660,71 720,72 780,71 820,48 860,88 900,56 960,72 1020,71 1080,72 1140,71 1200,72"/>
+  </svg>
+  <div class="hud">
+    <div>
+      <h1>Comissionamento SEL</h1>
+      <div class="sub">SE EXEMPLO III · 25 IEDs · RDB 17-08-26</div>
+    </div>
+    <span class="live"><b>●</b> AO VIVO 0.4 s</span>
+  </div>
+</div>
+
+<main>
+  <h2>Canais</h2>
+  <div class="chans">
+    <a class="chan" href="#"><i class="lvl"></i><div><h3>Visualizador de Lógica</h3><p>Estado do relé ao vivo sobre o diagrama GLE.</p></div><span class="ch">CH1</span></a>
+    <a class="chan" href="#"><i class="lvl"></i><div><h3>Comparador de Ajustes</h3><p>Até 7 relés da mesma família, lado a lado.</p></div><span class="ch">CH2</span></a>
+    <a class="chan" href="#"><i class="lvl"></i><div><h3>VB Updater</h3><p>Descrições de Virtual Bits entre GLE e SCD.</p></div><span class="ch">CH3</span></a>
+    <a class="chan" href="#"><i class="lvl"></i><div><h3>VLAN Mapper</h3><p>Mapa de VLANs GOOSE por porta de switch.</p></div><span class="ch">CH4</span></a>
+    <a class="chan" href="#"><i class="lvl"></i><div><h3>Exportador de Comentários</h3><p>Comentários de porta em Excel, ida e volta.</p></div><span class="ch">CH5</span></a>
+    <span class="chan off"><i class="lvl"></i><div><h3>Comparador RDB ↔ SCD</h3><p>Cruza ajustes do RDB com IEDs do SCD.</p></div><span class="ch">CH6</span></span>
+  </div>
+
+  <h2>Comparador de ajustes · Lógica 1</h2>
+  <div class="wrap">
+    <table>
+      <thead><tr><th>Variável</th><th>Campo</th><th>QPC2_TR1_UPC1</th><th>QPC2_TR1_UPC2</th><th>QPC2_TR1_UPC3</th><th>Situação</th></tr></thead>
+      <tbody>
+        <tr class="ok"><td class="var">51G2TC</td><td class="val">value</td><td class="val">0.40</td><td class="val">0.40</td><td class="val">0.40</td><td class="tag">igual</td></tr>
+        <tr class="ok"><td class="var">52A</td><td class="val">set</td><td class="val">NOT IN101 AND IN102</td><td class="val">NOT IN101 AND IN102</td><td class="val">NOT IN101 AND IN102</td><td class="tag">igual</td></tr>
+        <tr class="vb"><td class="var">LT14</td><td class="val">set</td><td class="val">VB102 OR VB103</td><td class="val">VB101 OR VB102</td><td class="val">VB101 OR VB102</td><td class="tag">difere vb</td></tr>
+        <tr class="dif"><td class="var">LT17</td><td class="val">set</td><td class="val">SV02 AND LT03</td><td class="val">SV02 AND LT03</td><td class="val">SV02 AND LT04</td><td class="tag">diferente</td></tr>
+        <tr class="falta"><td class="var">27I1CFA</td><td class="val">value</td><td class="val">1.00</td><td class="val">1.00</td><td class="val">—</td><td class="tag">faltante</td></tr>
+        <tr class="ok"><td class="var">50P1P</td><td class="val">value</td><td class="val">5.00</td><td class="val">5.00</td><td class="val">5.00</td><td class="tag">igual</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="readout"><span>VARIÁVEIS <b>659</b></span><span>IGUAIS <b>654</b></span><span>DIFERENTES <b>5</b></span><span>DIFERE VB <b>16</b></span><span>FALTANTES <b>0</b></span></div>
+
+  <h2>Tokens</h2>
+  <div class="tokens">
+    <div class="sw"><i style="background:#07100c;border:1px solid var(--edge)"></i><span>fundo</span></div>
+    <div class="sw"><i style="background:#0a1712;border:1px solid var(--edge)"></i><span>painel</span></div>
+    <div class="sw"><i style="background:#3ef58b"></i><span>fósforo</span></div>
+    <div class="sw"><i style="background:#ffb020"></i><span>traço 2</span></div>
+    <div class="sw"><i style="background:#ff5fa2"></i><span>diferente</span></div>
+    <div class="sw"><i style="background:#57d9ff"></i><span>vb</span></div>
+    <div style="flex:1;min-width:280px;font-size:12px;color:var(--muted)">
+      <b style="color:var(--text)">IBM Plex Mono</b> em tudo que é medida ·
+      <b style="color:var(--text)">IBM Plex Sans</b> só em títulos. A grade de 8 px do fundo é a mesma
+      grade de espaçamento do layout — nada fica fora dela.
+    </div>
+  </div>
+</main>
+
+<a class="badge" href="index.html">02 · OSCILOGRAFIA</a>
+</body></html>

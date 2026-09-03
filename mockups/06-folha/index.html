@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Menu — Folha de Dados</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../../sellib/web/static/fonts/fonts.css">
+<link rel="stylesheet" href="theme.css">
+</head><body><div class="page">
+  <div class="masthead">
+    <div><h1>Comissionamento SEL</h1><div class="sub">SE Exemploópolis III · base RDB de 17-08-26</div></div>
+    <span class="spacer"></span>
+    <span class="doc">DOC. CM-311 · REV. 05 · pág. 1 de 1</span>
+    <a class="lnk" href="../index.html">← propostas</a>
+  </div>
+<nav class="toc">
+  <a class="on" href="index.html"><span class="n">0</span>Menu</a>
+  <a class="" href="glv-landing.html"><span class="n">1</span>Lógica ao vivo</a>
+  <a class="" href="comparador-1.html"><span class="n">2</span>Comparador de ajustes</a>
+  <a class="" href="vb-updater.html"><span class="n">3</span>VB Updater</a>
+  <a class="" href="vlan-mapper.html"><span class="n">4</span>VLAN Mapper</a>
+  <a class="" href="exportador.html"><span class="n">5</span>Exportador de comentários</a>
+  <span class="off"><span class="n">6</span>Comparador RDB ↔ SCD</span>
+</nav>
+  <div class="grid">
+    <div class="col-main">
+      <section>
+        <h2><span class="num">1.</span>Ferramentas</h2>
+        <p class="lead">Cinco ferramentas disponíveis nesta instalação. Todas leem o mesmo RDB da sessão;
+        só o Visualizador de Lógica conversa com o relé.</p>
+        <div class="wrap">
+          <table>
+            <thead><tr><th>Ref.</th><th>Ferramenta</th><th>Função</th><th>Entrada</th><th>Estado</th></tr></thead>
+            <tbody>
+              <tr><td class="var">1.1</td><td class="txt"><a href="glv-landing.html">Visualizador de Lógica</a></td>
+                <td class="txt">Estado do relé ao vivo sobre o diagrama GLE.<sup class="ref">1</sup></td>
+                <td class="val">RDB + telnet</td><td><span class="j j-ok">Disponível</span></td></tr>
+              <tr><td class="var">1.2</td><td class="txt"><a href="comparador-1.html">Comparador de Ajustes</a></td>
+                <td class="txt">Até 7 relés da mesma família, lado a lado.</td>
+                <td class="val">RDB</td><td><span class="j j-ok">Disponível</span></td></tr>
+              <tr><td class="var">1.3</td><td class="txt"><a href="vb-updater.html">VB Updater</a></td>
+                <td class="txt">Descrições de Virtual Bits entre GLE e SCD.</td>
+                <td class="val">RDB + SCD</td><td><span class="j j-ok">Disponível</span></td></tr>
+              <tr><td class="var">1.4</td><td class="txt"><a href="vlan-mapper.html">VLAN Mapper</a></td>
+                <td class="txt">Mapa de VLANs GOOSE por porta de switch.</td>
+                <td class="val">SCD</td><td><span class="j j-ok">Disponível</span></td></tr>
+              <tr><td class="var">1.5</td><td class="txt"><a href="exportador.html">Exportador de Comentários GLE</a></td>
+                <td class="txt">Comentários de porta em Excel, ida e volta.</td>
+                <td class="val">RDB + XLSX</td><td><span class="j j-ok">Disponível</span></td></tr>
+              <tr><td class="var">1.6</td><td class="txt">Comparador RDB ↔ SCD</td>
+                <td class="txt">Cruza ajustes do RDB com IEDs do SCD por IP e RID.</td>
+                <td class="val">RDB + SCD</td><td><span class="j j-falta">Em breve</span></td></tr>
+              <tr><td class="var">1.7</td><td class="txt">Validador de Settings</td>
+                <td class="txt">Valida pickups, tempos e polarizações contra o template.</td>
+                <td class="val">RDB</td><td><span class="j j-falta">Em breve</span></td></tr>
+              <tr><td class="var">1.8</td><td class="txt">Relatório de Comissionamento</td>
+                <td class="txt">Checklist por baia, com fotos e oscilografias.</td>
+                <td class="val">—</td><td><span class="j j-falta">Em breve</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2><span class="num">2.</span>Arquivos da sessão</h2>
+        <div class="wrap">
+          <table>
+            <thead><tr><th>Arquivo</th><th>Tipo</th><th>Conteúdo</th><th>Carregado</th><th>Estado</th></tr></thead>
+            <tbody>
+              <tr><td class="var">SE EXEMPLO III_17-08-26.rdb</td><td class="val">RDB</td>
+                <td class="val">25 relés · 3xx, 4xx e 7xx</td><td class="val">há 12 min</td>
+                <td><span class="j j-ok">Extraído</span></td></tr>
+              <tr><td class="var">SE_EXEMPLO_III.scd</td><td class="val">SCD</td>
+                <td class="val">25 IEDs · 41 GOOSE</td><td class="val">há 12 min</td>
+                <td><span class="j j-ok">Lido</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="totals"><span>sessão <b>a3f21c</b></span><span>uploads em <b>cache/sessions/a3f21c/</b></span>
+          <span>expira em <b>8 h</b> sem uso<sup class="ref">2</sup></span></div>
+      </section>
+    </div>
+
+    <aside class="col-notes">
+      <div class="cap">Notas</div>
+      <div class="note"><span class="n">1</span>Exige telnet liberado até o relé. O banner de login é
+      drenado antes da sessão Fast Message — relés 3xx anunciam quatro linhas e estouram as cinco
+      tentativas da biblioteca.</div>
+      <div class="note"><span class="n">2</span>Cada visitante tem sessão e diretório próprios; dois
+      usuários podem subir <b>projeto.rdb</b> ao mesmo tempo sem se sobrescrever.</div>
+      <div class="note"><span class="n">3</span>O comparador exige relés da <b>mesma família</b>: os
+      catálogos de grupos de 3xx, 4xx e 7xx não são equivalentes.</div>
+    </aside>
+  </div>
+</div></body></html>

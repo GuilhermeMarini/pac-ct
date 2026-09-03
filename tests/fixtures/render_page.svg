@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-66 0 662 326" preserveAspectRatio="xMinYMin meet" class="gle-page" data-page-name="PROTECAO">
+<style>
+.bg              { fill: #fefefe; }
+.element-symbol  { fill: #fff;    stroke: #555; stroke-width: 0.8; }
+.element-symbol.active   { fill: #b8f0b8; stroke: #1a6a1a; }
+.element-symbol.inactive { fill: #f5f5f5; stroke: #888; }
+.element-gate    { fill: #fff8d8; stroke: #a08020; stroke-width: 0.8; }
+.element-logic   { fill: #d8e8ff; stroke: #2050a0; stroke-width: 0.8; }
+.element-timer   { fill: #ffe8cc; stroke: #c06000; stroke-width: 0.8; }
+.element-latch   { fill: #f0d8f0; stroke: #802080; stroke-width: 0.8; }
+/* Contador (PCN nos 4xx, COUNTER nos 7xx). `render_pcn` e
+   `render_counter_7xx` sempre pediram esta classe -- e ate aqui ela nao
+   existia em lugar nenhum, entao o `rect` caia no fill preto padrao do
+   SVG e o bloco inteiro virava uma caixa preta com o rotulo #222 por
+   cima. Aparece em 8 dos 418 .gle do corpus, entre eles uma pagina
+   chamada "CONTADORES", cuja unica funcao e mostrar contadores. */
+.element-counter { fill: #e2f0dc; stroke: #3f7a2e; stroke-width: 0.8; }
+.element-text    { font-family: monospace; font-size: 7px; fill: #111; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+.gate-label      { font-family: monospace; font-size: 7.5px; font-weight: bold; fill: #222; text-anchor: middle; dominant-baseline: middle; }
+.connection      { fill: none; stroke: #404040; stroke-width: 0.6; }
+.connection.active   { stroke: #16a316; stroke-width: 1.8; }
+.junction-dot    { fill: #202020; stroke: none; }
+.junction-dot.active { fill: #16a316; }
+.port-pin        { stroke: #666; stroke-width: 0.6; }
+.port-bubble     { fill: #fff; stroke: #555; stroke-width: 0.6; }
+.port-edge       { font-family: monospace; font-size: 7px; fill: #c00; font-weight: bold; text-anchor: start; dominant-baseline: middle; pointer-events: none; }
+.port-sublabel   { font-family: monospace; font-size: 5px; fill: #555; dominant-baseline: middle; }
+.port-comment    { font-family: monospace; font-size: 6px; fill: #444; dominant-baseline: alphabetic; pointer-events: none; }
+.element-symbol.const { fill: #eef2ff; stroke: #5566a0; stroke-width: 0.8; }
+.element-symbol.const + .element-text, .const-text { fill: #1a2a6a; font-weight: bold; }
+.element-analog        { fill: #fff4d9; stroke: #b07a18; stroke-width: 0.8; }
+.element-analog.has-value { fill: #fde8b5; stroke: #8a5a06; }
+.analog-name           { font-family: monospace; font-size: 7px; fill: #4a3500; text-anchor: middle; dominant-baseline: middle; pointer-events: none; font-weight: bold; }
+.analog-value          { font-family: monospace; font-size: 6.5px; fill: #6a4500; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+.analog-value.live     { fill: #1a3a8a; font-weight: bold; }
+.group-frame      { fill: none; stroke: #6a6a6a; stroke-width: 0.6; stroke-dasharray: 3,2; }
+.group-label      { font-family: monospace; font-size: 8px; font-weight: bold; fill: #333; text-anchor: middle; dominant-baseline: middle; }
+.group-label-bg   { fill: #fefefe; stroke: none; }
+.group-checkbox       { cursor: pointer; }
+.group-check-box      { fill: #fff; stroke: #555; stroke-width: 0.6; }
+.group-check-mark     { fill: none; stroke: #2050a0; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; visibility: hidden; pointer-events: none; }
+.group-grp.checked .group-check-mark { visibility: visible; }
+.group-grp.checked .group-frame      { stroke: #2050a0; stroke-width: 1.0; }
+.group-grp.checked .group-check-box  { stroke: #2050a0; }
+</style>
+<rect class="bg" x="-66" y="0" width="662" height="326"/>
+<title>QPC1_TR1_UPC1 / PROTECAO</title>
+<g class="group-grp" data-group-id="40">
+<rect class="group-frame" x="50" y="74" width="236" height="80" rx="2"/>
+<rect class="group-label-bg" x="115.5" y="76.0" width="105" height="14"/>
+<g class="group-checkbox" data-group-id="40"><rect class="group-check-box" x="115.5" y="79.0" width="8" height="8" rx="1"/><path class="group-check-mark" d="M117.0,83.2 L119.0,85.2 L122.0,80.5"/></g>
+<text class="group-label" x="173.5" y="83.0">PROTECAO PRINCIPAL</text>
+</g>
+<g class="group-grp" data-group-id="41">
+<rect class="group-frame" x="14" y="200" width="122" height="104" rx="2"/>
+<rect class="group-label-bg" x="69.0" y="202.0" width="12" height="14"/>
+<g class="group-checkbox" data-group-id="41"><rect class="group-check-box" x="71.0" y="205.0" width="8" height="8" rx="1"/><path class="group-check-mark" d="M72.5,209.2 L74.5,211.2 L77.5,206.5"/></g>
+</g>
+<polyline class="connection" data-src="100" data-src-port="0" data-dst="200" data-dst-port="0" data-sink-mod="" data-src-mod="" points="126,108 240,108"/>
+<polyline class="connection" data-src="101" data-src-port="0" data-dst="200" data-dst-port="1" data-sink-mod="NOT" data-src-mod="" points="126,138 180,138 180,120 240,120"/>
+<polyline class="connection" data-src="200" data-src-port="0" data-dst="300" data-dst-port="0" data-sink-mod="" data-src-mod="" points="276,108 318,108 318,120 360,120"/>
+<polyline class="connection" data-src="200" data-src-port="0" data-dst="301" data-dst-port="0" data-sink-mod="" data-src-mod="" points="276,108 318,108 318,216 360,216"/>
+<polyline class="connection" data-src="200" data-src-port="0" data-dst="301" data-dst-port="2" data-sink-mod="" data-src-mod="" points="276,108 318,108 318,240 360,240"/>
+<polyline class="connection" data-src="400" data-src-port="0" data-dst="301" data-dst-port="1" data-sink-mod="" data-src-mod="" points="126,228 360,228"/>
+<polyline class="connection" data-src="101" data-src-port="0" data-dst="201" data-dst-port="0" data-sink-mod="" data-src-mod="" points="126,138 180,138 180,168 240,168"/>
+<polyline class="connection" data-src="300" data-src-port="0" data-dst="201" data-dst-port="1" data-sink-mod="" data-src-mod="" points="414,120 450,120 450,180 240,180"/>
+<polyline class="connection" data-src="201" data-src-port="0" data-dst="500" data-dst-port="0" data-sink-mod="RTRIG" data-src-mod="NOT" points="276,168 504,168 504,126 540,126"/>
+<circle class="junction-dot" data-jx="318" data-jy="108" cx="318" cy="108" r="1.6"/>
+<circle class="junction-dot" data-jx="276" data-jy="108" cx="276" cy="108" r="1.6"/>
+<g class="symbol-grp" id="el-100" data-bit="IN101"><rect class="element-symbol" x="60" y="96" width="66" height="12"/><text class="element-text" x="93.0" y="102.0">IN101</text><text class="port-comment" x="56" y="100.5" text-anchor="end">ENTRADA DE BLOQUEIO EXTERNO 86BF</text></g>
+<g class="symbol-grp" id="el-101" data-bit="IN102"><rect class="element-symbol" x="60" y="132" width="66" height="12"/><text class="element-text" x="93.0" y="138.0">IN102</text><text class="port-comment" x="130" y="136.5" text-anchor="start">PARTIDA INSTANTÂNEA</text></g>
+<g class="gate-grp" id="el-200" data-type="AND"><rect class="element-logic" x="240" y="96" width="36" height="30"/><line class="port-pin" x1="236" y1="108" x2="240" y2="108"/><line class="port-pin" x1="236" y1="120" x2="236" y2="120"/><circle class="port-bubble" cx="238" cy="120" r="2"/><line class="port-pin" x1="276" y1="108" x2="280" y2="108"/><text class="gate-label" x="258.0" y="111.0">&amp;</text></g>
+<g class="symbol-grp" id="el-400" data-const="600"><rect class="element-symbol const" x="60" y="222" width="66" height="12"/><text class="element-text" x="93.0" y="228.0">600</text></g>
+<g class="gate-grp" id="el-201" data-type="OR"><rect class="element-logic" x="240" y="156" width="36" height="30"/><line class="port-pin" x1="236" y1="168" x2="240" y2="168"/><line class="port-pin" x1="236" y1="180" x2="240" y2="180"/><circle class="port-bubble" cx="278" cy="168" r="2"/><line class="port-pin" x1="280" y1="168" x2="280" y2="168"/><text class="gate-label" x="258.0" y="171.0">≥1</text></g>
+<g class="gate-grp" id="el-300" data-type="PLT" data-output-bit="PLT04"><rect class="element-latch" x="360" y="96" width="54" height="42"/><line class="port-pin" x1="356" y1="120" x2="360" y2="120"/><line class="port-pin" x1="356" y1="132" x2="360" y2="132"/><line class="port-pin" x1="414" y1="120" x2="418" y2="120"/><text class="gate-label" x="387.0" y="106">PLT04</text><text class="port-sublabel" x="368" y="120.5">S</text><text class="port-sublabel" x="368" y="132.5">R</text><text class="port-comment" x="356" y="118.5" text-anchor="end">RELE EM LOCAL</text></g>
+<g class="gate-grp" id="el-301" data-type="PCNDTIMER" data-output-bit="PCT03Q"><rect class="element-timer" x="360" y="192" width="66" height="54"/><line class="port-pin" x1="356" y1="216" x2="360" y2="216"/><line class="port-pin" x1="356" y1="228" x2="360" y2="228"/><line class="port-pin" x1="356" y1="240" x2="360" y2="240"/><line class="port-pin" x1="426" y1="216" x2="430" y2="216"/><text class="gate-label" x="393.0" y="202">PCT03</text><text class="port-sublabel" x="368" y="216.5">in</text><text class="port-sublabel" x="368" y="228.5">PU</text><text class="port-sublabel" x="368" y="240.5">DO</text><text class="port-comment" x="356" y="214.5" text-anchor="end">PARTIDA 50P1</text><text class="port-comment" x="430" y="214.5" text-anchor="start">TEMPORIZADO 200MS</text></g>
+<g class="symbol-grp" id="el-500" data-bit="TRIP"><rect class="element-symbol" x="540" y="120" width="36" height="12"/><text class="element-text" x="558.0" y="126.0">TRIP</text><text class="port-edge" x="542" y="126.5">↑</text></g>
+</svg>

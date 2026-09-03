@@ -1,0 +1,26 @@
+pyserial>=3.5
+telnetlib3>=4.0.2
+olefile>=0.47
+openpyxl>=3.1
+# py61850 (transporte MMS do GLV). Ate' 2026-08-31 isto era um pin de commit
+# (`py61850 @ git+https://...@<sha>`), porque o PyPI so' tinha a 0.0.1 e o
+# cliente que o GLV chama (`MmsClient`, `decode_data_definition`,
+# `py61850.mms.pdu`) nao estava publicado em lugar nenhum. Agora esta': o PyPI
+# serve a 0.2.0.dev1, um PRE-RELEASE -- a 0.2.0 final ainda nao existe.
+#
+# Mencionar um pre-release no proprio especificador e' o que autoriza o pip a
+# instalar dev SEM `--pre` na linha de comando (PEP 440 / pip: pre-releases
+# entram quando o requisito as menciona). Por isso `>=0.2.0.dev1` e nao
+# `>=0.2.0`: este ultimo nao casa com nenhuma versao publicada hoje.
+#
+# E' tambem o que faz uma dev NOVA ser puxada sem editar este arquivo:
+#
+#   python3 app.py --atualizar-deps        # pip install --pre -U -r requirements.txt
+#
+# O boot normal NAO atualiza de proposito: o `app.py` so' chama o pip quando
+# um pacote nao importa, e uma subestacao costuma nao ter internet -- um
+# `pip install -U` a cada `--web` transformaria "sem rede" em "nenhuma das
+# nove ferramentas sobe" (o app.py sai no erro do pip).
+#
+# Trocar por `py61850>=0.2.0` no dia em que a final for publicada.
+py61850>=0.2.0.dev1

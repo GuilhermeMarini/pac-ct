@@ -1,0 +1,2944 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>SEL-411L Logic Live Dashboard</title>
+<style>
+  html, body { height: 100%; }
+  body {
+    margin: 0; font-family: var(--sans);
+    background: var(--bg); color: var(--text);
+    display: grid;
+    grid-template-columns: 1fr 280px;
+    grid-template-rows: auto auto auto 1fr;   /* header, abas, paginas, viewer */
+    grid-template-areas:
+      "header header"
+      "tabs   tabs"
+      "pages  pages"
+      "viewer panel";
+    min-height: 100vh;
+  }
+  body.panel-collapsed { grid-template-columns: 1fr 0; }
+  /* Faixa de abas: um diagrama por aba, com o estado da conexao na propria
+     aba. Fica ACIMA da faixa de paginas do GLE -- primeiro se escolhe o
+     diagrama, depois a pagina dele. */
+  /* QUEBRA, nao rola. `overflow-x: auto` numa faixa de uma linha so' escondia
+     as abas seguintes atras de uma barra de rolagem horizontal: com o teto em
+     10 diagramas, metade deles ficava fora da tela e nada na faixa dizia que
+     havia mais. A faixa de paginas logo abaixo (`#pages`) sempre quebrou --
+     agora as duas se leem igual. A linha do grid e' `auto`, entao a faixa
+     cresce em altura sozinha. O `nowrap` desce pro ITEM: a faixa quebra entre
+     abas, nunca dentro do nome de uma. */
+  #tabs {
+    grid-area: tabs; display: flex; flex-wrap: wrap; align-items: center;
+    gap: var(--s1);
+    padding: var(--s1); background: var(--surface);
+    border-bottom: 1px solid var(--border-ctl);
+  }
+  #tabs .tab, #tabs .tab-new { white-space: nowrap; }
+  /* Um nome de rele do corpo real vai a 24 caracteres
+     (`QPC1_LT1_UPC1_SECC_GAMA`), e com `nowrap` a aba fica do tamanho do
+     texto. Quebrar entre abas nao salva de UMA aba mais larga que a tela --
+     um item de flex nao quebra dentro de si. O titulo completo (rele, GLE e
+     IP) ja esta no `title` da aba, entao o corte nao esconde nada. */
+  #tabs .tab .label {
+    max-width: 22ch; overflow: hidden; text-overflow: ellipsis;
+  }
+  #tabs .tab {
+    display: inline-flex; align-items: center; gap: var(--s1);
+    background: var(--surface-2); color: var(--text);
+    border: 1px solid var(--border-ctl); border-radius: var(--radius);
+    padding: var(--s1) var(--s2); font-size: 11px; cursor: pointer;
+  }
+  #tabs .tab:hover { background: var(--surface-3); }
+  #tabs .tab.active {
+    background: var(--accent-strong); border-color: var(--accent-strong);
+    color: var(--accent-fg);
+  }
+  #tabs .tab .ip { font-family: var(--mono); font-size: 10px; opacity: .75; }
+  #tabs .tab .dot {
+    width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px;
+    background: var(--text-3);
+  }
+  #tabs .tab[data-status="live"] .dot { background: var(--ok); }
+  #tabs .tab[data-status="connecting"] .dot { background: var(--warn); }
+  #tabs .tab[data-status="error"] .dot { background: var(--err); }
+  #tabs .tab .shared { font-size: 10px; opacity: .8; }
+  #tabs .tab .close {
+    background: none; border: none; color: inherit; cursor: pointer;
+    font-size: 12px; line-height: 1; padding: 0 2px; opacity: .7;
+  }
+  #tabs .tab .close:hover { opacity: 1; }
+  #tabs .tab-new {
+    background: var(--surface-2); color: var(--text);
+    border: 1px dashed var(--border-ctl); border-radius: var(--radius);
+    padding: var(--s1) var(--s2); font-size: 11px; cursor: pointer;
+    text-decoration: none;
+  }
+  #tabs .tab-new:hover { background: var(--surface-3); }
+  body.panel-collapsed #values-panel { display: none; }
+  /* Cabecalho em DUAS faixas, e a divisao e' por assunto:
+       linha 1 = de que rele estamos falando e como ele esta (identidade +
+                 estado + as acoes que mudam esse estado);
+       linha 2 = o que estamos fazendo com o desenho (busca, ferramentas,
+                 zoom).
+     Antes era uma faixa so, com titulo, estado, busca, ferramentas, zoom e
+     cinco botoes disputando a mesma linha: em qualquer largura real ela
+     quebrava sozinha e o corte caia num lugar diferente a cada tela, entao o
+     nome do IED, a mensagem de erro e o campo de busca acabavam vizinhos sem
+     relacao nenhuma. */
+  header {
+    grid-area: header; background: var(--surface);
+    padding: var(--s2) var(--s3);
+    display: flex; flex-direction: column; gap: 6px;
+    /* `align-items` explicito: o shell dos temas manda `baseline` no
+       `header`, o que numa coluna encolheria cada faixa ao seu conteudo e
+       mataria o `.spacer` que empurra os botoes pra direita. A borda de baixo
+       continua sendo a do tema. */
+    align-items: stretch;
+  }
+  .hdr-row {
+    display: flex; align-items: center; gap: var(--s2);
+    /* ainda quebra em telas estreitas, mas agora cada faixa quebra dentro do
+       proprio assunto */
+    flex-wrap: wrap; row-gap: 6px;
+  }
+  .hdr-row-2 { border-top: 1px dotted var(--border); padding-top: 6px; }
+  header .spacer { flex: 1 1 auto; }
+
+  /* Identidade do diagrama: rele (o nome do IED) + arquivo GLE aberto. */
+  .hdr-id { display: flex; align-items: baseline; gap: var(--s1); min-width: 0; }
+  .hdr-id .eyebrow {
+    font-size: 9px; color: var(--text-3); text-transform: uppercase;
+    letter-spacing: 0.08em; flex: 0 0 auto;
+  }
+  header h1 {
+    margin: 0; font-size: 14px; font-weight: 600;
+    max-width: 34ch; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .hdr-id .gle {
+    font-family: var(--mono); font-size: 11px; color: var(--text-2);
+    max-width: 30ch; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .hdr-id .gle::before { content: "·"; margin-right: var(--s1); color: var(--text-3); }
+
+  /* --- Controles do cabecalho ------------------------------------------
+     UMA pegada so: mesma altura, mesma fonte, mesmo raio, mesma borda -- pros
+     quatro botoes soltos da linha 1 (`.hbtn`) e pros tres grupos da linha 2
+     (busca, ferramentas, zoom). Antes cada botao tinha a sua regra copiada, e
+     o #conn-toggle nao tinha nenhuma: saia com o desenho padrao do navegador,
+     de outra fonte, outra altura e outro raio, bem ao lado de tres botoes
+     iguais entre si. Cor aqui so quer dizer estado; forma e' sempre a mesma. */
+  .hdr-row { --ctl-h: 26px; }
+  .hbtn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    height: var(--ctl-h); box-sizing: border-box; padding: 0 var(--s2);
+    background: var(--surface-2); color: var(--text);
+    border: 1px solid var(--border-ctl); border-radius: var(--radius);
+    font: 500 11px/1 var(--sans); text-decoration: none; white-space: nowrap;
+    cursor: pointer;
+  }
+  .hbtn:hover { background: var(--surface-3); }
+  .hbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .hbtn:disabled { opacity: .5; cursor: progress; }
+  /* Conectar/Desconectar: mesma forma dos outros, so a cor conta o estado. */
+  #conn-toggle[data-state="live"]  { color: var(--ok);  border-color: var(--ok); }
+  #conn-toggle[data-state="error"] { color: var(--err); border-color: var(--err); }
+  /* Notas alterna um painel: acende como as abas quando esta aberto. */
+  body.notes-open #notes-toggle {
+    background: var(--accent-strong); border-color: var(--accent-strong);
+    color: var(--accent-fg);
+  }
+  /* Os grupos sao segmentados por dentro, mas por fora sao um controle da
+     mesma altura dos botoes -- e' o que faz a linha 2 parecer uma linha. */
+  .tools-group, .zoom-group, #var-search-wrap {
+    height: var(--ctl-h); box-sizing: border-box;
+  }
+  .tools-group .tool-label, .zoom-group .tool-label,
+  .tool-btn, .zoom-btn, #var-search-wrap .vs-btn, #var-search {
+    height: 100%; box-sizing: border-box;
+  }
+  /* Estado da leitura: uma pastilha, nao um texto solto ao lado do titulo.
+     A mensagem de erro do rele pode ser longa -- e' cortada com reticencias e
+     o texto inteiro fica no `title` (o JS copia os dois juntos). */
+  .status {
+    /* inline-block, e nao flex: `text-overflow` so corta com reticencias em
+       caixa de bloco -- num container flex o texto vira item anonimo e a
+       mensagem sairia cortada a seco. A altura casa com a dos controles pela
+       line-height. */
+    display: inline-block; height: var(--ctl-h); box-sizing: border-box;
+    line-height: calc(var(--ctl-h) - 2px); padding: 0 var(--s2);
+    font: 400 11px/1 var(--mono); color: var(--ok);
+    background: var(--surface-2); border: 1px solid var(--border-ctl);
+    border-radius: var(--radius);
+    max-width: 52ch; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; flex: 0 1 auto;
+  }
+  .status.stale { color: var(--warn); border-color: var(--warn); }
+  .status.error { color: var(--err); border-color: var(--err); }
+  /* So' aparece em diagramas MMS -- o telnet nao tem a garantia de ritmo que
+     torna este controle seguro (ver diagram.py:set_interval_ms), entao o
+     campo nem existe pra nao sugerir que existe. */
+  .poll-ctl {
+    display: inline-flex; align-items: center; gap: var(--s1);
+    height: var(--ctl-h); box-sizing: border-box; padding: 0 var(--s2);
+    background: var(--surface-2); color: var(--text-2);
+    border: 1px solid var(--border-ctl); border-radius: var(--radius);
+    font: 400 11px/1 var(--sans); white-space: nowrap;
+  }
+  /* Precisa ganhar do `display: inline-flex` de cima -- mesma especificidade
+     de [hidden], mas autor sempre ganha da folha UA, entao sem isto o campo
+     de periodo ficava visivel em diagramas telnet mesmo com o atributo
+     `hidden` presente (visto na verificacao manual: computed display ficava
+     "flex" com hidden="" no elemento). */
+  .poll-ctl[hidden] { display: none; }
+  .poll-ctl label { color: var(--text-2); }
+  .poll-ctl input {
+    /* Cabe 6 digitos com o padding e as bordas dentro da conta (o `width` e' a
+       caixa INTEIRA, por causa do box-sizing: border-box do shell). Era
+       `width: 6ch` liso, e cortava ate' o proprio valor padrao: medido no
+       navegador, "100" pedia 41px numa caixa de 38px, e "10000" pedia 54px.
+       Boa parte disso eram as SETAS do type=number, que o Chrome desenha
+       DENTRO da caixa de conteudo e por cima do texto; elas saem aqui -- o
+       campo e' de digitar, e o `min` do input ja' barra o valor negativo,
+       que e' o unico valor que o servidor corrige. */
+    width: calc(6ch + 2 * 4px + 2px);
+    appearance: textfield; -moz-appearance: textfield;
+    font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border-ctl); border-radius: var(--radius);
+    padding: 0 4px; box-sizing: border-box; height: calc(var(--ctl-h) - 8px);
+  }
+  .poll-ctl input::-webkit-outer-spin-button,
+  .poll-ctl input::-webkit-inner-spin-button { appearance: none; margin: 0; }
+  .poll-status { font-family: var(--mono); color: var(--text-2); }
+  #pages { grid-area: pages; display: flex; flex-wrap: wrap; gap: 4px; padding: var(--s1); background: var(--surface-2); }
+  #pages button {
+    background: var(--surface-2); color: var(--text); border: 1px solid var(--border-ctl);
+    padding: var(--s1) var(--s2); font-size: 11px; cursor: pointer; border-radius: var(--radius);
+  }
+  #pages button:hover { background: var(--surface-3); }
+  #pages button.active { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--accent-fg); }
+  /* O leito e' do tema; o DESENHO nao muda -- continua branco, com moldura,
+     como nas tres direcoes dos mockups. As classes de estado ao vivo
+     (bit-1/bit-0/bit-unknown, connection) ficam como estao, mais abaixo. */
+  #viewer {
+    grid-area: viewer;
+    padding: var(--s3); background: var(--viewer-bg); min-height: 400px;
+    overflow: auto;
+    --gle-zoom: 1;
+  }
+  #viewer svg { background: #fefefe; border: 1px solid var(--border); }
+  /* Zoom: a largura do SVG e uma % do container multiplicada pelo fator.
+     zoom 1 = ajustado a largura; acima disso o proprio #viewer (overflow:auto)
+     vira a area de scroll/pan. height:auto preserva a proporcao. */
+  #viewer svg {
+    width: calc(100% * var(--gle-zoom)); height: auto;
+    display: block; margin: 0 auto;   /* centraliza quando sobra largura */
+  }
+  body.panning #viewer { cursor: grabbing; user-select: none; -webkit-user-select: none; }
+  /* 3 estados visualmente distintos: ON (verde), OFF (cinza claro), DESCONHECIDO (amarelo hachurado) */
+  #viewer svg .element-symbol.bit-1 { fill: #6fdc6f !important; stroke: #1a6a1a !important; stroke-width: 1.5 !important; }
+  #viewer svg .element-symbol.bit-0 { fill: #e8e8e8 !important; stroke: #888 !important; }
+  #viewer svg .element-symbol.bit-unknown { fill: #fff4c8 !important; stroke: #d49a00 !important; stroke-dasharray: 2,2; }
+  /* Mesmas regras para blocos de logica (AND/OR/PLT/TIMER/AST) que tem valor avaliado */
+  #viewer svg .gate-grp rect.bit-1 { fill: #6fdc6f !important; stroke: #1a6a1a !important; stroke-width: 1.5 !important; }
+  #viewer svg .gate-grp rect.bit-0 { fill: #e8e8e8 !important; stroke: #666 !important; }
+  #viewer svg .gate-grp rect.bit-unknown { fill: #fff4c8 !important; stroke: #d49a00 !important; stroke-dasharray: 2,2; }
+  #viewer svg polyline.connection.unknown { stroke: #d49a00; stroke-width: 0.8; stroke-dasharray: 3,2; }
+  #viewer svg polyline.connection.off { stroke: #404040; stroke-width: 0.6; }
+  #values-panel {
+    grid-area: panel;
+    overflow-y: auto;
+    background: var(--surface); border-left: 1px solid var(--border-ctl); padding: var(--s2);
+    font-family: var(--mono); font-size: 11px;
+  }
+  #values-panel h3 { margin: 0 0 6px 0; font-size: 12px; color: var(--accent); }
+  #values-panel section + section { margin-top: 12px; }
+  .legend-row { display: flex; align-items: center; gap: 6px; line-height: 1.6; font-size: 10px; }
+  .legend-swatch { display: inline-block; width: 14px; height: 10px; flex: 0 0 14px; }
+  /* Conectores da pagina: nome, estado e a equacao que o aciona. */
+  .conn-item { margin-bottom: 8px; }
+  .conn-item + .conn-item { border-top: 1px solid var(--border); padding-top: 6px; }
+  .conn-head { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+  .conn-name { font-weight: 600; }
+  .conn-where { color: var(--muted); font-size: 10px; }
+  /* A equacao quebra linha: 107 caracteres e' a mediana medida no corpus, e
+     o painel e' estreito. `pre-wrap` mantem os espacos que separam os
+     operadores. */
+  .conn-eq {
+    font-family: var(--mono); font-size: 10px; line-height: 1.5;
+    white-space: pre-wrap; word-break: break-word; margin-top: 3px;
+  }
+  /* As mesmas tres cores da legenda -- e' o mesmo estado, e uma quarta
+     paleta so' faria a pessoa traduzir de cabeca. */
+  .conn-var { padding: 0 2px; border-radius: 2px; }
+  .conn-var.bit-1 { background: #6fdc6f; border: 1px solid #1a6a1a; }
+  .conn-var.bit-0 { background: #e8e8e8; border: 1px solid #888; }
+  .conn-var.bit-unknown { background: #fff4c8; border: 1px dashed #d49a00; }
+  /* "Fora do modelo" -- o painel das variaveis que esta conexao nao le. */
+  #unreachable > summary {
+    cursor: pointer; font-size: 12px; color: var(--accent);
+    list-style: none; display: flex; align-items: center; gap: 6px;
+  }
+  #unreachable > summary::-webkit-details-marker { display: none; }
+  #unreachable > summary::before { content: '\25B8'; font-size: 9px; color: var(--text-3); }
+  #unreachable[open] > summary::before { content: '\25BE'; }
+  .uc-count {
+    font-size: 10px; padding: 0 4px; border-radius: var(--radius);
+    border: 1px solid var(--missing); background: var(--tint-missing);
+    color: var(--missing);
+  }
+  .uc-count[data-state="none"] {
+    border-color: var(--ok); background: var(--tint-ok); color: var(--ok);
+  }
+  .uc-count[data-state="unknown"] {
+    border-color: var(--border-ctl); background: none; color: var(--text-3);
+  }
+  .uc-hint { font-size: 10px; color: var(--text-2); line-height: 1.4; margin: 6px 0; }
+  .uc-actions { display: flex; gap: 4px; margin-bottom: 6px; }
+  .uc-btn {
+    font-family: var(--mono); font-size: 10px; cursor: pointer;
+    text-decoration: none; padding: 2px 6px; border-radius: var(--radius);
+    border: 1px solid var(--border-ctl); background: var(--surface-2);
+    color: var(--text);
+  }
+  .uc-btn[aria-disabled="true"] { opacity: 0.45; pointer-events: none; }
+  .uc-list { font-size: 10px; max-height: 30vh; overflow-y: auto; }
+  .uc-list div { color: var(--missing); }
+  .v-active { color: var(--ok); }
+  .v-inactive { color: var(--text-2); }
+  .an-group { margin-bottom: 8px; }
+  .an-group-hdr {
+    color: var(--warn); font-size: 10px; font-weight: bold;
+    border-bottom: 1px dotted var(--border); padding-bottom: 2px; margin-bottom: 3px;
+  }
+  .an-row { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; }
+  .an-row .an-name { color: var(--text); }
+  .an-row .an-val  { color: var(--text); font-variant-numeric: tabular-nums; }
+  .an-row.na .an-val { color: var(--text-2); font-style: italic; }
+  @media (max-width: 900px) {
+    body { grid-template-columns: 1fr; grid-template-areas: "header" "tabs" "pages" "viewer" "panel"; }
+    body.panel-collapsed { grid-template-columns: 1fr; }
+    #values-panel { border-left: none; border-top: 1px solid var(--border-ctl); max-height: 40vh; }
+  }
+
+  /* Tools group no header (Mouse / Highlighter) */
+  .tools-group {
+    display: inline-flex; align-items: center; gap: 0;
+    border: 1px solid var(--border-ctl); border-radius: var(--radius); overflow: hidden;
+  }
+  .tools-group .tool-label {
+    background: var(--surface); color: var(--text-2); font-size: 10px;
+    padding: var(--s1) var(--s1); border-right: 1px solid var(--border-ctl);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .tool-btn {
+    background: var(--surface-2); color: var(--text); border: none;
+    padding: var(--s1) var(--s2); font-size: 11px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+    border-left: 1px solid var(--border);
+  }
+  .tool-btn:first-of-type { border-left: none; }
+  .tool-btn:hover { background: var(--surface-3); }
+  .tool-btn.active {
+    background: #c79a00; color: #1a1a1a;
+  }
+  .tool-btn .tool-icon { width: 14px; height: 14px; display: inline-block; }
+  /* Grupo de zoom no header (mesma pegada visual do .tools-group) */
+  .zoom-group {
+    display: inline-flex; align-items: center; gap: 0;
+    border: 1px solid var(--border-ctl); border-radius: var(--radius); overflow: hidden;
+  }
+  .zoom-group .tool-label {
+    background: var(--surface); color: var(--text-2); font-size: 10px;
+    padding: var(--s1) var(--s1); border-right: 1px solid var(--border-ctl);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .zoom-btn {
+    background: var(--surface-2); color: var(--text); border: none;
+    padding: var(--s1) var(--s2); font-size: 11px; cursor: pointer;
+    border-left: 1px solid var(--border); line-height: 1.2;
+  }
+  .zoom-btn:hover { background: var(--surface-3); }
+  .zoom-btn:disabled { color: var(--text-3); cursor: default; background: var(--surface-2); }
+  #zoom-level {
+    min-width: 46px; font-family: var(--mono); font-variant-numeric: tabular-nums;
+  }
+  .zoom-btn.active { background: var(--accent-strong); color: var(--accent-fg); }
+
+  body.tool-highlight #viewer { cursor: crosshair; }
+  body.tool-highlight #viewer svg .symbol-grp,
+  body.tool-highlight #viewer svg .gate-grp,
+  body.tool-highlight #viewer svg polyline.connection {
+    cursor: crosshair;
+  }
+
+  /* Visual do marcador de texto -- overlay flat amarelo (mais escuro/saturado) */
+  #viewer svg .hl-overlay {
+    fill: #f0b800; fill-opacity: 0.7; stroke: none; pointer-events: none;
+  }
+  #viewer svg polyline.hl-line-overlay {
+    fill: none; stroke: #f0b800; stroke-opacity: 0.78;
+    stroke-width: 5; stroke-linecap: round; stroke-linejoin: round;
+    pointer-events: none;
+  }
+  /* Rubber-band do drag-select em modo highlight */
+  #viewer svg .rubber-band {
+    fill: #f0b800; fill-opacity: 0.10;
+    stroke: #c79a00; stroke-width: 0.8; stroke-dasharray: 4,2;
+    pointer-events: none;
+  }
+  body.tool-highlight #viewer { user-select: none; -webkit-user-select: none; }
+
+  /* Notepad: painel fixo deslizante a partir da direita */
+  #notes-panel {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: 380px; max-width: 90vw;
+    background: var(--surface);
+    border-left: 1px solid var(--border-ctl);
+    box-shadow: -4px 0 12px rgba(0,0,0,0.4);
+    display: flex; flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.22s ease;
+    z-index: 50;
+  }
+  body.notes-open #notes-panel { transform: translateX(0); }
+  #notes-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; background: var(--surface-2); border-bottom: 1px solid var(--border-ctl);
+    font-size: 12px;
+  }
+  #notes-header strong { font-size: 12px; color: var(--text); }
+  #notes-header .spacer { flex: 1; }
+  #notes-status { font-size: 10px; color: var(--ok); font-family: var(--mono); }
+  #notes-status.saving { color: var(--warn); }
+  #notes-status.error { color: var(--err); }
+  #notes-close {
+    background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+    padding: 2px 8px; font-size: 11px; cursor: pointer; border-radius: var(--radius);
+  }
+  #notes-close:hover { background: var(--border-ctl); }
+  #notes-toolbar {
+    display: flex; flex-wrap: wrap; gap: 3px;
+    padding: var(--s1); background: var(--surface-2); border-bottom: 1px solid var(--border-ctl);
+  }
+  #notes-toolbar button {
+    background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+    padding: var(--s1) var(--s1); font-size: 11px; font-family: inherit;
+    cursor: pointer; border-radius: var(--radius); min-width: 26px;
+  }
+  #notes-toolbar button:hover { background: var(--border-ctl); }
+  #notes-toolbar button.tb-b { font-weight: bold; }
+  #notes-toolbar button.tb-i { font-style: italic; }
+  #notes-toolbar button.tb-u { text-decoration: underline; }
+  #notes-toolbar .tb-sep {
+    width: 1px; background: var(--border); margin: 2px 3px;
+  }
+  #notes-editor {
+    flex: 1; overflow-y: auto;
+    padding: 12px; background: #fdfdf7; color: #222;
+    font-family: -apple-system, system-ui, sans-serif; font-size: 13px;
+    line-height: 1.45; outline: none;
+  }
+  #notes-editor:focus { background: #fff; }
+  #notes-editor h1 { font-size: 18px; margin: 8px 0 4px; }
+  #notes-editor h2 { font-size: 15px; margin: 6px 0 3px; }
+  #notes-editor p  { margin: 4px 0; }
+  #notes-editor ul, #notes-editor ol { margin: 4px 0 4px 22px; }
+  #notes-editor blockquote {
+    border-left: 3px solid #ccc; margin: 6px 0; padding: 2px 8px; color: #555;
+  }
+  #notes-editor code {
+    background: #eef0f4; padding: 1px 4px; border-radius: 3px;
+    font-family: monospace; font-size: 12px;
+  }
+  /* Abas de escopo da nota (Rele / Pagina atual) */
+  #notes-tabs {
+    display: flex; gap: 0; background: var(--surface-2);
+    border-bottom: 1px solid var(--border-ctl);
+  }
+  .notes-tab {
+    flex: 1; background: transparent; color: var(--text-2); border: none;
+    border-right: 1px solid var(--surface-2); border-bottom: 2px solid transparent;
+    padding: var(--s1) var(--s2); font-size: 11px; cursor: pointer;
+    font-family: inherit;
+    text-align: left; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .notes-tab:last-child { border-right: none; }
+  .notes-tab:hover { background: var(--surface-2); color: var(--text); }
+  .notes-tab.active {
+    background: var(--surface-2); color: var(--text);
+    border-bottom-color: #c79a00;
+  }
+  .notes-tab .tab-scope { font-size: 9px; color: #777; text-transform: uppercase; letter-spacing: 0.05em; }
+  .notes-tab.active .tab-scope { color: #c79a00; }
+  .notes-tab .tab-name { font-weight: 500; }
+  .notes-tab .has-note-dot {
+    display: inline-block; width: 6px; height: 6px;
+    border-radius: 50%; background: #c79a00;
+    margin-left: 2px; visibility: hidden;
+  }
+  .notes-tab.has-note .has-note-dot { visibility: visible; }
+  /* Indicador no botao da pagina (nav superior) */
+  #pages button.has-note::after {
+    content: ''; display: inline-block;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: #c79a00; margin-left: 5px; vertical-align: middle;
+  }
+  /* Indicador de match da busca: dot ciano a esquerda do nome (nao colide
+     com o dot amarelo de notas, que fica a direita via ::after). */
+  #pages button.has-search-hit {
+    border-color: #2bb6ff;
+  }
+  #pages button.has-search-hit::before {
+    content: ''; display: inline-block;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: #2bb6ff; margin-right: 5px; vertical-align: middle;
+  }
+  #pages button.active.has-search-hit {
+    /* mantem o azul do search-hit por cima do estilo .active */
+    border-color: #2bb6ff;
+  }
+  /* Search box: localizar variavel no diagrama */
+  #var-search-wrap {
+    position: relative;
+    display: inline-flex; align-items: center; gap: 0;
+    border: 1px solid var(--border-ctl); border-radius: var(--radius); background: var(--surface-2);
+  }
+  #var-search {
+    background: transparent; color: var(--text); border: none; outline: none;
+    padding: var(--s1) var(--s2); font-size: 11px; font-family: var(--mono);
+    width: 230px;
+  }
+  #var-search::placeholder { color: var(--text-3); }
+  #var-search-wrap .vs-count {
+    font-size: 10px; color: var(--text-2); padding: 0 8px;
+    border-left: 1px solid var(--border); font-variant-numeric: tabular-nums;
+    min-width: 40px; text-align: center;
+  }
+  #var-search-wrap .vs-count.has-hits { color: var(--ok); }
+  #var-search-wrap .vs-count.no-hits  { color: var(--err); }
+  #var-search-wrap .vs-btn {
+    background: transparent; color: var(--text); border: none; cursor: pointer;
+    padding: 4px 6px; font-size: 11px; line-height: 1;
+    border-left: 1px solid var(--border);
+  }
+  #var-search-wrap .vs-btn:hover { background: var(--surface-3); color: var(--text); }
+  #var-search-wrap .vs-btn:disabled { color: var(--border); cursor: default; background: transparent; }
+  /* Dropdown de paginas com matches (mostrado quando ha resultados off-page) */
+  #var-search-dropdown {
+    position: absolute; top: 100%; left: 0; right: 0;
+    margin-top: 2px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+    z-index: 60; max-height: 60vh; overflow-y: auto;
+    display: none; min-width: 280px;
+  }
+  #var-search-dropdown.open { display: block; }
+  #var-search-dropdown .vs-section {
+    font-size: 9px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 6px 10px 2px; border-top: 1px solid var(--surface-2);
+  }
+  #var-search-dropdown .vs-section:first-child { border-top: none; }
+  #var-search-dropdown .vs-row {
+    display: flex; gap: 8px; align-items: baseline;
+    padding: var(--s1) var(--s2); cursor: pointer;
+    font-family: var(--mono); font-size: 11px;
+  }
+  #var-search-dropdown .vs-row:hover,
+  #var-search-dropdown .vs-row.kbd-focus { background: var(--surface-2); }
+  #var-search-dropdown .vs-row .vs-name { color: var(--text); flex: 0 0 auto; }
+  #var-search-dropdown .vs-row .vs-page { color: var(--accent); flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #var-search-dropdown .vs-row .vs-tag {
+    font-size: 9px; color: var(--text-2); background: var(--surface-2); padding: 1px 5px;
+    border-radius: var(--radius); text-transform: uppercase;
+  }
+  #var-search-dropdown .vs-row .vs-tag.tag-analog { background: var(--tint-equiv); color: var(--warn); }
+  #var-search-dropdown .vs-row .vs-tag.tag-bit    { background: var(--tint-ok); color: var(--ok); }
+  #var-search-dropdown .vs-empty {
+    padding: var(--s2); color: var(--text-2); font-size: 11px; text-align: center; font-style: italic;
+  }
+
+  /* Overlay azul-ciano nos matches (distinto do amarelo do Marcador) */
+  #viewer svg .search-hit {
+    fill: #2bb6ff; fill-opacity: 0.45; stroke: #0078c8; stroke-width: 0.6;
+    pointer-events: none;
+  }
+  #viewer svg .search-hit.current {
+    fill-opacity: 0.7; stroke: #ff7a00; stroke-width: 1.6;
+  }
+  #viewer svg polyline.search-hit-line {
+    fill: none; stroke: #2bb6ff; stroke-opacity: 0.6; stroke-width: 4;
+    stroke-linecap: round; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<header>
+  <!-- Linha 1 -- identidade e estado: qual rele, qual GLE, como esta a leitura
+       e os botoes que mexem nisso. -->
+  <div class="hdr-row hdr-row-1">
+    <div class="hdr-id">
+      <span class="eyebrow">IED</span>
+      <h1 id="relay-title">Graphical Logic Viewer</h1>
+      <span class="gle" id="gle-name" hidden></span>
+    </div>
+    <span id="status" class="status">conectando...</span>
+    <span class="poll-ctl" id="poll-ctl" hidden>
+      <label for="poll-ms">Período</label>
+      <!-- min="0": nao ha piso de periodo no MMS. 0 quer dizer "tao rapido
+           quanto o rele responder" -- o laco le em lote, uma leitura por
+           volta, e nunca parte a proxima antes da resposta da anterior (ver
+           transport/mms.py:effective_interval). -->
+      <input type="number" id="poll-ms" min="0" step="10" value="100"> ms
+      <span id="poll-status" class="poll-status"></span>
+    </span>
+    <span class="spacer"></span>
+    <button id="conn-toggle" class="hbtn" type="button" data-state="idle"
+            title="Conectar ou desconectar este diagrama">Conectar</button>
+    <button id="notes-toggle" class="hbtn" type="button" aria-controls="notes-panel" aria-expanded="false">Notas</button>
+    <button id="panel-toggle" class="hbtn" type="button" aria-controls="values-panel" aria-expanded="true">Ocultar painel</button>
+    <a id="back-to-home" class="hbtn" href="/" title="Voltar ao menu de ferramentas">&#x2190; Menu</a>
+  </div>
+  <!-- Linha 2 -- o que se faz com o desenho: localizar, marcar, ampliar. -->
+  <div class="hdr-row hdr-row-2">
+    <div id="var-search-wrap" role="search" title="Localizar variável (atalho: /)">
+      <input id="var-search" type="search" autocomplete="off" spellcheck="false"
+             placeholder="Localizar variável (tecla /)" aria-label="Localizar variável">
+      <span class="vs-count" id="var-search-count" aria-live="polite">-</span>
+      <button class="vs-btn" id="var-search-prev" type="button"
+              title="Anterior (Shift+Enter)" aria-label="Anterior" disabled>&#x25B2;</button>
+      <button class="vs-btn" id="var-search-next" type="button"
+              title="Próximo (Enter)" aria-label="Próximo" disabled>&#x25BC;</button>
+      <button class="vs-btn" id="var-search-clear" type="button"
+              title="Limpar (Esc)" aria-label="Limpar">&times;</button>
+      <div id="var-search-dropdown" role="listbox" aria-label="Resultados"></div>
+    </div>
+    <span class="spacer"></span>
+    <div class="tools-group" role="radiogroup" aria-label="Ferramentas">
+      <span class="tool-label">Ferramentas</span>
+      <button id="tool-select" class="tool-btn active" type="button" role="radio" aria-checked="true" data-tool="select" title="Selecionar">
+        <svg class="tool-icon" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M3 1 L13 9 L8.5 9.5 L11 14.5 L9 15.5 L6.5 10.5 L3 13 Z"/></svg>
+        <span>Mouse</span>
+      </button>
+      <button id="tool-highlight" class="tool-btn" type="button" role="radio" aria-checked="false" data-tool="highlight" title="Marcador de texto">
+        <svg class="tool-icon" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M11 1.5 L14.5 5 L8 11.5 L4.5 12.5 L3.5 13.5 L2.5 12.5 L3.5 11.5 L4.5 8 Z M9 3.5 L12.5 7"/></svg>
+        <span>Marcador</span>
+      </button>
+    </div>
+    <div class="zoom-group" aria-label="Zoom do diagrama">
+      <span class="tool-label">Zoom</span>
+      <button id="zoom-out" class="zoom-btn" type="button"
+              title="Reduzir (tecla -)" aria-label="Reduzir">&minus;</button>
+      <button id="zoom-level" class="zoom-btn" type="button"
+              title="Ajustar página inteira a tela (tecla 0)" aria-label="Ajustar a tela">100%</button>
+      <button id="zoom-in" class="zoom-btn" type="button"
+              title="Ampliar (tecla +)" aria-label="Ampliar">+</button>
+      <button id="zoom-fit-width" class="zoom-btn" type="button"
+              title="Ajustar a largura (tecla 9)" aria-label="Ajustar a largura">&#x2194;</button>
+      <button id="zoom-fit-page" class="zoom-btn" type="button"
+              title="Página inteira na tela (tecla 0)" aria-label="Página inteira">&#x26F6;</button>
+    </div>
+  </div>
+</header>
+<nav id="tabs" aria-label="Diagramas abertos"></nav>
+<nav id="pages"></nav>
+<main id="viewer"></main>
+<aside id="values-panel">
+  <section>
+    <h3>Legenda</h3>
+    <div class="legend-row"><span class="legend-swatch" style="background:#6fdc6f; border:1px solid #1a6a1a"></span> Ativo (1)</div>
+    <div class="legend-row"><span class="legend-swatch" style="background:#e8e8e8; border:1px solid #888"></span> Inativo (0)</div>
+    <div class="legend-row"><span class="legend-swatch" style="background:#fff4c8; border:1px dashed #d49a00"></span> Indeterminado</div>
+  </section>
+  <section id="connectors-section" hidden>
+    <!-- Conectores da PAGINA ABERTA. Um conector nao e' uma linha: e' um nome
+         que duas ou mais pontas compartilham, e a equacao que o aciona pode
+         estar em outra pagina. Mostrar a equacao com as variaveis coloridas
+         e' o que deixa a pessoa ver POR QUE o conector esta como esta sem
+         precisar trocar de pagina. -->
+    <h3>Conectores</h3>
+    <div id="connectors-list"></div>
+  </section>
+  <section>
+    <!-- O que a conexão escolhida NAO alcança. Fechado por padrão: num
+         desenho bem coberto e' uma lista vazia, e ela nao pode disputar
+         espaco com os valores que estao sendo lidos. -->
+    <details id="unreachable">
+      <summary>Fora do modelo <span class="uc-count" id="unreachable-count"
+                                    data-state="unknown">&mdash;</span></summary>
+      <div class="uc-hint" id="unreachable-hint"></div>
+      <div class="uc-actions">
+        <button type="button" class="uc-btn" id="unreachable-copy"
+                title="Copiar os nomes, um por linha">Copiar</button>
+        <a class="uc-btn" id="unreachable-txt" href="#" download
+           title="Baixar a lista como .txt">Baixar .txt</a>
+      </div>
+      <div class="uc-list" id="unreachable-list"></div>
+    </details>
+  </section>
+  <section>
+    <h3>Bits na página</h3>
+    <div id="bit-counts" style="font-size:10px"></div>
+  </section>
+  <section>
+    <h3>Bits ativos</h3>
+    <div id="active-bits">aguardando...</div>
+  </section>
+  <section>
+    <h3>Bits indeterminados</h3>
+    <div id="unknown-bits" style="font-size:10px"></div>
+  </section>
+  <section>
+    <h3>Analógicos</h3>
+    <div id="analog-values">-</div>
+  </section>
+</aside>
+
+<aside id="notes-panel" aria-hidden="true">
+  <div id="notes-header">
+    <strong>Bloco de notas</strong>
+    <span id="notes-status">-</span>
+    <span class="spacer"></span>
+    <button id="notes-close" type="button" title="Fechar">x</button>
+  </div>
+  <div id="notes-tabs" role="tablist">
+    <button class="notes-tab active" type="button" role="tab"
+            data-scope="relay" aria-selected="true">
+      <span><span class="tab-scope">Relé</span> <span class="tab-name">Geral</span></span>
+      <span class="has-note-dot" aria-hidden="true"></span>
+    </button>
+    <button class="notes-tab" type="button" role="tab"
+            data-scope="page" aria-selected="false">
+      <span><span class="tab-scope">Página</span> <span class="tab-name" id="notes-page-name">-</span></span>
+      <span class="has-note-dot" aria-hidden="true"></span>
+    </button>
+  </div>
+  <div id="notes-toolbar">
+    <button type="button" class="tb-b" data-cmd="bold" title="Negrito (Ctrl+B)">B</button>
+    <button type="button" class="tb-i" data-cmd="italic" title="Italico (Ctrl+I)">I</button>
+    <button type="button" class="tb-u" data-cmd="underline" title="Sublinhado (Ctrl+U)">U</button>
+    <button type="button" data-cmd="strikeThrough" title="Tachado">S</button>
+    <span class="tb-sep"></span>
+    <button type="button" data-cmd="formatBlock" data-arg="H1" title="Titulo 1">H1</button>
+    <button type="button" data-cmd="formatBlock" data-arg="H2" title="Titulo 2">H2</button>
+    <button type="button" data-cmd="formatBlock" data-arg="P" title="Paragrafo">P</button>
+    <span class="tb-sep"></span>
+    <button type="button" data-cmd="insertUnorderedList" title="Lista">&bull; Lista</button>
+    <button type="button" data-cmd="insertOrderedList" title="Lista numerada">1. Lista</button>
+    <button type="button" data-cmd="formatBlock" data-arg="BLOCKQUOTE" title="Citacao">"</button>
+    <button type="button" data-cmd="formatBlock" data-arg="PRE" title="C&oacute;digo">&lt;/&gt;</button>
+    <span class="tb-sep"></span>
+    <button type="button" data-cmd="removeFormat" title="Limpar formatacao">Tx</button>
+  </div>
+  <div id="notes-editor" contenteditable="true" spellcheck="false"></div>
+</aside>
+
+<script>
+// Estado de arranque: as abas abertas e qual esta ativa. O resto (paginas,
+// indice de variaveis, familias de analogicos) vem de /meta?d= a cada troca
+// de aba -- por isso nada aqui e' const.
+const BOOT = ${BOOT_JSON};
+let TABS = BOOT.diagrams || [];
+let activeDiagram = BOOT.active || (TABS[0] && TABS[0].id) || null;
+let PAGES = [];        // [[nome, safe_id], ...] do diagrama ativo
+let VAR_INDEX = {};    // {NAME_UPPER: {kind:'bit'|'analog', pages:[safe,...]}}
+let currentPage = "";
+
+// Toda rota do GLV e' por diagrama: sem `d` o servidor usaria o ativo dele,
+// que pode nao ser o que esta na tela desta aba do navegador.
+function withD(url) {
+  if (!activeDiagram) return url;
+  return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'd=' + encodeURIComponent(activeDiagram);
+}
+let lastValues = { digitals: {}, analogs: {}, ts: 0, error: "" };
+let varSearch = null;  // exposto pra loadPage() re-aplicar busca após troca de página
+let zoomCtl = null;    // exposto pra loadPage() reajustar o zoom na nova página
+
+// Controle de período: so' existe pro modo MMS (ver diagram.py:set_interval_ms
+// -- telnet nao tem piso proprio pra isto mexer). `activeScanMode` vem de
+// meta() a cada troca de diagrama; `periodNotice` guarda o "adiado"/"recusado"
+// da ultima resposta de /period ate' a proxima troca, porque um pedido adiado
+// continua valendo mesmo depois que o proximo poll de /values sobrescreveria
+// um texto solto.
+let activeScanMode = 'telnet';
+let periodNotice = null;
+const pollCtl = document.getElementById('poll-ctl');
+const pollMs = document.getElementById('poll-ms');
+const pollStatus = document.getElementById('poll-status');
+
+(function setupPanelToggle() {
+  const btn = document.getElementById('panel-toggle');
+  if (!btn) return;
+  const KEY = 'sel411-panel-collapsed';
+  function apply(collapsed) {
+    document.body.classList.toggle('panel-collapsed', collapsed);
+    btn.textContent = collapsed ? 'Mostrar painel' : 'Ocultar painel';
+    btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  }
+  try { apply(localStorage.getItem(KEY) === '1'); } catch (e) { apply(false); }
+  btn.addEventListener('click', () => {
+    const next = !document.body.classList.contains('panel-collapsed');
+    apply(next);
+    try { localStorage.setItem(KEY, next ? '1' : '0'); } catch (e) {}
+  });
+})();
+
+async function loadPage(safeId, name) {
+  const r = await fetch(withD(`/pages/${safeId}`));
+  const svg = await r.text();
+  document.getElementById('viewer').innerHTML = svg;
+  if (zoomCtl) zoomCtl.onPageChange();
+  document.querySelectorAll('#pages button').forEach(b => b.classList.remove('active'));
+  document.querySelector(`#pages button[data-page="${safeId}"]`).classList.add('active');
+  currentPage = safeId;
+  applyValues(lastValues);
+  applyGroupState();
+  applyHighlightsForCurrentPage();
+  if (notesCtl) notesCtl.onPageChange(safeId);
+  if (varSearch) varSearch.reapply();
+}
+
+// =============================================================================
+// Busca de variaveis no diagrama (header > #var-search-wrap)
+// Match case-insensitive por substring contra VAR_INDEX (chaves UPPER).
+// Pinta overlays cyan sobre matches da pagina atual; lista paginas com
+// matches em outros lugares no dropdown (clicaveis -> loadPage).
+// Enter avanca, Shift+Enter volta, Esc limpa. Tecla "/" foca o input.
+// =============================================================================
+(function setupVarSearch() {
+  const input    = document.getElementById('var-search');
+  const countEl  = document.getElementById('var-search-count');
+  const btnPrev  = document.getElementById('var-search-prev');
+  const btnNext  = document.getElementById('var-search-next');
+  const btnClear = document.getElementById('var-search-clear');
+  const dropdown = document.getElementById('var-search-dropdown');
+  if (!input) return;
+
+  // PAGES so' e' preenchido por applyMeta(), DEPOIS deste IIFE, e e' trocado
+  // a cada aba de diagrama -- entao nada aqui pode virar snapshot: le-se
+  // sempre a lista viva do diagrama ativo.
+  // Mapa pageId -> nome legivel (pra dropdown)
+  function pageName(safe) {
+    for (const [name, s] of PAGES) if (s === safe) return name;
+    return safe;
+  }
+
+  // Ordem global das paginas -- usada pra decidir qual e a "proxima pagina
+  // com matches" na navegacao cross-page.
+  function pageOrder() { return PAGES.map(([, safe]) => safe); }
+
+  let lastQuery = '';
+  let currentHits = [];   // [{el, name, kind}] sobre a página atual
+  let currentIdx = -1;
+  let debounceTimer = null;
+  // Set ordenado (pela ordem de PAGES) das paginas que tem matches pra
+  // query atual. Recalculado em todo run() a partir do VAR_INDEX.
+  let pagesWithHits = [];
+  // Sinaliza ao proximo run() pra focar o ULTIMO hit (em vez do primeiro)
+  // -- usado quando o usuario navega "pra tras" cruzando paginas.
+  let pendingFocus = null;  // 'first' | 'last' | null
+
+  function clearHighlights() {
+    document.querySelectorAll('#viewer svg .search-hit').forEach(n => n.remove());
+    currentHits = [];
+    currentIdx = -1;
+  }
+
+  // Pinta/desmarca o dot ciano nos botoes das paginas que tem matches.
+  function clearTabHighlights() {
+    document.querySelectorAll('#pages button.has-search-hit')
+      .forEach(b => b.classList.remove('has-search-hit'));
+  }
+  function applyTabHighlights(pageSet) {
+    document.querySelectorAll('#pages button').forEach(b => {
+      const pg = b.getAttribute('data-page');
+      b.classList.toggle('has-search-hit', pageSet.has(pg));
+    });
+  }
+
+  function paintHit(blockEl) {
+    // Caixa principal do bloco (mesma logica do hl-overlay amarelo)
+    const rect = blockEl.querySelector('rect:not(.hl-overlay):not(.search-hit)');
+    if (!rect) return null;
+    const x = parseFloat(rect.getAttribute('x'));
+    const y = parseFloat(rect.getAttribute('y'));
+    const w = parseFloat(rect.getAttribute('width'));
+    const h = parseFloat(rect.getAttribute('height'));
+    if (![x, y, w, h].every(Number.isFinite)) return null;
+    const pad = 3;
+    const hl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    hl.setAttribute('class', 'search-hit');
+    hl.setAttribute('x', x - pad);
+    hl.setAttribute('y', y - pad);
+    hl.setAttribute('width', w + 2 * pad);
+    hl.setAttribute('height', h + 2 * pad);
+    hl.setAttribute('rx', '2.5');
+    // Insere LOGO APOS o rect original: assim a cor tinge o fundo do bloco
+    // (rect opaco coberto por overlay semi-transparente) mas o <text> com
+    // o nome da variavel, que vem depois do rect no DOM, fica por cima.
+    rect.insertAdjacentElement('afterend', hl);
+    return hl;
+  }
+
+  function matchesQuery(name, q) {
+    if (!q) return false;
+    return name.toLowerCase().indexOf(q) !== -1;
+  }
+
+  // Acha matches na pagina atual usando os data-attrs do SVG (case-insensitive)
+  function findCurrentPageHits(q) {
+    const out = [];
+    const svg = document.querySelector('#viewer svg');
+    if (!svg || !q) return out;
+    const blocks = svg.querySelectorAll('[data-bit], [data-analog], [data-output-bit], [data-const]');
+    blocks.forEach(el => {
+      const raw =
+        el.getAttribute('data-bit') ||
+        el.getAttribute('data-analog') ||
+        el.getAttribute('data-output-bit') ||
+        el.getAttribute('data-const') || '';
+      if (matchesQuery(raw, q)) {
+        let kind = 'bit';
+        if (el.hasAttribute('data-analog')) kind = 'analog';
+        else if (el.hasAttribute('data-output-bit')) kind = 'output';
+        else if (el.hasAttribute('data-const')) kind = 'const';
+        out.push({ el, name: raw, kind });
+      }
+    });
+    return out;
+  }
+
+  // Walk no VAR_INDEX uma vez so. Retorna:
+  //   pages  -> Set de safe_page_ids com qualquer match (inclui currentPage)
+  //   others -> [{name, page, kind}] pro dropdown (exclui currentPage)
+  function computeIndexMatches(q) {
+    const out = { pages: new Set(), others: [] };
+    if (!q) return out;
+    for (const [name, ent] of Object.entries(VAR_INDEX)) {
+      if (!matchesQuery(name, q)) continue;
+      for (const pg of ent.pages) {
+        out.pages.add(pg);
+        if (pg !== currentPage) {
+          out.others.push({ name, page: pg, kind: ent.kind });
+        }
+      }
+    }
+    out.others.sort((a, b) =>
+      a.name.localeCompare(b.name) || a.page.localeCompare(b.page));
+    return out;
+  }
+
+  // Lista ordenada (pela ordem de PAGES) das paginas que tem matches.
+  // Usada pra calcular "proxima pagina" na navegacao com setas.
+  function orderedPagesWithHits(pageSet) {
+    return pageOrder().filter(safe => pageSet.has(safe));
+  }
+
+  function focusHit(i) {
+    if (!currentHits.length) return;
+    // Desmarca anterior
+    currentHits.forEach(h => {
+      const overlay = h.el.querySelector(':scope > .search-hit');
+      if (overlay) overlay.classList.remove('current');
+    });
+    // Normaliza indice
+    const n = currentHits.length;
+    currentIdx = ((i % n) + n) % n;
+    const target = currentHits[currentIdx];
+    const overlay = target.el.querySelector(':scope > .search-hit');
+    if (overlay) overlay.classList.add('current');
+    // Centraliza no viewport (smooth)
+    try {
+      target.el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    } catch (e) { /* navegador antigo */ }
+    updateCounter();
+  }
+
+  function updateCounter() {
+    const n = currentHits.length;
+    const other = parseInt(countEl.dataset.other || '0', 10);
+    const totalGlobal = n + other;
+    if (!input.value.trim()) {
+      countEl.textContent = '-';
+      countEl.classList.remove('has-hits', 'no-hits');
+      btnPrev.disabled = btnNext.disabled = true;
+      return;
+    }
+    if (n === 0) {
+      countEl.textContent = other > 0 ? `0 +${other}` : '0';
+      countEl.classList.remove('has-hits');
+      countEl.classList.toggle('no-hits', other === 0);
+      // Enquanto houver QUALQUER match (mesmo em outra pagina), as setas
+      // podem pular pra la -- entao mantemos prev/next habilitados.
+      btnPrev.disabled = btnNext.disabled = (totalGlobal === 0);
+      countEl.title = other > 0
+        ? `Nenhum match na página atual; ${other} em outras páginas (setas pulam pra la)`
+        : 'Nada encontrado';
+      return;
+    }
+    const pos = currentIdx >= 0 ? (currentIdx + 1) : 1;
+    countEl.textContent = other > 0 ? `${pos}/${n} +${other}` : `${pos}/${n}`;
+    countEl.classList.add('has-hits');
+    countEl.classList.remove('no-hits');
+    // Habilitado se ha mais de 1 match global (entao setas podem avancar
+    // pra dentro da pagina OU pular pra outra pagina).
+    btnPrev.disabled = btnNext.disabled = (totalGlobal < 2);
+    countEl.title = other > 0
+      ? `${n} na página, ${other} em outras (setas atravessam páginas)`
+      : `${n} match(es) na página`;
+  }
+
+  function renderDropdown(otherHits) {
+    if (!otherHits.length) {
+      // So mostra dropdown se nao tem nada na pagina atual tambem
+      if (!currentHits.length && input.value.trim()) {
+        dropdown.innerHTML = '<div class="vs-empty">Nada encontrado</div>';
+        dropdown.classList.add('open');
+      } else {
+        dropdown.classList.remove('open');
+        dropdown.innerHTML = '';
+      }
+      return;
+    }
+    const parts = [];
+    parts.push(`<div class="vs-section">Outras páginas (${otherHits.length})</div>`);
+    for (const row of otherHits.slice(0, 50)) {
+      const pname = pageName(row.page);
+      const tag = row.kind === 'analog' ? 'analog' : 'bit';
+      parts.push(
+        `<div class="vs-row" data-page="${row.page}" data-name="${row.name}">` +
+          `<span class="vs-name">${escapeHtml(row.name)}</span>` +
+          `<span class="vs-page">${escapeHtml(pname)}</span>` +
+          `<span class="vs-tag tag-${tag}">${tag}</span>` +
+        `</div>`
+      );
+    }
+    if (otherHits.length > 50) {
+      parts.push(`<div class="vs-empty">+${otherHits.length - 50} mais... refine a busca</div>`);
+    }
+    dropdown.innerHTML = parts.join('');
+    dropdown.classList.add('open');
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function run(opts) {
+    opts = opts || {};
+    const q = input.value.trim().toLowerCase();
+    lastQuery = q;
+    clearHighlights();
+    if (!q) {
+      countEl.dataset.other = '0';
+      pagesWithHits = [];
+      pendingFocus = null;
+      clearTabHighlights();
+      dropdown.classList.remove('open');
+      updateCounter();
+      return;
+    }
+    // Walk no VAR_INDEX uma vez so (rows pro dropdown + paginas com hits)
+    const idx = computeIndexMatches(q);
+    pagesWithHits = orderedPagesWithHits(idx.pages);
+    applyTabHighlights(idx.pages);
+    // Hits na pagina atual (pinta overlays cyan)
+    const hits = findCurrentPageHits(q);
+    hits.forEach(h => paintHit(h.el));
+    currentHits = hits;
+    countEl.dataset.other = String(idx.others.length);
+    // Em reapply (apos troca de pagina disparada por click no dropdown ou
+    // navegacao cross-page com setas), nao re-abre o dropdown -- o usuario
+    // acabou de escolher onde ir.
+    if (opts.suppressDropdown) {
+      dropdown.classList.remove('open');
+    } else {
+      renderDropdown(idx.others);
+    }
+    if (currentHits.length) {
+      // Decide indice inicial: 'last' quando viemos de Shift+Enter cruzando
+      // paginas pra tras; 'first' (default) caso contrario.
+      let initial = 0;
+      if (pendingFocus === 'last') {
+        initial = currentHits.length - 1;
+      } else if (opts.preserveIdx && currentIdx >= 0) {
+        initial = Math.min(currentIdx, currentHits.length - 1);
+      }
+      pendingFocus = null;
+      focusHit(initial);
+    } else {
+      pendingFocus = null;
+      updateCounter();
+    }
+  }
+
+  // Pula pra uma pagina especifica e marca como deve focar o primeiro ou o
+  // ultimo hit apos o re-paint. Usado pela navegacao cross-page.
+  function jumpToPage(safe, focus) {
+    pendingFocus = focus;     // 'first' | 'last'
+    const name = pageName(safe);
+    // loadPage e async (fetch + innerHTML + reapply); pendingFocus persiste
+    // ate run() le-lo no proximo reapply.
+    loadPage(safe, name);
+  }
+
+  // Proximo match na ordem global (avanca dentro da pagina, depois pula pra
+  // proxima pagina com matches; faz wrap no fim).
+  function goNext() {
+    if (currentHits.length && currentIdx + 1 < currentHits.length) {
+      focusHit(currentIdx + 1);
+      return;
+    }
+    if (pagesWithHits.length === 0) return;
+    if (pagesWithHits.length === 1 && pagesWithHits[0] === currentPage) {
+      // So essa pagina tem matches -- wrap local pro inicio
+      if (currentHits.length) focusHit(0);
+      return;
+    }
+    const i = pagesWithHits.indexOf(currentPage);
+    // Se a pagina atual nao tem matches (i === -1), comeca do indice 0;
+    // senao avanca pra proxima, com wrap.
+    const next = (i === -1)
+      ? pagesWithHits[0]
+      : pagesWithHits[(i + 1) % pagesWithHits.length];
+    jumpToPage(next, 'first');
+  }
+
+  // Match anterior na ordem global (espelho de goNext).
+  function goPrev() {
+    if (currentHits.length && currentIdx > 0) {
+      focusHit(currentIdx - 1);
+      return;
+    }
+    if (pagesWithHits.length === 0) return;
+    if (pagesWithHits.length === 1 && pagesWithHits[0] === currentPage) {
+      if (currentHits.length) focusHit(currentHits.length - 1);
+      return;
+    }
+    const i = pagesWithHits.indexOf(currentPage);
+    const prev = (i === -1)
+      ? pagesWithHits[pagesWithHits.length - 1]
+      : pagesWithHits[(i - 1 + pagesWithHits.length) % pagesWithHits.length];
+    jumpToPage(prev, 'last');
+  }
+
+  function scheduleRun() {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => { debounceTimer = null; run(); }, 80);
+  }
+
+  input.addEventListener('input', scheduleRun);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) goPrev(); else goNext();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      goNext();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      goPrev();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      input.value = '';
+      run();
+      input.blur();
+    }
+  });
+  btnNext.addEventListener('click', () => goNext());
+  btnPrev.addEventListener('click', () => goPrev());
+  btnClear.addEventListener('click', () => {
+    input.value = '';
+    run();
+    input.focus();
+  });
+
+  // Click em row do dropdown -> troca pagina e re-aplica busca
+  dropdown.addEventListener('click', (e) => {
+    const row = e.target.closest('.vs-row');
+    if (!row) return;
+    const safe = row.getAttribute('data-page');
+    if (!safe) return;
+    const pname = pageName(safe);
+    loadPage(safe, pname);  // loadPage chama varSearch.reapply() no final
+    dropdown.classList.remove('open');
+  });
+
+  // Fecha dropdown ao clicar fora
+  document.addEventListener('click', (e) => {
+    if (!document.getElementById('var-search-wrap').contains(e.target)) {
+      dropdown.classList.remove('open');
+    }
+  });
+  input.addEventListener('focus', () => {
+    if (input.value.trim()) {
+      // re-mostra dropdown se ha resultados off-page
+      renderDropdown(computeIndexMatches(input.value.trim().toLowerCase()).others);
+    }
+  });
+
+  // Atalho global: "/" foca a busca (ignora se ja esta em input/textarea/contenteditable)
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    if (t === input) return;
+    const tag = (t && t.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || (t && t.isContentEditable)) return;
+    e.preventDefault();
+    input.focus();
+    input.select();
+  });
+
+  // API publica pro loadPage()
+  varSearch = {
+    reapply() {
+      if (!input.value.trim()) return;
+      // Re-roda a busca na nova pagina; suprime o dropdown porque o usuario
+      // acabou de escolher pra onde ir (ou veio de outro caminho).
+      run({ suppressDropdown: true });
+    }
+  };
+})();
+
+// =============================================================================
+// Checkboxes dos <group> -- estado persistido no servidor por DEVID
+// =============================================================================
+let groupState = {};   // {group_id (string): true}
+
+async function loadGroupState() {
+  try {
+    const r = await fetch(withD('/group-state'));
+    const d = await r.json();
+    groupState = {};
+    for (const id of (d.checked || [])) groupState[String(id)] = true;
+    applyGroupState();
+  } catch (e) {
+    console.warn('falha ao carregar group-state:', e);
+  }
+}
+
+function applyGroupState() {
+  document.querySelectorAll('.group-grp').forEach(g => {
+    const id = g.getAttribute('data-group-id');
+    g.classList.toggle('checked', !!groupState[id]);
+  });
+}
+
+document.getElementById('viewer').addEventListener('click', async (e) => {
+  const cb = e.target.closest('.group-checkbox');
+  if (!cb) return;
+  const id = cb.getAttribute('data-group-id');
+  if (!id) return;
+  const next = !groupState[id];
+  if (next) groupState[id] = true;
+  else delete groupState[id];
+  applyGroupState();
+  try {
+    await fetch(withD('/group-state'), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({group_id: id, checked: next})
+    });
+  } catch (err) {
+    console.warn('falha ao salvar group-state:', err);
+  }
+});
+
+
+// =============================================================================
+// Bloco de notas -- abas Rele / Pagina, autosave por DEVID
+// =============================================================================
+let notesCtl = null;  // expose para hooks externos (page-switch)
+
+(function setupNotes() {
+  const panel    = document.getElementById('notes-panel');
+  const editor   = document.getElementById('notes-editor');
+  const toolbar  = document.getElementById('notes-toolbar');
+  const tabsEl   = document.getElementById('notes-tabs');
+  const toggleBt = document.getElementById('notes-toggle');
+  const closeBt  = document.getElementById('notes-close');
+  const statusEl = document.getElementById('notes-status');
+  const pageNameEl = document.getElementById('notes-page-name');
+  const OPEN_KEY = 'sel411-notes-open';
+  const SCOPE_KEY = 'sel411-notes-scope';
+
+  // Estado em memoria
+  let scope = 'relay';   // 'relay' | 'page'
+  let scopePage = null;  // safe page id quando scope==='page'
+  let cache = { html_relay: '', pages: {} };
+  let saveTimer = null;
+  let lastSaved = '';
+  let suppressInput = false;
+
+  function setOpen(open) {
+    document.body.classList.toggle('notes-open', open);
+    panel.setAttribute('aria-hidden', open ? 'false' : 'true');
+    toggleBt.setAttribute('aria-expanded', open ? 'true' : 'false');
+    try { localStorage.setItem(OPEN_KEY, open ? '1' : '0'); } catch (e) {}
+  }
+  try { setOpen(localStorage.getItem(OPEN_KEY) === '1'); } catch (e) { setOpen(false); }
+
+  toggleBt.addEventListener('click', () => {
+    setOpen(!document.body.classList.contains('notes-open'));
+    if (document.body.classList.contains('notes-open')) editor.focus();
+  });
+  closeBt.addEventListener('click', () => setOpen(false));
+
+  // --- Helpers ---
+  function pageDisplayName(safe) {
+    if (!safe) return '-';
+    for (const [name, s] of PAGES) if (s === safe) return name;
+    return safe;
+  }
+  function currentContent() {
+    if (scope === 'relay') return cache.html_relay || '';
+    return (scopePage && cache.pages[scopePage]) || '';
+  }
+  function tabFor(s) {
+    return tabsEl.querySelector(`.notes-tab[data-scope="${s}"]`);
+  }
+  function updateTabIndicators() {
+    tabFor('relay').classList.toggle('has-note', !!(cache.html_relay && cache.html_relay.trim()));
+    const pageHas = !!(scopePage && cache.pages[scopePage] && cache.pages[scopePage].trim());
+    tabFor('page').classList.toggle('has-note', pageHas);
+    updatePageNavIndicators();
+  }
+  function updatePageNavIndicators() {
+    document.querySelectorAll('#pages button[data-page]').forEach(btn => {
+      const safe = btn.getAttribute('data-page');
+      const has = !!(cache.pages[safe] && cache.pages[safe].trim());
+      btn.classList.toggle('has-note', has);
+    });
+  }
+  function updatePageTabLabel() {
+    pageNameEl.textContent = scopePage ? pageDisplayName(scopePage) : '-';
+    // Pagina atual definida => habilita a aba; caso contrario, desabilita
+    const tab = tabFor('page');
+    tab.disabled = !scopePage;
+    tab.style.opacity = scopePage ? '1' : '0.5';
+  }
+  function loadEditorFromScope() {
+    suppressInput = true;
+    editor.innerHTML = currentContent();
+    lastSaved = editor.innerHTML;
+    suppressInput = false;
+    if (scope === 'page' && !scopePage) {
+      statusEl.className = '';
+      statusEl.textContent = '(sem página ativa)';
+      editor.setAttribute('contenteditable', 'false');
+    } else {
+      editor.setAttribute('contenteditable', 'true');
+      statusEl.className = '';
+      statusEl.textContent = lastSaved ? 'salvo' : '-';
+    }
+  }
+  function setActiveTab(s) {
+    if (s === 'page' && !scopePage) return;   // não tem como ativar sem página
+    if (scope === s) return;
+    scope = s;
+    tabsEl.querySelectorAll('.notes-tab').forEach(t => {
+      const on = t.getAttribute('data-scope') === s;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    loadEditorFromScope();
+    try { localStorage.setItem(SCOPE_KEY, s); } catch (e) {}
+  }
+
+  tabsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.notes-tab');
+    if (!btn || btn.disabled) return;
+    setActiveTab(btn.getAttribute('data-scope'));
+    editor.focus();
+  });
+
+  // Toolbar
+  toolbar.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-cmd]');
+    if (!btn) return;
+    e.preventDefault();
+    const cmd = btn.getAttribute('data-cmd');
+    const arg = btn.getAttribute('data-arg') || null;
+    editor.focus();
+    try { document.execCommand(cmd, false, arg); }
+    catch (err) { console.warn('execCommand falhou:', cmd, err); }
+    scheduleSave();
+  });
+
+  editor.addEventListener('input', () => { if (!suppressInput) scheduleSave(); });
+  editor.addEventListener('blur', () => { if (saveTimer) flushSave(); });
+
+  function scheduleSave() {
+    if (saveTimer) clearTimeout(saveTimer);
+    statusEl.className = 'saving';
+    statusEl.textContent = '...';
+    saveTimer = setTimeout(flushSave, 700);
+  }
+  async function flushSave() {
+    saveTimer = null;
+    if (scope === 'page' && !scopePage) return;
+    const html = editor.innerHTML;
+    if (html === lastSaved) {
+      statusEl.className = ''; statusEl.textContent = 'salvo'; return;
+    }
+    // Atualiza cache local antes do POST para indicadores ficarem em sincronia
+    if (scope === 'relay') cache.html_relay = html;
+    else cache.pages[scopePage] = html;
+    updateTabIndicators();
+    try {
+      const body = scope === 'relay'
+        ? {scope: 'relay', html: html}
+        : {scope: 'page', page: scopePage, html: html};
+      const r = await fetch(withD('/note'), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) throw new Error('http ' + r.status);
+      lastSaved = html;
+      statusEl.className = ''; statusEl.textContent = 'salvo';
+    } catch (err) {
+      statusEl.className = 'error'; statusEl.textContent = 'erro';
+      console.warn('falha ao salvar nota:', err);
+    }
+  }
+
+  async function loadNotes() {
+    try {
+      const r = await fetch(withD('/note'));
+      const d = await r.json();
+      cache.html_relay = d.html_relay || '';
+      cache.pages = d.pages || {};
+      // Restaura escopo preferido
+      let saved = 'relay';
+      try { saved = localStorage.getItem(SCOPE_KEY) || 'relay'; } catch (e) {}
+      scope = (saved === 'page' && scopePage) ? 'page' : 'relay';
+      tabsEl.querySelectorAll('.notes-tab').forEach(t => {
+        const on = t.getAttribute('data-scope') === scope;
+        t.classList.toggle('active', on);
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      loadEditorFromScope();
+      updateTabIndicators();
+    } catch (err) {
+      console.warn('falha ao carregar notas:', err);
+    }
+  }
+
+  // API exposta para hooks externos (page-switch)
+  notesCtl = {
+    // Trocar de diagrama troca o rele, e portanto as notas inteiras.
+    reload(safe) {
+      if (saveTimer) flushSave();
+      cache.html_relay = ''; cache.pages = {};
+      scopePage = safe || null;
+      updatePageTabLabel();
+      loadNotes();
+    },
+    onPageChange(safe) {
+      const wasPageScope = (scope === 'page');
+      // Flush pendente se estivessemos editando uma nota de pagina
+      if (saveTimer && wasPageScope) flushSave();
+      scopePage = safe || null;
+      updatePageTabLabel();
+      // Se a aba ativa e Pagina, troca conteudo para a nova pagina
+      if (wasPageScope) loadEditorFromScope();
+      updateTabIndicators();
+    },
+  };
+
+  // Define a pagina inicial ANTES de loadNotes() para que o escopo salvo
+  // ('page') possa ser restaurado corretamente.
+  scopePage = currentPage || null;
+  updatePageTabLabel();
+})();
+
+// =============================================================================
+// Ferramentas: Mouse (select) / Highlighter
+// =============================================================================
+let currentTool = 'select';
+// highlightsState[pageSafeId] = Set(itemIds)
+const highlightsState = {};
+
+(function setupTools() {
+  const btnSel = document.getElementById('tool-select');
+  const btnHl  = document.getElementById('tool-highlight');
+  const TOOL_KEY = 'sel411-current-tool';
+
+  function applyTool(name) {
+    currentTool = name;
+    btnSel.classList.toggle('active', name === 'select');
+    btnHl .classList.toggle('active', name === 'highlight');
+    btnSel.setAttribute('aria-checked', name === 'select' ? 'true' : 'false');
+    btnHl .setAttribute('aria-checked', name === 'highlight' ? 'true' : 'false');
+    document.body.classList.toggle('tool-highlight', name === 'highlight');
+    try { localStorage.setItem(TOOL_KEY, name); } catch (e) {}
+  }
+  try {
+    const saved = localStorage.getItem(TOOL_KEY);
+    applyTool(saved === 'highlight' ? 'highlight' : 'select');
+  } catch (e) { applyTool('select'); }
+
+  btnSel.addEventListener('click', () => applyTool('select'));
+  btnHl .addEventListener('click', () => applyTool('highlight'));
+})();
+
+// =============================================================================
+// Zoom / pan do diagrama
+// O SVG e renderizado com viewBox + preserveAspectRatio, entao basta escalar a
+// largura: zoom 1 = a largura util do #viewer, >1 estoura e o proprio #viewer
+// (overflow:auto) vira a area de scroll. Como toda a matematica de coordenadas
+// usa getScreenCTM(), marcador/rubber-band continuam corretos em qualquer zoom.
+//
+// Modos:
+//   'page'   (padrao) -- pagina inteira ocupando o maximo possivel da tela
+//   'width'           -- ajustado a largura (pode passar da altura -> scroll)
+//   'manual'          -- usuario mexeu no +/-/roda; zoom fixo ate pedir ajuste
+// Nos modos de ajuste o zoom e recalculado a cada troca de pagina e a cada
+// mudanca de tamanho do #viewer (janela, painel lateral, quebra do header).
+// =============================================================================
+zoomCtl = (function setupZoom() {
+  const viewer  = document.getElementById('viewer');
+  const btnIn   = document.getElementById('zoom-in');
+  const btnOut  = document.getElementById('zoom-out');
+  const btnPct  = document.getElementById('zoom-level');
+  const btnWide = document.getElementById('zoom-fit-width');
+  const btnPage = document.getElementById('zoom-fit-page');
+  if (!viewer || !btnIn) return null;
+
+  const ZOOM_MIN = 0.15, ZOOM_MAX = 8, STEP = 1.25;
+  const PAD = 24;          // padding do #viewer (12px de cada lado)
+  const SAFETY = 0.995;    // folga pra barra de rolagem não reaparecer
+  const ZOOM_KEY = 'sel411-gle-zoom';
+  const MODE_KEY = 'sel411-gle-zoom-mode';
+  let zoom = 1;
+  let mode = 'page';
+
+  function render() {
+    viewer.style.setProperty('--gle-zoom', String(zoom));
+    btnPct.textContent = Math.round(zoom * 100) + '%';
+    btnIn.disabled  = zoom >= ZOOM_MAX - 1e-6;
+    btnOut.disabled = zoom <= ZOOM_MIN + 1e-6;
+    btnWide.classList.toggle('active', mode === 'width');
+    btnPage.classList.toggle('active', mode === 'page');
+    try {
+      localStorage.setItem(ZOOM_KEY, String(zoom));
+      localStorage.setItem(MODE_KEY, mode);
+    } catch (e) {}
+  }
+
+  // anchor = {clientX, clientY} -- ponto da tela que deve continuar sob o cursor
+  function setZoom(z, anchor) {
+    const prev = zoom;
+    zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+    if (Math.abs(zoom - prev) < 1e-9) { render(); return; }
+    const rect = viewer.getBoundingClientRect();
+    const ax = anchor ? anchor.clientX - rect.left : viewer.clientWidth / 2;
+    const ay = anchor ? anchor.clientY - rect.top  : viewer.clientHeight / 2;
+    // posicao do ponto no conteudo, normalizada pelo zoom anterior
+    const cx = (viewer.scrollLeft + ax) / prev;
+    const cy = (viewer.scrollTop  + ay) / prev;
+    render();
+    viewer.scrollLeft = cx * zoom - ax;
+    viewer.scrollTop  = cy * zoom - ay;
+  }
+
+  function manualZoom(z, anchor) {
+    mode = 'manual';
+    setZoom(z, anchor);
+  }
+
+  // Zoom que faz a pagina inteira caber. Usa a proporcao do viewBox (e nao a
+  // altura medida) pra nao depender do zoom atual nem da barra de rolagem.
+  function pageZoom() {
+    const svg = viewer.querySelector('svg');
+    if (!svg) return null;
+    const vb = (svg.getAttribute('viewBox') || '').split(/[\s,]+/).map(Number);
+    if (vb.length !== 4 || !vb[2] || !vb[3]) return null;
+    const aspect = vb[3] / vb[2];                     // altura/largura do desenho
+    const availW = viewer.clientWidth  - PAD;
+    const availH = viewer.clientHeight - PAD;
+    if (availW <= 0 || availH <= 0) return null;
+    // largura(z) = availW*z  ->  altura(z) = availW*z*aspect <= availH
+    return Math.min(1, (availH / (availW * aspect)) * SAFETY);
+  }
+
+  // Aplica o modo de ajuste corrente (no-op em 'manual')
+  function applyFit(force) {
+    if (mode === 'manual' && !force) return;
+    const z = mode === 'width' ? 1 : pageZoom();
+    if (z === null) return;
+    const prev = zoom;
+    zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+    render();
+    if (Math.abs(zoom - prev) > 1e-9) { viewer.scrollTop = 0; viewer.scrollLeft = 0; }
+  }
+
+  function fitPage()  { mode = 'page';  applyFit(true); }
+  function fitWidth() { mode = 'width'; applyFit(true); }
+
+  btnIn  .addEventListener('click', () => manualZoom(zoom * STEP));
+  btnOut .addEventListener('click', () => manualZoom(zoom / STEP));
+  btnPct .addEventListener('click', fitPage);
+  btnWide.addEventListener('click', fitWidth);
+  btnPage.addEventListener('click', fitPage);
+
+  // Ctrl/Cmd + roda = zoom ancorado no cursor
+  viewer.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    manualZoom(zoom * Math.exp(-e.deltaY * 0.0015), {clientX: e.clientX, clientY: e.clientY});
+  }, {passive: false});
+
+  // Atalhos: + / - / 0 (pagina inteira) / 9 (largura)
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    const tag = (t && t.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || (t && t.isContentEditable)) return;
+    if (e.key === '+' || e.key === '=') { e.preventDefault(); manualZoom(zoom * STEP); }
+    else if (e.key === '-' || e.key === '_') { e.preventDefault(); manualZoom(zoom / STEP); }
+    else if (e.key === '0') { e.preventDefault(); fitPage(); }
+    else if (e.key === '9') { e.preventDefault(); fitWidth(); }
+  });
+
+  // Reajusta quando o #viewer muda de tamanho (janela, painel lateral oculto,
+  // header quebrando linha). Debounce por rAF; em 'manual' nao faz nada.
+  let rafId = null, lastW = 0, lastH = 0;
+  const onResize = () => {
+    if (rafId) return;
+    rafId = requestAnimationFrame(() => {
+      rafId = null;
+      const w = viewer.clientWidth, h = viewer.clientHeight;
+      if (Math.abs(w - lastW) < 2 && Math.abs(h - lastH) < 2) return;
+      lastW = w; lastH = h;
+      applyFit(false);
+    });
+  };
+  if (window.ResizeObserver) new ResizeObserver(onResize).observe(viewer);
+  window.addEventListener('resize', onResize);
+
+  // --- Pan: arrastar com o botao do meio (qualquer ferramenta) ou com o
+  // esquerdo na ferramenta Mouse. So entra em modo pan depois de mover alguns
+  // px, pra nao roubar cliques (ex.: checkbox de grupo).
+  const PAN_THRESHOLD_PX = 4;
+  let pan = null;
+
+  viewer.addEventListener('mousedown', (e) => {
+    const middle = e.button === 1;
+    const leftSelect = e.button === 0 && currentTool === 'select' &&
+                       !e.target.closest('.group-checkbox');
+    if (!middle && !leftSelect) return;
+    const scrollable = viewer.scrollWidth  > viewer.clientWidth + 1 ||
+                       viewer.scrollHeight > viewer.clientHeight + 1;
+    if (!scrollable) return;
+    if (middle) e.preventDefault();
+    pan = {
+      x: e.clientX, y: e.clientY,
+      left: viewer.scrollLeft, top: viewer.scrollTop,
+      active: false,
+    };
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!pan) return;
+    const dx = e.clientX - pan.x, dy = e.clientY - pan.y;
+    if (!pan.active) {
+      if (Math.hypot(dx, dy) < PAN_THRESHOLD_PX) return;
+      pan.active = true;
+      document.body.classList.add('panning');
+    }
+    e.preventDefault();
+    viewer.scrollLeft = pan.left - dx;
+    viewer.scrollTop  = pan.top  - dy;
+  });
+
+  function endPan() {
+    if (!pan) return;
+    pan = null;
+    document.body.classList.remove('panning');
+  }
+  document.addEventListener('mouseup', endPan);
+  document.addEventListener('mouseleave', endPan);
+
+  // Estado inicial: modo salvo (padrao 'page' -- diagrama ja preenchendo a tela)
+  try {
+    const savedMode = localStorage.getItem(MODE_KEY);
+    if (savedMode === 'width' || savedMode === 'manual') mode = savedMode;
+    const saved = parseFloat(localStorage.getItem(ZOOM_KEY));
+    if (mode === 'manual' && isFinite(saved) && saved > 0) {
+      zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, saved));
+    }
+  } catch (e) {}
+  render();
+  applyFit(false);
+  // O layout so esta final depois do primeiro frame (fontes, header quebrando,
+  // barra de rolagem do painel) -- reajusta uma vez.
+  requestAnimationFrame(() => applyFit(false));
+  window.addEventListener('load', () => applyFit(false));
+
+  return {
+    onPageChange() { applyFit(false); },
+  };
+})();
+
+function connectionId(poly) {
+  return 'c-' + (poly.getAttribute('data-src') || '?') +
+         '-'  + (poly.getAttribute('data-src-port') || '0') +
+         '-'  + (poly.getAttribute('data-dst') || '?') +
+         '-'  + (poly.getAttribute('data-dst-port') || '0');
+}
+
+function findHighlightableTarget(eventTarget) {
+  // Sobe pelo DOM ate achar um alvo "highlightavel". Ignora cliques em
+  // checkboxes de <group>.
+  if (eventTarget.closest('.group-checkbox')) return null;
+  const block = eventTarget.closest('.symbol-grp, .gate-grp');
+  if (block) return {kind: 'block', el: block, id: block.id};
+  const poly = eventTarget.closest('polyline.connection');
+  if (poly) return {kind: 'line', el: poly, id: connectionId(poly)};
+  return null;
+}
+
+function applyBlockHighlight(blockEl) {
+  if (blockEl.querySelector(':scope > .hl-overlay')) return;
+  const rect = blockEl.querySelector('rect:not(.hl-overlay)');
+  if (!rect) return;
+  const x = parseFloat(rect.getAttribute('x'));
+  const y = parseFloat(rect.getAttribute('y'));
+  const w = parseFloat(rect.getAttribute('width'));
+  const h = parseFloat(rect.getAttribute('height'));
+  const pad = 2.5;
+  const hl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  hl.setAttribute('class', 'hl-overlay');
+  hl.setAttribute('x', x - pad);
+  hl.setAttribute('y', y - pad);
+  hl.setAttribute('width', w + 2 * pad);
+  hl.setAttribute('height', h + 2 * pad);
+  hl.setAttribute('rx', '2.5');
+  blockEl.insertBefore(hl, blockEl.firstChild);
+  blockEl.classList.add('highlighted');
+}
+
+function removeBlockHighlight(blockEl) {
+  const overlay = blockEl.querySelector(':scope > .hl-overlay');
+  if (overlay) overlay.remove();
+  blockEl.classList.remove('highlighted');
+}
+
+function applyLineHighlight(poly) {
+  if (poly.parentNode.querySelector(
+        `polyline.hl-line-overlay[data-for="${CSS.escape(connectionId(poly))}"]`)) return;
+  const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  overlay.setAttribute('class', 'hl-line-overlay');
+  overlay.setAttribute('data-for', connectionId(poly));
+  overlay.setAttribute('points', poly.getAttribute('points') || '');
+  poly.parentNode.insertBefore(overlay, poly);
+  poly.classList.add('highlighted');
+}
+
+function removeLineHighlight(poly) {
+  const id = connectionId(poly);
+  const overlay = poly.parentNode.querySelector(
+    `polyline.hl-line-overlay[data-for="${CSS.escape(id)}"]`);
+  if (overlay) overlay.remove();
+  poly.classList.remove('highlighted');
+}
+
+function applyHighlightsForCurrentPage() {
+  const ids = highlightsState[currentPage];
+  if (!ids) return;
+  const svg = document.querySelector('#viewer svg');
+  if (!svg) return;
+  ids.forEach(itemId => {
+    if (itemId.startsWith('c-')) {
+      svg.querySelectorAll('polyline.connection').forEach(p => {
+        if (connectionId(p) === itemId) applyLineHighlight(p);
+      });
+    } else {
+      const blk = svg.querySelector(`.symbol-grp#${CSS.escape(itemId)}, .gate-grp#${CSS.escape(itemId)}`);
+      if (blk) applyBlockHighlight(blk);
+    }
+  });
+}
+
+async function loadHighlights() {
+  try {
+    const r = await fetch(withD('/highlights'));
+    const d = await r.json();
+    // Zera antes: os marcadores sao do rele do diagrama, nao do navegador.
+    for (const k of Object.keys(highlightsState)) delete highlightsState[k];
+    const pages = d.pages || {};
+    for (const [pg, items] of Object.entries(pages)) {
+      highlightsState[pg] = new Set(Object.keys(items || {}));
+    }
+    applyHighlightsForCurrentPage();
+  } catch (e) {
+    console.warn('falha ao carregar highlights:', e);
+  }
+}
+
+async function postHighlight(page, itemId, highlighted) {
+  try {
+    await fetch(withD('/highlights'), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({page: page, item_id: itemId, highlighted: highlighted})
+    });
+  } catch (e) {
+    console.warn('falha ao salvar highlight:', e);
+  }
+}
+
+// --- Utilitarios de coordenadas / geometria em SVG ---
+function svgPointFromEvent(svg, e) {
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return {x: 0, y: 0};
+  const p = pt.matrixTransform(ctm.inverse());
+  return {x: p.x, y: p.y};
+}
+function parsePolylinePoints(poly) {
+  return (poly.getAttribute('points') || '').trim().split(/\s+/).map(s => {
+    const [x, y] = s.split(',').map(parseFloat);
+    return {x, y};
+  }).filter(p => !isNaN(p.x) && !isNaN(p.y));
+}
+function distPointSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len2 = dx*dx + dy*dy;
+  if (len2 === 0) return Math.hypot(px - x1, py - y1);
+  let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t*dx), py - (y1 + t*dy));
+}
+function findNearestLine(svg, x, y, maxDist) {
+  let best = null, bestD = maxDist;
+  svg.querySelectorAll('polyline.connection').forEach(p => {
+    const pts = parsePolylinePoints(p);
+    for (let i = 1; i < pts.length; i++) {
+      const d = distPointSegment(x, y, pts[i-1].x, pts[i-1].y, pts[i].x, pts[i].y);
+      if (d < bestD) { bestD = d; best = p; }
+    }
+  });
+  return best;
+}
+function rectIntersectsBlock(rx0, ry0, rx1, ry1, blockEl) {
+  const rect = blockEl.querySelector('rect:not(.hl-overlay)');
+  if (!rect) return false;
+  const x = parseFloat(rect.getAttribute('x'));
+  const y = parseFloat(rect.getAttribute('y'));
+  const w = parseFloat(rect.getAttribute('width'));
+  const h = parseFloat(rect.getAttribute('height'));
+  return !(x > rx1 || x + w < rx0 || y > ry1 || y + h < ry0);
+}
+function segmentInRect(x1, y1, x2, y2, rx0, ry0, rx1, ry1) {
+  // Endpoint dentro do rect
+  if (x1 >= rx0 && x1 <= rx1 && y1 >= ry0 && y1 <= ry1) return true;
+  if (x2 >= rx0 && x2 <= rx1 && y2 >= ry0 && y2 <= ry1) return true;
+  // Segmentos ortogonais (caso comum em GLE)
+  if (x1 === x2) {
+    return x1 >= rx0 && x1 <= rx1 &&
+           Math.min(y1, y2) <= ry1 && Math.max(y1, y2) >= ry0;
+  }
+  if (y1 === y2) {
+    return y1 >= ry0 && y1 <= ry1 &&
+           Math.min(x1, x2) <= rx1 && Math.max(x1, x2) >= rx0;
+  }
+  return false;
+}
+function rectIntersectsPolyline(rx0, ry0, rx1, ry1, poly) {
+  const pts = parsePolylinePoints(poly);
+  for (let i = 1; i < pts.length; i++) {
+    if (segmentInRect(pts[i-1].x, pts[i-1].y, pts[i].x, pts[i].y,
+                      rx0, ry0, rx1, ry1)) return true;
+  }
+  return false;
+}
+
+// --- Toggle wrapper (single item) ---
+function toggleHighlight(target) {
+  const set = highlightsState[currentPage] || (highlightsState[currentPage] = new Set());
+  const isOn = set.has(target.id);
+  if (isOn) {
+    set.delete(target.id);
+    if (target.kind === 'block') removeBlockHighlight(target.el);
+    else removeLineHighlight(target.el);
+  } else {
+    set.add(target.id);
+    if (target.kind === 'block') applyBlockHighlight(target.el);
+    else applyLineHighlight(target.el);
+  }
+  postHighlight(currentPage, target.id, !isOn);
+}
+function highlightOn(target) {
+  const set = highlightsState[currentPage] || (highlightsState[currentPage] = new Set());
+  if (set.has(target.id)) return;
+  set.add(target.id);
+  if (target.kind === 'block') applyBlockHighlight(target.el);
+  else applyLineHighlight(target.el);
+  postHighlight(currentPage, target.id, true);
+}
+
+// --- State machine: mousedown -> [drag] -> mouseup ---
+(function setupHighlightInteraction() {
+  const viewer = document.getElementById('viewer');
+  const DRAG_THRESHOLD_PX = 4;   // px de tela
+  const LINE_MARGIN_SVG = 5;     // unidades SVG -- área de clique generosa
+  let dragging = null;           // null | {svg, startScreen, startSvg, rubber}
+
+  viewer.addEventListener('mousedown', (e) => {
+    if (currentTool !== 'highlight') return;
+    if (e.button !== 0) return;
+    const svg = viewer.querySelector('svg');
+    if (!svg) return;
+    e.preventDefault();
+    dragging = {
+      svg,
+      startScreen: {x: e.clientX, y: e.clientY},
+      startSvg: svgPointFromEvent(svg, e),
+      rubber: null,
+      moved: false,
+      directTarget: findHighlightableTarget(e.target),
+    };
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const d = Math.hypot(e.clientX - dragging.startScreen.x,
+                         e.clientY - dragging.startScreen.y);
+    if (!dragging.moved && d < DRAG_THRESHOLD_PX) return;
+    dragging.moved = true;
+    // Cria rubber-band se ainda nao existe
+    if (!dragging.rubber) {
+      const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      r.setAttribute('class', 'rubber-band');
+      dragging.svg.appendChild(r);
+      dragging.rubber = r;
+    }
+    const p = svgPointFromEvent(dragging.svg, e);
+    const x0 = Math.min(dragging.startSvg.x, p.x);
+    const y0 = Math.min(dragging.startSvg.y, p.y);
+    const w  = Math.abs(p.x - dragging.startSvg.x);
+    const h  = Math.abs(p.y - dragging.startSvg.y);
+    dragging.rubber.setAttribute('x', x0);
+    dragging.rubber.setAttribute('y', y0);
+    dragging.rubber.setAttribute('width', w);
+    dragging.rubber.setAttribute('height', h);
+  });
+
+  document.addEventListener('mouseup', (e) => {
+    if (!dragging) return;
+    const drag = dragging;
+    dragging = null;
+    if (drag.rubber) drag.rubber.remove();
+
+    if (!drag.moved) {
+      // Single click
+      if (drag.directTarget) {
+        toggleHighlight(drag.directTarget);
+        return;
+      }
+      // Click "vazio" -- procura linha proxima dentro da margem
+      const near = findNearestLine(drag.svg, drag.startSvg.x, drag.startSvg.y,
+                                   LINE_MARGIN_SVG);
+      if (near) {
+        toggleHighlight({kind: 'line', el: near, id: connectionId(near)});
+      }
+      return;
+    }
+
+    // Drag-select: marca tudo que intersecta o rect (apenas adiciona, nao toggla)
+    const endSvg = svgPointFromEvent(drag.svg, e);
+    const rx0 = Math.min(drag.startSvg.x, endSvg.x);
+    const ry0 = Math.min(drag.startSvg.y, endSvg.y);
+    const rx1 = Math.max(drag.startSvg.x, endSvg.x);
+    const ry1 = Math.max(drag.startSvg.y, endSvg.y);
+    drag.svg.querySelectorAll('.symbol-grp, .gate-grp').forEach(blk => {
+      if (rectIntersectsBlock(rx0, ry0, rx1, ry1, blk)) {
+        highlightOn({kind: 'block', el: blk, id: blk.id});
+      }
+    });
+    drag.svg.querySelectorAll('polyline.connection').forEach(poly => {
+      if (rectIntersectsPolyline(rx0, ry0, rx1, ry1, poly)) {
+        highlightOn({kind: 'line', el: poly, id: connectionId(poly)});
+      }
+    });
+  });
+
+  // Esc cancela drag em andamento
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && dragging) {
+      if (dragging.rubber) dragging.rubber.remove();
+      dragging = null;
+    }
+  });
+})();
+
+
+// =============================================================================
+// Avaliacao da logica para propagar sinais atraves dos gates
+// =============================================================================
+// Avalia a arvore de um conector. O servidor manda ESTRUTURA
+// (`pacct/web/glv/connectors.py`); a semantica mora aqui, uma vez so -- uma
+// segunda implementacao de NOT/RTRIG/AND em Python divergiria desta, e a
+// lista de gotchas deste projeto e' em boa parte isso acontecendo.
+//
+// `undefined` = indeterminado, e propaga: um E com uma entrada que ninguem
+// leu nao e' 0, e' desconhecido. Mesma regra do `allKnown` do avaliador dos
+// blocos desenhados.
+// Pinta a equacao de um conector: cada VARIAVEL ganha a cor do estado dela,
+// os operadores ficam neutros. A equacao vem em notacao SELOGIC do servidor
+// (`*` E, `+` OU, `!` NAO, `↑`/`↓` borda) -- medido, nenhum bloco aritmetico
+// aparece dentro de equacao de conector em todo o corpus, entao `*` e `+` nao
+// sao ambiguos aqui.
+//
+// Escapa antes de colorir: os labels reais sao texto livre ("TC - LOP",
+// "RX 50BF C/ BARRAS UNIDAS"), e a equacao carrega nomes de bit vindos do
+// arquivo.
+function renderConnectorEquation(equation, bits, digitals) {
+  const esc = String(equation || '').replace(/[&<>]/g, ch => (
+    {'&': '&amp;', '<': '&lt;', '>': '&gt;'}[ch]));
+  // Colore so' o que a propria rede declarou como bit. Casar por formato de
+  // identificador seria errado nos dois sentidos: nomes SEL comecam com
+  // digito (`52A`, `89CL01`, `3PO`), e uma constante do desenho (o preset `6`
+  // de um contador) nao e' bit nenhum e nao pode sair pintada de
+  // indeterminado.
+  const known = new Set((bits || []).map(b => b.toUpperCase()));
+  return esc.replace(/[A-Za-z0-9_]+/g, name => {
+    if (!known.has(name.toUpperCase())) return name;
+    const v = digitals[name.toUpperCase()];
+    const cls = (v === 1) ? 'bit-1' : (v === 0) ? 'bit-0' : 'bit-unknown';
+    return `<span class="conn-var ${cls}">${name}</span>`;
+  });
+}
+
+// A secao Conectores da legenda: so' os da PAGINA ABERTA (a legenda e'
+// contexto da pagina, e um label chega a 10 pontas). Fica escondida quando a
+// pagina nao tem nenhum -- 107 dos 418 GLE do corpus usam conector, entao a
+// maioria das telas nao deve ganhar uma secao vazia.
+function renderConnectorsPanel(nets, netValue, digitals, currentPage) {
+  const section = document.getElementById('connectors-section');
+  const list = document.getElementById('connectors-list');
+  if (!section || !list) return;
+  const labels = Object.keys(nets || {}).sort();
+  section.hidden = labels.length === 0;
+  if (!labels.length) { list.innerHTML = ''; return; }
+  list.innerHTML = labels.map(label => {
+    const net = nets[label];
+    const v = netValue[label];
+    const cls = (v === 1) ? 'bit-1' : (v === 0) ? 'bit-0' : 'bit-unknown';
+    const safeLabel = label.replace(/[&<>]/g, ch => (
+      {'&': '&amp;', '<': '&lt;', '>': '&gt;'}[ch]));
+    // De onde vem o sinal, quando NAO e' desta pagina. E' a informacao que
+    // faltava pra entender um conector que a pagina so' deriva: sem ela a
+    // equacao aparece sem nada que diga onde ela e' desenhada.
+    const where = (net.driver_page && net.driver_page !== currentPage)
+      ? `<span class="conn-where">acionado em ${net.driver_page.replace(/_/g, ' ')}</span>`
+      : '';
+    return `<div class="conn-item">
+      <div class="conn-head">
+        <span class="legend-swatch conn-var ${cls}"></span>
+        <span class="conn-name">${safeLabel}</span>${where}
+      </div>
+      <div class="conn-eq">${renderConnectorEquation(net.equation, net.bits, digitals)}</div>
+    </div>`;
+  }).join('');
+}
+
+function evalConnectorTree(node, digitals) {
+  if (!node || !node.op) return undefined;
+  switch (node.op) {
+    case 'BIT': {
+      const v = digitals[(node.name || '').toUpperCase()];
+      return (v === 0 || v === 1) ? v : undefined;
+    }
+    case 'CONST': return node.value;
+    case 'CUT':   return undefined;   // ramo cortado: nunca inventa valor
+  }
+  const args = (node.args || []).map(a => evalConnectorTree(a, digitals));
+  if (args.some(v => v === undefined)) return undefined;
+  switch (node.op) {
+    case 'NOT':   return 1 - args[0];
+    // Sem historico entre voltas do polling nao da' pra avaliar borda. E' o
+    // que o avaliador dos blocos desenhados ja faz com RTRIG.
+    case 'RTRIG':
+    case 'FTRIG': return args[0];
+    case 'AND':   return args.every(v => v === 1) ? 1 : 0;
+    case 'OR':    return args.some(v => v === 1) ? 1 : 0;
+    default:      return args[0];     // bloco de passagem
+  }
+}
+
+function evaluatePage(svg, digitals, analogs, netValue) {
+  // 1. Mapa: element_id -> {type, value}
+  // SYMBOLs ja tem valor (dos digitais OU dos analogicos). Gates a avaliar.
+  // elValue carrega 0/1 para sinais digitais e numeros reais (float/int) para
+  // entradas analogicas (AMVs) e constantes numericas (literais como 60, 600).
+  // Comparadores (EQ/NE/LT/LE/GT/GE) usam o numerico bruto; demais gates
+  // logicos tratam apenas 0/1.
+  const elValue = {};      // id -> 0/1 OR número real (analog/const)
+  const elType = {};       // id -> 'SYMBOL' | 'AND' | 'OR' | ...
+  const symbolBit = {};    // id -> bit_name (so para SYMBOLs)
+  analogs = analogs || {};
+
+  svg.querySelectorAll('.symbol-grp').forEach(g => {
+    const id = g.id.replace(/^el-/, '');
+    elType[id] = 'SYMBOL';
+    // Constante (literal numerico, ex: 0, 1, 600). Nao consultar o rele.
+    // Guardamos o valor REAL (nao apenas 0/1) para que comparadores como
+    // EQ/LT/GT possam comparar AMVs contra thresholds (ex.: AMV==60).
+    const constStr = g.getAttribute('data-const');
+    if (constStr !== null) {
+      const n = Number(constStr);
+      if (!isNaN(n)) elValue[id] = n;
+      return;
+    }
+    // SYMBOL analogico (AMV/PMV/MV/MAG/...): valor vem dos canais Fast Meter.
+    // Guardamos o float bruto; comparadores truncam pra inteiro antes de
+    // comparar com a constante (que normalmente vem como inteiro do GLE).
+    const analogName = g.getAttribute('data-analog');
+    if (analogName) {
+      const v = analogs[analogName.toUpperCase()];
+      if (typeof v === 'number' && !isNaN(v)) elValue[id] = v;
+      return;
+    }
+    const bit = g.getAttribute('data-bit');
+    if (bit) {
+      symbolBit[id] = bit;
+      const v = digitals[bit.toUpperCase()];
+      // null/undefined = indeterminado (nao seta elValue)
+      // 0/1 = conhecido
+      if (v === 0 || v === 1) elValue[id] = v;
+    }
+  });
+  svg.querySelectorAll('.gate-grp').forEach(g => {
+    const id = g.id.replace(/^el-/, '');
+    elType[id] = g.getAttribute('data-type') || '?';
+    // Se o bloco tem um bit de saida nomeado (PLT04, PCT03Q, AST01Q...),
+    // usa o valor REAL do rele em vez de tentar avaliar a logica.
+    const outBit = g.getAttribute('data-output-bit');
+    if (outBit) {
+      const v = digitals[outBit.toUpperCase()];
+      if (v === 0 || v === 1) elValue[id] = v;
+    }
+  });
+
+  // 1b. Conectores: a rede nomeada que o desenho usa no lugar de uma linha.
+  // Um conector NAO e' uma aresta no XML -- sao dois ou mais elementos que
+  // compartilham um `<label>`, e nada os liga. O valor vem da equacao que o
+  // servidor extraiu, entao a ponta que RECEBE e a que EMITE ficam com o
+  // mesmo valor mesmo quando o acionamento esta em outra pagina (medido: 9
+  // redes do corpus atravessam pagina).
+  //
+  // Antes do laco de convergencia de proposito: a arvore so' depende de bits,
+  // nao de elementos desta pagina, entao ja entra resolvida e o laco propaga
+  // dali pra frente.
+  svg.querySelectorAll('.gate-grp[data-connector]').forEach(g => {
+    const label = g.getAttribute('data-connector');
+    if (netValue && label in netValue) {
+      elValue[g.id.replace(/^el-/, '')] = netValue[label];
+    }
+  });
+
+  // 2. Lista de conexoes com info de modificadores
+  const conns = Array.from(svg.querySelectorAll('polyline.connection'));
+  // sink_id -> [{src_id, mod, srcMod, port}, ...]
+  // mod   = operador no SINK   (input port do elemento destino)
+  // srcMod = operador no SOURCE (output port do elemento origem)
+  const incoming = {};
+  for (const c of conns) {
+    const src = c.getAttribute('data-src');
+    const dst = c.getAttribute('data-dst');
+    const mod = c.getAttribute('data-sink-mod') || '';
+    const srcMod = c.getAttribute('data-src-mod') || '';
+    const dp = parseInt(c.getAttribute('data-dst-port') || '0');
+    if (!dst) continue;
+    if (!incoming[dst]) incoming[dst] = [];
+    incoming[dst].push({src, mod, srcMod, port: dp});
+  }
+
+  // 3. Itera ate convergir (max ~10 passadas)
+  for (let iter = 0; iter < 10; iter++) {
+    let changed = false;
+    for (const id in elType) {
+      const t = elType[id];
+      if (t === 'SYMBOL') {
+        // SYMBOL pode tb ser sink: pega valor da conexao de entrada
+        if (!(id in elValue) && incoming[id] && incoming[id].length > 0) {
+          const src = incoming[id][0];
+          if (src.src in elValue) {
+            let v = elValue[src.src];
+            if (src.srcMod === 'NOT') v = 1 - v;
+            if (src.mod === 'NOT') v = 1 - v;
+            elValue[id] = v;
+            changed = true;
+          }
+        }
+        continue;
+      }
+      if (id in elValue) continue; // ja calculado
+      const ins = incoming[id] || [];
+      if (ins.length === 0) continue;
+      // Coleta inputs (so se todos conhecidos)
+      const vals = [];
+      let allKnown = true;
+      // Ordena por port
+      ins.sort((a,b) => a.port - b.port);
+      for (const inp of ins) {
+        if (!(inp.src in elValue)) { allKnown = false; break; }
+        let v = elValue[inp.src];
+        if (inp.srcMod === 'NOT') v = 1 - v;
+        if (inp.mod === 'NOT') v = 1 - v;
+        // RTRIG/FTRIG: nao conseguimos avaliar sem historico; trate como passagem
+        vals.push(v);
+      }
+      if (!allKnown) continue;
+      let out;
+      // Comparadores aritmeticos: AMVs chegam como float (ex.: 60.0001), e
+      // constantes do GLE costumam ser inteiras (ex.: 60). Truncamos ambos
+      // os lados pra inteiro antes de comparar, conforme convencao SEL.
+      const ta = Math.trunc(vals[0]);
+      const tb = Math.trunc(vals[1]);
+      switch (t) {
+        case 'AND':  out = vals.every(v => v === 1) ? 1 : 0; break;
+        case 'OR':   out = vals.some(v => v === 1) ? 1 : 0; break;
+        case 'NOT':  out = vals[0] === 1 ? 0 : 1; break;
+        case 'EQ':   out = ta === tb ? 1 : 0; break;
+        case 'NE':   out = ta !== tb ? 1 : 0; break;
+        case 'LT':   out = ta <  tb ? 1 : 0; break;
+        case 'LE':   out = ta <= tb ? 1 : 0; break;
+        case 'GT':   out = ta >  tb ? 1 : 0; break;
+        case 'GE':   out = ta >= tb ? 1 : 0; break;
+        case 'MULT': out = vals.every(v => v === 1) ? 1 : 0; break;
+        case 'RTRIG': out = vals[0]; break; // sem historico, propaga
+        case 'PLT':  // latch S/R: sem estado persistente, melhor estimativa
+          out = (vals[0] === 1) ? 1 : (vals[1] === 1) ? 0 : null;
+          if (out === null) continue;
+          break;
+        case 'PCNDTIMER': out = vals[0]; break; // ignora pickup/dropout, propaga in
+        case 'AST': out = vals[0]; break;
+        default: continue;
+      }
+      elValue[id] = out;
+      changed = true;
+    }
+    if (!changed) break;
+  }
+  return elValue;
+}
+
+// =============================================================================
+// Cabecalho (duas faixas): identidade na linha 1, estado na pastilha ao lado.
+// =============================================================================
+
+// Nome do IED e arquivo GLE sao dois elementos, e nao um titulo concatenado:
+// assim cada um corta com reticencias sem levar o outro junto, e o nome do
+// rele -- que e' o que identifica a tela -- nunca some primeiro.
+function setHeaderTitle(relay, gle) {
+  const h1 = document.getElementById('relay-title');
+  const g  = document.getElementById('gle-name');
+  if (h1) { h1.textContent = relay || 'Graphical Logic Viewer'; h1.title = relay || ''; }
+  if (g)  { g.textContent = gle || ''; g.title = gle || ''; g.hidden = !gle; }
+}
+
+// A pastilha de estado corta com reticencias, entao o texto inteiro vai
+// tambem no `title`: uma mensagem de erro do rele nao cabe na faixa.
+function setStatus(cls, text) {
+  const el = document.getElementById('status');
+  if (!el) return;
+  el.className = cls;
+  el.textContent = text;
+  el.title = text;
+}
+
+const MAP_SOURCE_LABELS = {
+  'scd': 'SCD do projeto',
+  'tabela': 'tabela de fábrica',
+  'scd+tabela': 'SCD do projeto + tabela de fábrica',
+};
+
+// A cobertura e' da PAGINA aberta, nunca do diagrama inteiro -- roda perto de
+// 100% numa pagina de GOOSE e perto de 50% numa de CS89/LED, e um numero so'
+// pro diagrama inteiro pareceria tranquilizador bem onde importa menos.
+// `coverage: null` (telnet) nao vira badge nenhum, nem "0/0".
+function renderPollStatus(values) {
+  const mms = activeScanMode === 'mms';
+  pollCtl.hidden = !mms;
+  if (!mms) { pollStatus.textContent = ''; return; }
+  const parts = [];
+  if (values && values.coverage) {
+    parts.push(`${values.coverage.mapped}/${values.coverage.total} bits nesta página`);
+    // De onde veio o mapa. A decisão de cabeceira desta branch é "o SCD do
+    // projeto primeiro, porque ele é a verdade como construída"; sem dizer
+    // qual das duas fontes respondeu, uma queda pro mapa de fábrica só
+    // aparecia no log do servidor.
+    const src = MAP_SOURCE_LABELS[values.coverage.source];
+    if (src) parts.push(src);
+  }
+  if (periodNotice) parts.push(periodNotice);
+  pollStatus.textContent = parts.length ? 'MMS · ' + parts.join(' · ') : '';
+}
+
+pollMs.addEventListener('change', async () => {
+  const requested = parseInt(pollMs.value, 10);
+  if (!Number.isFinite(requested)) return;
+  let d;
+  try {
+    const r = await fetch(withD('/period'), {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({interval_ms: requested}),
+    });
+    d = await r.json();
+  } catch (e) {
+    periodNotice = 'falha ao aplicar: ' + e;
+    renderPollStatus(lastValues);
+    return;
+  }
+  // O servidor devolve o que REALMENTE aplicou: sem leitura ativa pra
+  // aplicar agora, ou um pedido recusado (telnet), nao acelera nada -- e a
+  // tela nao pode mentir mostrando o numero pedido. A comparacao e' com
+  // `null`, e nao "se for verdadeiro": 0 e' um periodo valido ("o mais
+  // rapido que der"), e `if (d.interval_ms)` deixaria no campo o que o
+  // usuario digitou -- inclusive um negativo que o servidor cortou em 0.
+  if (d.interval_ms != null) pollMs.value = d.interval_ms;
+  // A tela acompanha na hora, sem esperar a proxima volta de `refreshTabs`.
+  setScreenPace(d.interval_ms);
+  periodNotice = d.status === 'aplicado' ? null
+    : (d.status || 'recusado') + (d.reason ? ': ' + d.reason : '');
+  renderPollStatus(lastValues);
+});
+
+function applyValues(values) {
+  const svg = document.querySelector('#viewer svg');
+  if (!svg) return;
+
+  // Normaliza: digitais com valor null = indeterminado
+  // Converte para dict UPPER->0/1/null
+  const digitalsU = {};
+  for (const [k, v] of Object.entries(values.digitals || {})) {
+    digitalsU[k.toUpperCase()] = v;
+  }
+  // Normaliza analogs: pode vir como {NAME:{value,group}} (modo agrupado)
+  // ou {NAME: numero} (modo legado). Achata pra {NAME_UPPER: numero}.
+  const analogsU = {};
+  for (const [k, e] of Object.entries(values.analogs || {})) {
+    let v = e;
+    if (e !== null && e !== undefined && typeof e === 'object') v = e.value;
+    if (typeof v === 'number' && !isNaN(v)) analogsU[k.toUpperCase()] = v;
+  }
+
+  // Avalia logica usando digitals + analogs (passa null transparentemente)
+  // Valor de cada rede de conector, avaliado UMA vez: alimenta tanto a
+  // coloracao (via `evaluatePage`) quanto a secao Conectores da legenda.
+  const netValue = {};
+  for (const [label, net] of Object.entries(values.connectors || {})) {
+    const v = evalConnectorTree(net.tree, digitalsU);
+    if (v === 0 || v === 1) netValue[label] = v;
+  }
+
+  const elValue = evaluatePage(svg, digitalsU, analogsU, netValue);
+  renderConnectorsPanel(values.connectors || {}, netValue, digitalsU,
+                        values.page || '');
+
+  // Colore SYMBOLs E gates pelos seus valores avaliados (ou lidos do rele)
+  svg.querySelectorAll('.symbol-grp, .gate-grp').forEach(g => {
+    // IMPORTANTE: pula `.hl-overlay` (rect amarelo do marcador, que pode estar
+    // como primeiro filho); pega o rect REAL do bloco.
+    const rect = g.querySelector('rect:not(.hl-overlay)'); if (!rect) return;
+    const id = g.id.replace(/^el-/, '');
+    rect.classList.remove('bit-0', 'bit-1', 'bit-unknown');
+    // Constantes (literais numericos) ficam com o estilo neutro definido em
+    // .element-symbol.const -- nao recebem bit-0/bit-1/bit-unknown.
+    if (g.hasAttribute('data-const')) return;
+    // SYMBOLs analogicos tem coloracao propria (.element-analog has-value)
+    // aplicada mais abaixo; nao recebem bit-0/bit-1 mesmo carregando valor
+    // numerico em elValue (que e usado pelos comparadores).
+    if (g.hasAttribute('data-analog')) return;
+    if (id in elValue && elValue[id] !== null && elValue[id] !== undefined) {
+      rect.classList.add(elValue[id] === 1 ? 'bit-1' : 'bit-0');
+    } else {
+      rect.classList.add('bit-unknown');
+    }
+  });
+
+  // Colore conexoes em 3 estados: active (1), off (0), unknown (null).
+  // Operador na porta de origem (NOT) inverte o valor que o fio carrega.
+  svg.querySelectorAll('polyline.connection').forEach(c => {
+    const src = c.getAttribute('data-src');
+    c.classList.remove('active', 'unknown', 'off');
+    let v = elValue[src];
+    if (c.getAttribute('data-src-mod') === 'NOT' && (v === 0 || v === 1)) {
+      v = 1 - v;
+    }
+    if (v === 1) c.classList.add('active');
+    else if (v === 0) c.classList.add('off');
+    else c.classList.add('unknown');
+  });
+
+  // Ativa dots de juncao (verde se alguma linha que passa por ele esta ativa)
+  const activeXY = new Set();
+  svg.querySelectorAll('polyline.connection.active').forEach(c => {
+    const pts = c.getAttribute('points').trim().split(/\s+/);
+    pts.forEach(p => activeXY.add(p));
+  });
+  svg.querySelectorAll('circle.junction-dot').forEach(d => {
+    const jx = d.getAttribute('data-jx');
+    const jy = d.getAttribute('data-jy');
+    d.classList.toggle('active', activeXY.has(`${jx},${jy}`));
+  });
+
+  // Paineis: agora distingue conhecidos/desconhecidos
+  const known = Object.entries(values.digitals).filter(([k,v]) => v !== null);
+  const unknown = Object.entries(values.digitals).filter(([k,v]) => v === null);
+  const active = known.filter(([k,v]) => v === 1).map(([k]) => k).sort();
+  const inactive_count = known.filter(([k,v]) => v === 0).length;
+
+  document.getElementById('bit-counts').innerHTML =
+    `<div>Total da página: <b>${values.page_bits_total || Object.keys(values.digitals).length}</b></div>` +
+    `<div>Conhecidos: <b>${known.length}</b> (ativos: ${active.length}, inativos: ${inactive_count})</div>` +
+    `<div>Indeterminados: <b>${unknown.length}</b></div>`;
+
+  document.getElementById('active-bits').innerHTML =
+    active.length ? active.map(b => `<div class="v-active">${b}</div>`).join('') :
+                    '<div class="v-inactive">(nenhum)</div>';
+
+  const unknownNames = unknown.map(([k]) => k).sort().slice(0, 30);
+  document.getElementById('unknown-bits').innerHTML =
+    unknownNames.length ? unknownNames.map(b => `<div style="color:#daa">${b}</div>`).join('') +
+                          (unknown.length > 30 ? `<div style="color:#888">+${unknown.length-30} mais...</div>` : '') :
+                          '<div class="v-inactive">(nenhum)</div>';
+
+  // Analogs: cada entrada agora pode ser {value, group} (quando o backend
+  // tem analog_groups configurados para a pagina) ou apenas um numero/string
+  // (modo legado, sem analog_groups). Normaliza ambos os formatos.
+  const analogEntries = Object.entries(values.analogs || {});
+  const analogGroupsMeta = values.analog_groups || {};
+  const fmtAnalog = (v) => {
+    if (v === null || v === undefined) return 'N/A';
+    if (typeof v === 'number') {
+      const abs = Math.abs(v);
+      if (abs >= 1000 || abs < 0.01) return v.toExponential(2);
+      return v.toFixed(2);
+    }
+    return String(v);
+  };
+
+  // 1) Injeta os valores inline nos SYMBOLs analogicos do SVG.
+  // Cada SYMBOL com data-analog="NAME" tem um <text class="analog-value">
+  // que recebe o valor formatado; se o rele nao expoe o canal, mostra 'N/A'.
+  svg.querySelectorAll('[data-analog]').forEach(g => {
+    const nm = (g.getAttribute('data-analog') || '').toUpperCase();
+    const entry = values.analogs ? values.analogs[nm] : null;
+    let val = null;
+    let hasValue = false;
+    if (entry !== undefined && entry !== null && typeof entry === 'object') {
+      val = entry.value;
+      hasValue = val !== null && val !== undefined;
+    } else if (entry !== undefined && entry !== null) {
+      val = entry;
+      hasValue = true;
+    }
+    const tNode = g.querySelector('.analog-value');
+    if (tNode) {
+      tNode.textContent = hasValue ? fmtAnalog(val) : 'N/A';
+      tNode.classList.toggle('live', hasValue);
+    }
+    const rect = g.querySelector('.element-analog');
+    if (rect) rect.classList.toggle('has-value', hasValue);
+  });
+
+  // 2) Painel agrupado por familia. So inclui analogs da pagina atual; quando
+  // os dados nao tem grupos (formato legado) caimos no comportamento antigo
+  // de listar os 20 primeiros.
+  const panelEl = document.getElementById('analog-values');
+  if (analogEntries.length === 0) {
+    panelEl.innerHTML = '-';
+  } else if (analogEntries[0][1] !== null && typeof analogEntries[0][1] === 'object'
+             && 'group' in (analogEntries[0][1] || {})) {
+    // Modo agrupado.
+    const byGroup = {};
+    analogEntries.forEach(([k, e]) => {
+      const g = (e && e.group) || '_';
+      (byGroup[g] = byGroup[g] || []).push([k, e.value]);
+    });
+    const order = Object.keys(analogGroupsMeta);
+    Object.keys(byGroup).forEach(g => { if (!order.includes(g)) order.push(g); });
+    panelEl.innerHTML = order
+      .filter(g => byGroup[g] && byGroup[g].length)
+      .map(g => {
+        const lbl = analogGroupsMeta[g] || g;
+        const rows = byGroup[g]
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([k, v]) => {
+            const hasV = v !== null && v !== undefined;
+            return `<div class="${hasV ? 'an-row' : 'an-row na'}">`
+              + `<span class="an-name">${k}</span> `
+              + `<span class="an-val">${hasV ? fmtAnalog(v) : 'N/A'}</span>`
+              + `</div>`;
+          }).join('');
+        return `<div class="an-group"><div class="an-group-hdr">${lbl}</div>${rows}</div>`;
+      }).join('') || '-';
+  } else {
+    // Legado: apenas valores crus.
+    panelEl.innerHTML = analogEntries.slice(0, 20).map(([k, v]) =>
+      `<div>${k} = ${fmtAnalog(v)}</div>`).join('') || '-';
+  }
+
+  // A idade vem PRONTA do servidor (`LiveState.snapshot`), medida la' com o
+  // relogio monotonico. Era `Date.now()/1000 - values.ts`: uma subtracao
+  // entre DOIS relogios diferentes -- medido nesta maquina, o do WSL (onde
+  // roda o servidor) estava 82,5 s atras do relogio do Windows (onde roda o
+  // navegador), e a barra anunciava "valores antigos (82,5s atras)" com o
+  // rele respondendo a cada 10 ms e o Wireshark limpo. `null` = ainda nao se
+  // leu nada.
+  const age = values.age;
+  if (values.error) {
+    setStatus('status error', `ERRO: ${values.error}`);
+  } else if (values.connected === false) {
+    // Diagrama aberto e desconectado: nao ha leitura nenhuma, entao nao faz
+    // sentido falar em "valores antigos" -- nem medir idade de um ts zerado.
+    setStatus('status stale',
+              `desconectado · ${values.page_bits_total || 0} bits indeterminados`);
+  } else if (values.status === 'connecting') {
+    setStatus('status stale', 'conectando ao relé...');
+  } else if (age == null) {
+    setStatus('status stale', 'ainda sem leitura');
+  } else if (age > 5) {
+    setStatus('status stale', `valores antigos (${age.toFixed(1)}s atras)`);
+  } else {
+    setStatus('status',
+              `ao vivo · ${age.toFixed(1)}s · ${known.length}/${(values.page_bits_total||known.length)} bits conhecidos`);
+  }
+}
+
+async function pollValues() {
+  try {
+    // Filtra no backend pela pagina atual (economiza payload JSON)
+    const r = await fetch(withD('/values?page=' + encodeURIComponent(currentPage)));
+    const v = await r.json();
+    lastValues = v;
+    applyValues(v);
+    renderPollStatus(v);
+  } catch (e) {
+    setStatus('status error', `falha de polling: ${e}`);
+  }
+}
+
+// =============================================================================
+// A cadencia da TELA -- que nao e' a cadencia da leitura, e ate' aqui nao
+// tinha nada a ver com ela.
+//
+// Era `setInterval(pollValues, 500)`: 2 Hz fixos, viesse o valor de onde
+// viesse. Medido ponta a ponta: o rele responde em 1,5 ms (no fio, do pcap
+// de campo), `/values` custa 0,03 ms no servidor, a ida e volta HTTP 1 ms, e
+// a repintura 0,80 ms no navegador -- recalc e layout ja' dentro da conta, na
+// pagina mais pesada de um GLE real (440 elementos, 41 simbolos, 28 blocos,
+// 63 conexoes). Soma ~3 ms, contra 0 a 500 ms de espera pela proxima volta do
+// relogio. A ESPERA era o tempo todo; e com o MMS a 10 ms, 49 de cada 50
+// leituras morriam sem nunca chegar ao desenho.
+//
+// Agora a tela segue o periodo de leitura do PROPRIO diagrama (`interval_ms`,
+// que `tab()` e `meta()` ja mandavam pro controle de periodo), preso entre:
+//   - piso de 100 ms, que e' orcamento de REPINTURA e nao limite de
+//     protocolo: 0,8 ms a cada 100 ms e' ~1% de uma CPU. E' a razao de o piso
+//     existir aqui depois de ter sido removido do polling MMS -- la o custo e'
+//     do rele, que se defende sozinho respondendo no ritmo dele; aqui o custo
+//     e' do navegador de quem esta comissionando, e ninguem ganha nada com
+//     uma tela repintada mais vezes do que o olho ve.
+//   - teto de 500 ms, o de sempre: um diagrama telnet lido a cada 0,5 s nao
+//     fica mais atual sendo perguntado dez vezes por segundo -- e o teto nao
+//     acompanha um periodo AINDA MAIOR porque a pastilha mostra a IDADE da
+//     leitura, que precisa envelhecer na tela mesmo quando nenhum bit muda.
+// =============================================================================
+const SCREEN_MIN_MS = 100, SCREEN_MAX_MS = 500;
+let screenMs = SCREEN_MAX_MS;
+let valuesTimer = null;
+let valuesInFlight = false;
+
+function setScreenPace(readMs) {
+  const ms = Number(readMs);
+  screenMs = Number.isFinite(ms) && ms > 0
+    ? Math.min(SCREEN_MAX_MS, Math.max(SCREEN_MIN_MS, ms))
+    : SCREEN_MAX_MS;
+}
+
+// Duas guardas que o `setInterval` nao tinha, e que so' aparecem quando a
+// cadencia sobe. (a) `valuesInFlight`: o `setInterval` disparava mesmo com a
+// volta anterior em voo, e a 10 Hz isso empilha requisicoes em vez de
+// adiantar a tela. (b) o proximo tique e' agendado ANTES do `await`: um fetch
+// pendurado (servidor ocupado, rede da subestacao) nao pode parar o relogio
+// da tela -- que e' justamente o que um `await` no comeco da volta faria.
+async function valuesTick() {
+  valuesTimer = setTimeout(valuesTick, screenMs);
+  if (valuesInFlight) return;
+  valuesInFlight = true;
+  try {
+    await pollValues();
+  } finally {
+    valuesInFlight = false;
+  }
+}
+
+// =============================================================================
+// "Fora do modelo": as variaveis do desenho INTEIRO que a conexao escolhida
+// nao alcanca -- as que precisam entrar no modelo do servidor do IED (MMS) ou
+// que simplesmente nao existem nesta Relay Word (telnet). Ate aqui elas eram
+// indistinguiveis, na tela, de um bit que ainda nao chegou: as duas coisas
+// pintam de indeterminado, e so' uma delas espera resolver sozinha.
+//
+// Fica FORA do /values de proposito. A lista e' do diagrama inteiro (e' pra
+// montar o modelo do IED; pagina por pagina o usuario teria que percorrer o
+// desenho todo pra juntar os nomes) e so' muda quando a conexao muda -- entao
+// e' buscada na troca de aba, quando o estado da conexao vira e quando o
+// usuario abre o painel, e nao duas vezes por segundo junto do polling.
+// =============================================================================
+const unreachCtl = (function () {
+  const details = document.getElementById('unreachable');
+  const countEl = document.getElementById('unreachable-count');
+  const hintEl = document.getElementById('unreachable-hint');
+  const listEl = document.getElementById('unreachable-list');
+  const copyBtn = document.getElementById('unreachable-copy');
+  const txtLink = document.getElementById('unreachable-txt');
+  if (!details) return { refresh() {}, reset() {}, onTabs() {} };
+
+  // Um `<a download>` e' navegacao direta do navegador, e o shim de fetch nao
+  // alcanca isso -- o prefixo de montagem tem que entrar na mao. Ele sai da
+  // propria URL da pagina, que e' `<prefixo>/` ou `<prefixo>/index.html`.
+  const MOUNT = location.pathname.replace(/\/(index\.html)?$/, '');
+
+  const HINTS = {
+    mms: 'Não estão no modelo do servidor deste IED — nem no SCD do projeto, '
+       + 'nem na tabela de fábrica. Adicione os pontos ao modelo do IED e '
+       + 'reconecte.',
+    relay_word: 'Não existem na Relay Word deste relé (FID atual). Bits VB '
+       + '(GOOSE) ficam em outra região e só são legíveis por MMS.',
+    dna: 'Não estão no DNA configurado neste relé, que é o subconjunto de '
+       + 'digitais que o Fast Meter entrega.',
+  };
+
+  let names = [];
+  let lastKey = null;      // aba + estado da conexao da ultima busca
+
+  function esc(t) {
+    return String(t).replace(/[&<>"]/g, c => (
+      {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+  }
+
+  function enable(on) {
+    copyBtn.setAttribute('aria-disabled', on ? 'false' : 'true');
+    txtLink.setAttribute('aria-disabled', on ? 'false' : 'true');
+  }
+
+  function paint(data) {
+    names = data.names || [];
+    txtLink.href = MOUNT + '/unreachable.txt'
+                 + (activeDiagram ? '?d=' + encodeURIComponent(activeDiagram) : '');
+    if (!data.available) {
+      // Desconectado, sem mapa ou sem DNA: um "0" aqui leria como "está tudo
+      // no relé" numa tela em que ninguém leu nada.
+      countEl.textContent = '—';
+      countEl.dataset.state = 'unknown';
+      hintEl.textContent = 'Conecte o diagrama para saber o que esta leitura alcança.';
+      listEl.innerHTML = '';
+      enable(false);
+      return;
+    }
+    countEl.textContent = names.length + '/' + data.total;
+    countEl.dataset.state = names.length ? 'some' : 'none';
+    hintEl.textContent = names.length
+      ? (HINTS[data.reason] || '')
+      : ('Todas as ' + data.total + ' variáveis do desenho são legíveis por '
+         + 'esta conexão.');
+    listEl.innerHTML = names.map(n => '<div>' + esc(n) + '</div>').join('');
+    enable(names.length > 0);
+  }
+
+  async function refresh() {
+    try {
+      const r = await fetch(withD('/unreachable'), { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      paint(await r.json());
+    } catch (e) {
+      console.warn('falha ao buscar as variáveis fora do modelo:', e);
+    }
+  }
+
+  copyBtn.addEventListener('click', async () => {
+    if (!names.length) return;
+    const text = names.join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = 'Copiado!';
+    } catch (e) {
+      // Sem permissão de área de transferência (http em rede da subestação,
+      // por exemplo): o .txt ao lado continua resolvendo.
+      copyBtn.textContent = 'Falhou — use o .txt';
+    }
+    setTimeout(() => { copyBtn.textContent = 'Copiar'; }, 2000);
+  });
+
+  details.addEventListener('toggle', () => { if (details.open) refresh(); });
+
+  function keyNow() {
+    const t = tabFromId(activeDiagram);
+    return activeDiagram + ':' + (t ? t.status + ':' + t.connected : '-');
+  }
+
+  return {
+    // Troca de aba: busca agora, sem esperar a proxima volta de
+    // `refreshTabs`. Nao fecha o painel -- quem o abriu quer continuar vendo
+    // a lista, agora a do outro diagrama.
+    reset() { lastKey = keyNow(); refresh(); },
+    refresh,
+    // Chamado a cada volta de `refreshTabs`: a lista so' muda quando a
+    // conexao muda, entao e' isso que dispara a busca -- inclusive a que
+    // termina sozinha, minutos depois, quando a descoberta de bits acaba.
+    onTabs() {
+      const key = keyNow();
+      if (key === lastKey) return;
+      lastKey = key;
+      refresh();
+    },
+  };
+})();
+
+// =============================================================================
+// Faixa de abas: um diagrama por aba, com o estado da conexao na propria aba.
+// Trocar de aba NAO recarrega a pagina -- busca /meta?d= e re-renderiza a
+// faixa de paginas e o viewer.
+// =============================================================================
+function tabFromId(id) { return TABS.find(t => t.id === id) || null; }
+
+function renderTabs() {
+  const bar = document.getElementById('tabs');
+  bar.innerHTML = '';
+  TABS.forEach(t => {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'tab' + (t.id === activeDiagram ? ' active' : '');
+    el.setAttribute('data-status', t.status);
+    el.setAttribute('data-id', t.id);
+    el.title = t.error || `${t.relay} · ${t.gle} · ${t.ip || 'sem IP'}`;
+    const dot = document.createElement('span');
+    dot.className = 'dot';
+    el.appendChild(dot);
+    const name = document.createElement('span');
+    name.className = 'label';
+    name.textContent = t.relay + ' · ' + t.gle;
+    el.appendChild(name);
+    const ip = document.createElement('span');
+    ip.className = 'ip';
+    ip.textContent = t.ip || 'sem IP';
+    el.appendChild(ip);
+    if (t.refs > 1) {
+      // Dois diagramas no mesmo rele dividem UMA sessao telnet.
+      const sh = document.createElement('span');
+      sh.className = 'shared';
+      sh.textContent = '↔' + t.refs;
+      sh.title = t.refs + ' diagramas dividem esta conexão';
+      el.appendChild(sh);
+    }
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'close';
+    x.textContent = '×';
+    x.title = 'Fechar este diagrama (solta a conexão)';
+    x.addEventListener('click', (e) => { e.stopPropagation(); closeDiagram(t.id); });
+    el.appendChild(x);
+    el.addEventListener('click', () => {
+      if (t.id !== activeDiagram) switchDiagram(t.id);
+    });
+    bar.appendChild(el);
+  });
+  const add = document.createElement('a');
+  add.className = 'tab-new';
+  add.href = './novo';
+  add.textContent = '+ Diagrama';
+  add.title = 'Abrir outro GLE (mesmo relé ou outro)';
+  bar.appendChild(add);
+  updateConnButton();
+  // A tela acompanha o periodo de leitura da aba ativa (ver setScreenPace).
+  const ativa = tabFromId(activeDiagram);
+  setScreenPace(ativa ? ativa.interval_ms : null);
+}
+
+function updateConnButton() {
+  const btn = document.getElementById('conn-toggle');
+  const t = tabFromId(activeDiagram);
+  if (!btn) return;
+  if (!t) { btn.disabled = true; btn.textContent = 'Conectar'; return; }
+  btn.setAttribute('data-state', t.status);
+  if (BOOT.no_relay) {
+    btn.disabled = true;
+    btn.textContent = 'Conectar';
+    btn.title = 'Modo visualização (--no-relay): conexão desabilitada';
+    return;
+  }
+  if (t.status === 'connecting') {
+    // Cancelavel de proposito: um IP errado custaria a espera inteira do
+    // watchdog, e o servidor ja sabe abandonar a tentativa em voo.
+    btn.disabled = false; btn.textContent = 'Cancelar';
+    btn.title = 'Cancelar a tentativa de conexão';
+  } else if (t.connected) {
+    btn.disabled = false; btn.textContent = 'Desconectar';
+    btn.title = 'Parar de ler este relé (o diagrama continua aberto)';
+  } else {
+    btn.disabled = false; btn.textContent = 'Conectar';
+    btn.title = t.error || ('Conectar em ' + (t.ip || 'sem IP'));
+  }
+  setHeaderTitle(t.relay, t.gle);
+}
+
+async function refreshTabs() {
+  try {
+    const r = await fetch('/diagrams', { cache: 'no-store' });
+    const d = await r.json();
+    TABS = d.diagrams || [];
+    if (!TABS.some(t => t.id === activeDiagram)) {
+      activeDiagram = d.active || (TABS[0] && TABS[0].id) || null;
+    }
+    renderTabs();
+    unreachCtl.onTabs();
+  } catch (e) {
+    console.warn('falha ao atualizar abas:', e);
+  }
+}
+
+function renderPageStrip() {
+  const nav = document.getElementById('pages');
+  nav.innerHTML = '';
+  PAGES.forEach(([nome, safe]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('data-page', safe);
+    b.textContent = nome;
+    b.addEventListener('click', () => loadPage(safe, nome));
+    nav.appendChild(b);
+  });
+}
+
+function applyMeta(meta) {
+  PAGES = meta.pages || [];
+  VAR_INDEX = meta.var_index || {};
+  renderPageStrip();
+  setHeaderTitle(meta.relay, meta.gle);
+  document.title = meta.relay + ' · ' + meta.gle + ' — GLV';
+  lastValues = { digitals: {}, analogs: {}, ts: 0, error: '' };
+  // scan_mode vem de tab(), embutido em meta() -- e' o que decide se o
+  // controle de período existe nesta aba. Cada troca de diagrama zera o
+  // aviso do período anterior: e' de outro diagrama, nao deste.
+  activeScanMode = meta.scan_mode || 'telnet';
+  periodNotice = null;
+  // O periodo real desta aba, nao o que sobrou da aba anterior -- sem isto,
+  // trocar de um diagrama MMS a 500ms pra outro no default de 100ms deixava
+  // o campo mostrando 500 pro segundo, mentindo sobre o que esta em vigor.
+  if (meta.interval_ms != null) pollMs.value = meta.interval_ms;
+  setScreenPace(meta.interval_ms);
+  renderPollStatus(lastValues);
+  // Aba nova, lista nova: o que sobrou na tela e' de outro rele.
+  unreachCtl.reset();
+  return loadPage(meta.initial, '');
+}
+
+async function switchDiagram(id) {
+  activeDiagram = id;
+  renderTabs();
+  try {
+    await fetch(withD('/diagrams/activate'), { method: 'POST' });
+    const r = await fetch(withD('/meta'), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const meta = await r.json();
+    await applyMeta(meta);
+    await loadGroupState();
+    await loadHighlights();
+    if (notesCtl) notesCtl.reload(currentPage);
+    pollValues();
+  } catch (e) {
+    console.warn('falha ao trocar de diagrama:', e);
+  }
+}
+
+async function closeDiagram(id) {
+  const t = tabFromId(id);
+  const label = t ? (t.relay + ' · ' + t.gle) : id;
+  if (!confirm('Fechar ' + label + '? A conexão dele é liberada.')) return;
+  try {
+    const r = await fetch('/diagrams/close?d=' + encodeURIComponent(id),
+                          { method: 'POST' });
+    if (id === activeDiagram) SelProgress.hide();
+    const d = await r.json();
+    TABS = d.diagrams || [];
+    if (!TABS.length) { window.location.href = './novo'; return; }
+    if (id === activeDiagram) {
+      await switchDiagram(d.active || TABS[TABS.length - 1].id);
+    } else {
+      renderTabs();
+    }
+  } catch (e) {
+    alert('Falha ao fechar o diagrama: ' + e);
+  }
+}
+
+(function setupConnToggle() {
+  const btn = document.getElementById('conn-toggle');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    const t = tabFromId(activeDiagram);
+    if (!t) return;
+    btn.disabled = true;
+    try {
+      if (t.connected || t.status === 'connecting') {
+        await fetch(withD('/disconnect'), { method: 'POST' });
+        // Quem cancelou foi o usuario: a barra sai na hora, sem esperar o
+        // job sumir do registro.
+        SelProgress.hide();
+        await refreshTabs();
+        // Volta tudo a indeterminado na proxima volta do poll.
+        pollValues();
+        return;
+      }
+      // Conectar nao bloqueia a resposta: o servidor responde 202 com o id do
+      // job e a barra acompanha o resto (a descoberta de bits num FID sem
+      // cache leva minutos). Por isso e' fetch + track, e nao
+      // SelProgress.post -- este daria a barra por encerrada no 202.
+      SelProgress.begin('Conectando ao relé...');
+      const r = await fetch(withD('/connect'), { method: 'POST' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        const msg = d.error || ('falha ao conectar (HTTP ' + r.status + ')');
+        SelProgress.fail(msg);
+        alert(msg);
+        await refreshTabs();
+        return;
+      }
+      if (d.job) SelProgress.track(d.job, {from: 0, to: 100});
+      await refreshTabs();
+    } catch (e) {
+      SelProgress.fail(String(e));
+      alert('Falha ao conectar: ' + e);
+    } finally {
+      btn.disabled = false;
+      updateConnButton();
+    }
+  });
+})();
+
+// A faixa de abas se atualiza sozinha: e' por ela que uma conexao que falha
+// em segundo plano aparece (bolinha vermelha + motivo no title).
+setInterval(refreshTabs, 2000);
+valuesTick();
+
+renderTabs();
+if (activeDiagram) switchDiagram(activeDiagram);
+</script>
+</body>
+</html>

@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>VB Updater -- {rdb_relay} / {gle_name}</title>
+<style>
+  /* Tokens e casca vem de /theme.css (pacct/web/theme.py). */
+  main {{ padding: var(--s4) var(--s4) var(--s5); }}
+  .summary {{
+    margin-bottom: 16px; padding: var(--s3) var(--s3);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: .9em;
+  }}
+  .summary .ok {{ color: var(--ok); font-weight: 500; }}
+  .summary .warn {{ color: var(--warn); font-weight: 500; }}
+  .summary .muted {{ color: var(--text-2); }}
+  table.cmp {{
+    width: 100%; border-collapse: collapse;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    font-size: .9em;
+  }}
+  table.cmp th, table.cmp td {{
+    padding: var(--s2) var(--s3); text-align: left;
+    border-bottom: 1px solid var(--border);
+  }}
+  table.cmp th {{
+    background: var(--surface-2); color: var(--text-2);
+    font-weight: 500; font-size: .8em; text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }}
+  table.cmp tr:last-child td {{ border-bottom: none; }}
+  table.cmp td.vb {{
+    font-family: var(--mono); font-weight: 500;
+    width: 180px; color: var(--text); vertical-align: top;
+  }}
+  table.cmp td.vb .loc {{
+    font-family: var(--sans);
+    font-size: .72em; color: var(--text-2); font-weight: normal;
+    margin-top: 3px; line-height: 1.3;
+  }}
+  table.cmp td.cell {{ font-family: var(--mono); font-size: .88em; vertical-align: top; }}
+  table.cmp td.cell.empty {{ color: var(--text-2); font-style: italic; }}
+  table.cmp tr.diff td {{ background: var(--tint-equiv); }}
+  table.cmp tr.diff td.vb {{ color: var(--warn); }}
+  body.hide-equal table.cmp tbody tr:not(.diff) {{ display: none; }}
+  .toolbar {{
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-bottom: 12px;
+  }}
+  .toolbar .spacer {{ flex: 1; }}
+  button.toggle-eq, button.action-btn {{
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border);
+    padding: var(--s1) var(--s3); font: inherit; font-size: .85em;
+    border-radius: var(--radius); cursor: pointer;
+    transition: border-color .15s, background .15s, color .15s;
+  }}
+  button.toggle-eq:hover, button.action-btn:hover {{
+    border-color: var(--accent); background: var(--surface-2);
+  }}
+  button.action-btn:disabled {{ opacity: .5; cursor: progress; }}
+  body.hide-equal button.toggle-eq {{
+    background: var(--accent-strong); color: var(--accent-fg);
+    border-color: var(--accent-strong);
+  }}
+  .apply-result {{
+    margin-bottom: 16px; padding: var(--s3) var(--s4);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: .9em;
+  }}
+  .apply-result.err {{ border-color: var(--warn); }}
+  .apply-result .title {{ font-weight: 500; margin-bottom: 6px; }}
+  .apply-result .download {{
+    display: inline-block; margin-top: 8px;
+    background: var(--accent-strong); color: var(--accent-fg);
+    padding: var(--s1) var(--s3); border-radius: var(--radius); text-decoration: none;
+    font-weight: var(--w-bold);
+  }}
+  .apply-result .download:hover {{ opacity: .85; }}
+  .apply-result ul {{ margin: 6px 0 0 18px; padding: 0; color: var(--text-2); }}
+  .apply-result code {{ background: var(--surface-2); padding: 1px 6px; border-radius: var(--radius); }}
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+  <div class="title">
+    <h1>VB Updater &mdash; {rdb_relay}</h1>
+    <div class="sub">IED <code>{ied_name}</code> &middot; GLE <code>{gle_name}</code></div>
+  </div>
+  <span class="spacer"></span>
+  <a href="./" class="lnk">&#x2190; Rel&eacute;s</a>
+  <a href="/" class="lnk" title="Voltar ao menu de ferramentas">&#x2190; Menu</a>
+</header>
+<div class="shell">
+<!--NAV:vb-updater-->
+<div class="grid">
+<main class="col-main">
+  <div class="toolbar">
+    <div class="summary" style="margin:0; flex:1">{summary}</div>
+    <button class="action-btn" type="button" id="apply-scd-to-gle"
+            data-direction="scd-to-gle"
+            title="Gera um RDB com as portas VBnnn do GLE atualizadas a partir do SCD">
+      Copiar SCD &rarr; GLE (gerar RDB)</button>
+    <button class="action-btn" type="button" id="apply-gle-to-scd"
+            data-direction="gle-to-scd"
+            title="Gera um SCD com os ExtRef desc do IED atualizados a partir do GLE">
+      Copiar GLE &rarr; SCD (gerar SCD)</button>
+    <button class="toggle-eq" type="button" id="toggle-eq"
+            aria-pressed="false"
+            title="Ocultar linhas onde GLE e SCD batem">Ocultar iguais</button>
+  </div>
+  <div id="apply-result" class="apply-result" style="display:none"></div>
+  <table class="cmp">
+    <thead>
+      <tr><th>VB</th><th>GLE (comment)</th><th>SCD (desc)</th></tr>
+    </thead>
+    <tbody>
+{rows}
+    </tbody>
+  </table>
+</main>
+
+<aside class="col-notes">
+  <div class="cap">Notas</div>
+  <div class="note"><span class="n">1</span>A coluna <b>GLE</b> vem do comment da
+    porta VBnnn; a coluna <b>SCD</b>, do desc do ExtRef do IED. As duas descrevem o
+    mesmo sinal por caminhos diferentes.</div>
+  <div class="note"><span class="n">2</span><b>Copiar SCD &rarr; GLE</b> gera um RDB
+    novo; <b>Copiar GLE &rarr; SCD</b> gera um SCD novo. Nenhum dos dois sobrescreve
+    o arquivo que voc&ecirc; subiu.</div>
+  <div class="note"><span class="n">3</span><b>Ocultar iguais</b> fica gravado no
+    navegador: a tela volta filtrada na pr&oacute;xima visita.</div>
+</aside>
+</div>
+</div>
+</div>
+<script>
+(function () {{
+  const KEY = 'vb-updater-hide-equal';
+  const btn = document.getElementById('toggle-eq');
+  function apply(on) {{
+    document.body.classList.toggle('hide-equal', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.textContent = on ? 'Mostrar iguais' : 'Ocultar iguais';
+  }}
+  try {{ apply(localStorage.getItem(KEY) === '1'); }} catch (e) {{ apply(false); }}
+  btn.addEventListener('click', () => {{
+    const next = !document.body.classList.contains('hide-equal');
+    apply(next);
+    try {{ localStorage.setItem(KEY, next ? '1' : '0'); }} catch (e) {{}}
+  }});
+}})();
+
+// Apply buttons (Copiar SCD<->GLE)
+(function setupApply() {{
+  const qs = new URLSearchParams(window.location.search);
+  const relay = qs.get('relay') || '';
+  const ied = qs.get('ied') || '';
+  const gle = qs.get('gle') || '';
+  const resultEl = document.getElementById('apply-result');
+
+  function escHtml(s) {{
+    return (s == null ? '' : String(s))
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }}
+  function escAttr(s) {{
+    return (s == null ? '' : String(s))
+      .replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  }}
+
+  function renderResult(direction, data, isError) {{
+    resultEl.className = 'apply-result' + (isError ? ' err' : '');
+    resultEl.style.display = 'block';
+    if (isError) {{
+      resultEl.innerHTML = '<div class="title">Falha ao aplicar</div>'
+        + '<div>' + escHtml(data.error || JSON.stringify(data)) + '</div>';
+      return;
+    }}
+    const st = data.stats || {{}};
+    let lines = [];
+    if (direction === 'scd-to-gle') {{
+      lines.push('Instancias atualizadas no GLE: <strong>' + (st.instances_updated||0) + '</strong>');
+      lines.push('VBs com desc no SCD: ' + (st.vbs_in_scd_with_desc||0));
+      const reservaN = st.vbs_in_scd_renamed_to_reserva||0;
+      const reservaLabel = st.reserva_label || 'reserva';
+      lines.push('VBs vazios no SCD renomeados para <code>' + escHtml(reservaLabel) + '</code>: <strong>' + reservaN + '</strong>');
+      lines.push('VBs do GLE sem ExtRef no SCD (não tocados): ' + (st.vbs_in_gle_not_in_scd||0));
+      lines.push('Stream original/novo: ' + (st.original_stream_bytes||0).toLocaleString() + ' bytes (preservado)');
+    }} else {{
+      lines.push('ExtRef desc atualizados: <strong>' + (st.extrefs_updated||0) + '</strong>');
+      lines.push('ExtRef sem desc anterior (inseridos): <strong>' + (st.extrefs_inserted_desc||0) + '</strong>');
+      lines.push('VBs no SCD não alterados (sem comment no GLE): ' + (st.vbs_unchanged_no_match||0));
+      lines.push('Tamanho do SCD: ' + (st.original_bytes||0).toLocaleString() + ' -> ' + (st.output_bytes||0).toLocaleString() + ' bytes');
+      const inc = st.vbs_with_inconsistent_gle_comments || [];
+      if (inc.length) {{
+        lines.push('<span style="color:var(--warn)">VBs com comments inconsistentes no GLE (usado o primeiro):</span> <code>'
+          + inc.map(escHtml).join(', ') + '</code>');
+      }}
+    }}
+    resultEl.innerHTML =
+      '<div class="title">Arquivo gerado: <code>' + escHtml(data.output_name || '') + '</code></div>'
+      + '<ul>' + lines.map(l => '<li>' + l + '</li>').join('') + '</ul>'
+      + '<a class="download" href="' + escAttr(data.download_url || '#') + '" download>Baixar arquivo</a>'
+      + SelLibrary.savedNote(data.project_file);
+  }}
+
+  async function clickApply(btn) {{
+    const direction = btn.dataset.direction;
+    if (!relay || !ied || !gle) {{
+      renderResult(direction, {{error: 'parametros relay/ied/gle ausentes na URL'}}, true);
+      return;
+    }}
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = 'Aplicando...';
+    resultEl.style.display = 'none';
+    try {{
+      const r = await SelProgress.post('/apply',
+        {{ direction, relay, ied, gle }},
+        {{ label: 'Aplicando alteracoes...', doneLabel: 'Arquivo gerado.' }});
+      renderResult(direction, r.data || {{error: 'resposta invalida'}}, !r.ok);
+    }} finally {{
+      btn.disabled = false;
+      btn.textContent = original;
+    }}
+  }}
+  document.getElementById('apply-scd-to-gle').addEventListener('click',
+    function() {{ clickApply(this); }});
+  document.getElementById('apply-gle-to-scd').addEventListener('click',
+    function() {{ clickApply(this); }});
+}})();
+</script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Conectores do GLE, nas formas MEDIDAS no corpus (418 .gle em
+     rdbs/extracted/): 110 redes, sempre UM receptor, ate 9 emissores, e 9
+     redes atravessando pagina. Nenhum GLE versionado tem conector, entao esta
+     fixture existe pra reproduzir as formas reais sem depender de um RDB.
+
+     Rede A "Cont1"    mesma pagina, 1 receptor + 1 emissor, com NOT na porta
+     Rede B "LEDGRP"   ATRAVESSA pagina: recebe em P1, emite 2x em P2
+     Rede C "SEMFONTE" so' emissor, sem receptor: nao vira rede
+     Rede D "LACO"     realimentacao: a guarda de ciclo tem que terminar -->
+<editor>
+  <page name="P1">
+    <elements>
+      <element id="1" type="SYMBOL" left="0" top="0">
+        <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="IN101" alias="">
+          <ports><port index="0"><comment /></port></ports>
+          <ports><port index="0"><comment /></port></ports>
+        </logic_element>
+      </element>
+      <element id="2" type="SYMBOL" left="0" top="30">
+        <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="IN102" alias="">
+          <ports><port index="0"><comment /></port></ports>
+          <ports><port index="0"><comment /></port></ports>
+        </logic_element>
+      </element>
+      <element id="3" type="AND" left="60" top="0">
+        <logic_element type="AND" physical_instance_number="0" physical_instance_name="" alias="">
+          <ports>
+            <port index="0"><comment /></port>
+            <port index="1"><port_operator operator_type="NOT" /><comment /></port>
+          </ports>
+          <ports><port index="0"><comment /></port></ports>
+        </logic_element>
+      </element>
+      <element id="4" type="Connector" left="120" top="0"><label>Cont1</label></element>
+      <element id="5" type="Connector" left="0" top="90"><label>Cont1</label></element>
+      <element id="6" type="SYMBOL" left="60" top="90">
+        <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="OUT201" alias="">
+          <ports><port index="0"><comment /></port></ports>
+          <ports><port index="0"><comment /></port></ports>
+        </logic_element>
+      </element>
+      <element id="10" type="SYMBOL" left="0" top="150">
+        <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="GROUNDT" alias="">
+          <ports><port index="0"><comment /></port></ports>
+          <ports><port index="0"><comment /></port></ports>
+        </logic_element>
+      </element>
+      <element id="11" type="SYMBOL" left="0" top="180">
+        <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="TRIPS" alias="">
+          <ports><port index="0"><comment /></port></ports>
+          <ports><port index="0"><comment /></port></ports>
+        </logic_element>
+      </element>
+      <element id="12" type="OR" left="60" top="150">
+        <logic_element type="OR" physical_instance_number="0" physical_instance_name="" alias="">
+          <ports><port index="0"><comment /></port><port index="1"><comment /></port></ports>
+          <ports><port index="0"><comment /></port></ports>
+        </logic_element>
+      </element>
+      <element id="13" type="Connector" left="120" top="150"><label>LEDGRP</label></element>
+      <element id="20" type="Connector" left="0" top="240"><label>SEMFONTE</label></element>
+      <element id="21" type="SYMBOL" left="60" top="240">
+        <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="OUT205" alias="">
+          <ports><port index="0"><comment /></port></ports>
+          <ports><port index="0"><comment /></port></ports>
+        </logic_element>
+      </element>
+      <element id="30" type="AND" left="0" top="300">
+        <logic_element type="AND" physical_instance_number="0" physical_instance_name="" alias="">
+          <ports><port index="0"><comment /></port><port index="1"><comment /></port></ports>
+          <ports><port index="0"><comment /></port></ports>
+        </logic_element>
+      </element>
+      <element id="31" type="SYMBOL" left="60" top="330">
+        <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="IN109" alias="">
+          <ports><port index="0"><comment /></port></ports>
+          <ports><port index="0"><comment /></port></ports>
+        </logic_element>
+      </element>
+      <element id="32" type="Connector" left="120" top="300"><label>LACO</label></element>
+      <element id="33" type="Connector" left="0" top="360"><label>LACO</label></element>
+      <element id="40" type="SYMBOL" left="0" top="420">
+        <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="IN110" alias="">
+          <ports><port index="0"><comment /></port></ports>
+          <ports><port index="0"><comment /></port></ports>
+        </logic_element>
+      </element>
+      <element id="41" type="SYMBOL" left="0" top="450">
+        <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="6" alias="">
+          <ports><port index="0"><comment /></port></ports>
+          <ports><port index="0"><comment /></port></ports>
+        </logic_element>
+      </element>
+      <element id="42" type="AND" left="60" top="420">
+        <logic_element type="AND" physical_instance_number="0" physical_instance_name="" alias="">
+          <ports><port index="0"><comment /></port><port index="1"><comment /></port></ports>
+          <ports><port index="0"><comment /></port></ports>
+        </logic_element>
+      </element>
+      <element id="43" type="Connector" left="120" top="420"><label>PRESET</label></element>
+      <element id="44" type="Connector" left="0" top="480"><label>PRESET</label></element>
+      <element id="45" type="SYMBOL" left="60" top="480">
+        <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="OUT207" alias="">
+          <ports><port index="0"><comment /></port></ports>
+          <ports><port index="0"><comment /></port></ports>
+        </logic_element>
+      </element>
+    </elements>
+    <connections>
+      <connection id="101" type="logic">
+        <source_port element_id="1" port_number="0" /><sink_port element_id="3" port_number="0" />
+        <points><point x="0" y="0" /><point x="60" y="0" /></points>
+      </connection>
+      <connection id="102" type="logic">
+        <source_port element_id="2" port_number="0" /><sink_port element_id="3" port_number="1" />
+        <points><point x="0" y="30" /><point x="60" y="6" /></points>
+      </connection>
+      <connection id="103">
+        <source_port element_id="3" port_number="0" /><sink_port element_id="4" port_number="0" />
+        <points><point x="90" y="0" /><point x="120" y="0" /></points>
+      </connection>
+      <connection id="104">
+        <source_port element_id="5" port_number="0" /><sink_port element_id="6" port_number="0" />
+        <points><point x="30" y="90" /><point x="60" y="90" /></points>
+      </connection>
+      <connection id="110" type="logic">
+        <source_port element_id="10" port_number="0" /><sink_port element_id="12" port_number="0" />
+        <points><point x="0" y="150" /><point x="60" y="150" /></points>
+      </connection>
+      <connection id="111" type="logic">
+        <source_port element_id="11" port_number="0" /><sink_port element_id="12" port_number="1" />
+        <points><point x="0" y="180" /><point x="60" y="156" /></points>
+      </connection>
+      <connection id="112">
+        <source_port element_id="12" port_number="0" /><sink_port element_id="13" port_number="0" />
+        <points><point x="90" y="150" /><point x="120" y="150" /></points>
+      </connection>
+      <connection id="120">
+        <source_port element_id="20" port_number="0" /><sink_port element_id="21" port_number="0" />
+        <points><point x="30" y="240" /><point x="60" y="240" /></points>
+      </connection>
+      <connection id="130" type="logic">
+        <source_port element_id="33" port_number="0" /><sink_port element_id="30" port_number="0" />
+        <points><point x="30" y="360" /><point x="0" y="306" /></points>
+      </connection>
+      <connection id="131" type="logic">
+        <source_port element_id="31" port_number="0" /><sink_port element_id="30" port_number="1" />
+        <points><point x="60" y="330" /><point x="0" y="312" /></points>
+      </connection>
+      <connection id="132">
+        <source_port element_id="30" port_number="0" /><sink_port element_id="32" port_number="0" />
+        <points><point x="30" y="300" /><point x="120" y="300" /></points>
+      </connection>
+      <connection id="150" type="logic">
+        <source_port element_id="40" port_number="0" /><sink_port element_id="42" port_number="0" />
+        <points><point x="0" y="420" /><point x="60" y="420" /></points>
+      </connection>
+      <connection id="151" type="logic">
+        <source_port element_id="41" port_number="0" /><sink_port element_id="42" port_number="1" />
+        <points><point x="0" y="450" /><point x="60" y="426" /></points>
+      </connection>
+      <connection id="152">
+        <source_port element_id="42" port_number="0" /><sink_port element_id="43" port_number="0" />
+        <points><point x="90" y="420" /><point x="120" y="420" /></points>
+      </connection>
+      <connection id="153">
+        <source_port element_id="44" port_number="0" /><sink_port element_id="45" port_number="0" />
+        <points><point x="30" y="480" /><point x="60" y="480" /></points>
+      </connection>
+    </connections>
+  </page>
+  <page name="P2 LEDs">
+    <elements>
+      <element id="14" type="Connector" left="0" top="0"><label>LEDGRP</label></element>
+      <element id="15" type="Connector" left="0" top="60"><label>LEDGRP</label></element>
+      <element id="16" type="SYMBOL" left="60" top="0">
+        <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="LED05" alias="">
+          <ports><port index="0"><comment /></port></ports>
+          <ports><port index="0"><comment /></port></ports>
+        </logic_element>
+      </element>
+      <element id="17" type="SYMBOL" left="60" top="60">
+        <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="LED06" alias="">
+          <ports><port index="0"><comment /></port></ports>
+          <ports><port index="0"><comment /></port></ports>
+        </logic_element>
+      </element>
+    </elements>
+    <connections>
+      <connection id="140">
+        <source_port element_id="14" port_number="0" /><sink_port element_id="16" port_number="0" />
+        <points><point x="30" y="0" /><point x="60" y="0" /></points>
+      </connection>
+      <connection id="141">
+        <source_port element_id="15" port_number="0" /><sink_port element_id="17" port_number="0" />
+        <points><point x="30" y="60" /><point x="60" y="60" /></points>
+      </connection>
+    </connections>
+  </page>
+</editor>

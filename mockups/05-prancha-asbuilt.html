@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>05 · Prancha As-Built — SEL Toolkit</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../sellib/web/static/fonts/fonts.css">
+<style>
+/* ===========================================================================
+   DIRECAO 05 — PRANCHA AS-BUILT
+   Referencia: a prancha de projeto que o comissionador leva pro campo.
+   A pagina inteira e' uma folha com moldura, marcas de dobra e — a assinatura
+   — o CARIMBO (title block) no rodape, que carrega obra, rele, revisao e data.
+   Divergencia recebe um triangulo de revisao, como em desenho as-built.
+   =========================================================================== */
+:root{
+  --sheet:#0d2137; --sheet-2:#122a44; --line:#2f5a80; --line-soft:#1d3d5c;
+  --ink:#e8f4ff; --cyan:#7fd4ff; --muted:#8fb2cd;
+  --rev:#ff6b6b; --ok:#7bd88f; --vb:#c9a7ff; --warn:#ffc46b;
+  --sans:'Inter',system-ui,sans-serif;
+  --cond:'Saira Condensed','Arial Narrow',sans-serif;
+  --mono:ui-monospace,'SFMono-Regular',Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#081726;color:var(--ink);font:14px/1.55 var(--sans)}
+.sheet{max-width:1240px;margin:16px auto;background:var(--sheet);border:1px solid var(--line);
+  padding:10px;position:relative}
+.sheet::before{content:"";position:absolute;inset:10px;border:1px solid var(--line-soft);pointer-events:none}
+.inner{position:relative;padding:16px 20px 0}
+
+.head{display:flex;align-items:flex-end;gap:16px;border-bottom:2px solid var(--line);padding-bottom:12px}
+.head h1{margin:0;font:700 24px/1 var(--cond);letter-spacing:.06em;text-transform:uppercase}
+.head .scale{font:500 11px var(--mono);color:var(--muted)}
+.head .rev{margin-left:auto;display:flex;gap:8px;align-items:center;font:600 11px var(--cond);
+  letter-spacing:.14em;text-transform:uppercase;color:var(--rev)}
+.tri{width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;
+  border-bottom:12px solid var(--rev)}
+
+h2{font:600 11px var(--cond);letter-spacing:.2em;text-transform:uppercase;color:var(--cyan);
+  margin:22px 0 10px;padding-bottom:5px;border-bottom:1px solid var(--line-soft)}
+
+/* --- ferramentas como itens de legenda de prancha ------------------------- */
+.legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(272px,1fr));gap:0;
+  border:1px solid var(--line-soft)}
+.item{display:flex;gap:12px;padding:12px 14px;border-right:1px solid var(--line-soft);
+  border-bottom:1px solid var(--line-soft);text-decoration:none;color:inherit}
+.item:hover{background:var(--sheet-2)}
+.item:focus-visible{outline:2px solid var(--cyan);outline-offset:-2px}
+.item .ref{font:700 12px var(--mono);color:var(--cyan);flex:none;width:34px}
+.item h3{margin:0 0 2px;font:500 14.5px/1.25 var(--sans)}
+.item p{margin:0;font-size:12px;color:var(--muted)}
+.item.off{opacity:.45}
+
+/* --- tabela = quadro de cargas --------------------------------------------*/
+.wrap{border:1px solid var(--line-soft);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:var(--sheet-2);text-align:left;padding:8px 12px;font:600 10px var(--cond);
+  letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);border-bottom:1px solid var(--line)}
+td{padding:7px 12px;border-bottom:1px solid var(--line-soft);font-family:var(--mono);font-size:12px;white-space:nowrap}
+td.var{color:var(--ink);font-weight:600;position:relative}
+td.val{color:#b9d3e8}
+tr:hover td{background:#132c47}
+tr.changed td.var::before{content:"";position:absolute;left:2px;top:11px;width:0;height:0;
+  border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:9px solid var(--rev)}
+tr.changed td.var{padding-left:20px}
+.mk{font:600 10px var(--cond);letter-spacing:.14em;text-transform:uppercase}
+.m-ok{color:var(--ok)}.m-dif{color:var(--rev)}.m-vb{color:var(--vb)}.m-falta{color:var(--muted)}
+
+/* --- ASSINATURA: carimbo --------------------------------------------------*/
+.stamp{display:grid;grid-template-columns:1.4fr 1fr 1fr .9fr;margin:24px 0 4px;
+  border:2px solid var(--line);font-size:12px}
+.stamp div{border-right:1px solid var(--line-soft);padding:9px 12px}
+.stamp div:last-child{border-right:0}
+.stamp .k{font:600 9px var(--cond);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px}
+.stamp .v{font-family:var(--mono);font-size:12.5px;color:var(--ink)}
+.stamp .big{font:700 17px var(--cond);letter-spacing:.06em;text-transform:uppercase}
+
+.tokens{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:14px 0 20px}
+.sw{width:74px}.sw i{display:block;height:30px;border:1px solid var(--line-soft)}
+.sw span{font:600 9px var(--cond);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:block;margin-top:5px}
+.badge{position:fixed;right:14px;bottom:14px;padding:6px 11px;font:600 10px var(--cond);letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink);background:var(--sheet-2);border:1px solid var(--line);text-decoration:none}
+.badge:hover{color:var(--cyan)}
+@media (max-width:760px){.stamp{grid-template-columns:1fr 1fr}.stamp div{border-bottom:1px solid var(--line-soft)}}
+</style></head>
+<body>
+
+<div class="sheet"><div class="inner">
+  <div class="head">
+    <div>
+      <h1>Comissionamento SEL</h1>
+      <div class="scale">SE EXEMPLO III · FOLHA 01/01 · SEM ESCALA</div>
+    </div>
+    <div class="rev"><span class="tri"></span> 5 revisões nesta prancha</div>
+  </div>
+
+  <h2>Legenda de ferramentas</h2>
+  <div class="legend">
+    <a class="item" href="#"><span class="ref">A1</span><div><h3>Visualizador de Lógica</h3><p>Estado do relé ao vivo sobre o diagrama GLE.</p></div></a>
+    <a class="item" href="#"><span class="ref">A2</span><div><h3>Comparador de Ajustes</h3><p>Até 7 relés da mesma família, lado a lado.</p></div></a>
+    <a class="item" href="#"><span class="ref">A3</span><div><h3>VB Updater</h3><p>Descrições de Virtual Bits entre GLE e SCD.</p></div></a>
+    <a class="item" href="#"><span class="ref">A4</span><div><h3>VLAN Mapper</h3><p>Mapa de VLANs GOOSE por porta de switch.</p></div></a>
+    <a class="item" href="#"><span class="ref">A5</span><div><h3>Exportador de Comentários</h3><p>Comentários de porta em Excel, ida e volta.</p></div></a>
+    <span class="item off"><span class="ref">A6</span><div><h3>Comparador RDB ↔ SCD</h3><p>Em breve.</p></div></span>
+  </div>
+
+  <h2>Quadro comparativo · Lógica 1</h2>
+  <div class="wrap">
+    <table>
+      <thead><tr><th>Variável</th><th>Campo</th><th>QPC2_TR1_UPC1</th><th>QPC2_TR1_UPC2</th><th>QPC2_TR1_UPC3</th><th>Situação</th></tr></thead>
+      <tbody>
+        <tr><td class="var">51G2TC</td><td class="val">value</td><td class="val">0.40</td><td class="val">0.40</td><td class="val">0.40</td><td class="mk m-ok">Igual</td></tr>
+        <tr><td class="var">52A</td><td class="val">set</td><td class="val">NOT IN101 AND IN102</td><td class="val">NOT IN101 AND IN102</td><td class="val">NOT IN101 AND IN102</td><td class="mk m-ok">Igual</td></tr>
+        <tr class="changed"><td class="var">LT14</td><td class="val">set</td><td class="val">VB102 OR VB103</td><td class="val">VB101 OR VB102</td><td class="val">VB101 OR VB102</td><td class="mk m-vb">Difere VB</td></tr>
+        <tr class="changed"><td class="var">LT17</td><td class="val">set</td><td class="val">SV02 AND LT03</td><td class="val">SV02 AND LT03</td><td class="val">SV02 AND LT04</td><td class="mk m-dif">Diferente</td></tr>
+        <tr class="changed"><td class="var">27I1CFA</td><td class="val">value</td><td class="val">1.00</td><td class="val">1.00</td><td class="val">—</td><td class="mk m-falta">Faltante</td></tr>
+        <tr><td class="var">50P1P</td><td class="val">value</td><td class="val">5.00</td><td class="val">5.00</td><td class="val">5.00</td><td class="mk m-ok">Igual</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="stamp">
+    <div><span class="k">Obra</span><span class="big">SE Exemploópolis III</span></div>
+    <div><span class="k">Arquivo base</span><span class="v">SE EXEMPLO III_17-08-26.rdb</span></div>
+    <div><span class="k">Escopo</span><span class="v">7 relés · 25 grupos · 659 variáveis</span></div>
+    <div><span class="k">Rev.</span><span class="big" style="color:var(--rev)">05</span></div>
+  </div>
+
+  <div class="tokens">
+    <div class="sw"><i style="background:#0d2137"></i><span>prancha</span></div>
+    <div class="sw"><i style="background:#122a44"></i><span>quadro</span></div>
+    <div class="sw"><i style="background:#2f5a80"></i><span>traço</span></div>
+    <div class="sw"><i style="background:#7fd4ff"></i><span>cota</span></div>
+    <div class="sw"><i style="background:#ff6b6b"></i><span>revisão</span></div>
+    <div class="sw"><i style="background:#7bd88f"></i><span>conforme</span></div>
+    <div style="flex:1;min-width:260px;font-size:12px;color:var(--muted)">
+      <b style="color:var(--ink)">Saira Condensed</b> como letra de prancha ·
+      <b style="color:var(--ink)">Inter</b> no corpo · mono nos valores. Triângulo de revisão só
+      onde há divergência — o mesmo símbolo que já está no as-built em papel.
+    </div>
+  </div>
+</div></div>
+
+<a class="badge" href="index.html">05 · Prancha as-built</a>
+</body></html>

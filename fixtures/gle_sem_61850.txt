@@ -1,0 +1,263 @@
+==========================================================================
+VARIAVEIS DO GLE SEM ENDERECO IEC 61850
+==========================================================================
+
+Gerado em 2026-08-29 por tools/gle_vs_61850.py.
+RDB: SE EXEMPLO III_R0j_28082026.rdb
+SCD: SE EXEMPLO III_R0j_28082026.scd
+ICD: wordbits.json
+
+METODO
+  Pra cada rele: uniao dos bits que os GLE dele desenham, menos a uniao
+  de (sAddr do proprio IED no SCD) com (mapa ICD da peca). O que sobra
+  esta na logica e nao tem endereco MMS -- em modo MMS o GLV mostra esse
+  bit como indeterminado.
+
+  O casamento e' POR RELE (cada um com o seu IED). O agrupamento por
+  modelo abaixo e' so do relatorio: dentro de um modelo os reles desenham
+  quase a mesma logica, entao a lista e' a UNIAO e cada nome vale pra pelo
+  menos um rele daquele modelo.
+
+POR RELE
+  modelo    rele                GLE    SCD    ICD  FALTA   cob  SCD?
+  411L-A    QPC1_LT1_UPC1       385   2244   2357    161   58%  sim
+  311C-1    QPC1_LT1_UPC2       181    693      0     46   75%  sim
+  411L-A    QPC1_LT2_UPC1       384   2244   2357    161   58%  sim
+  311C-1    QPC1_LT2_UPC2       181    693      0     46   75%  sim
+  451-5     QPC1_TFE_UPC1       249   2321   2195     79   68%  sim
+  487E-3    QPC1_TR1_UPC1       413   3012   2947    138   67%  sim
+  487E-3    QPC1_TR1_UPC2       501   3071   2947    152   70%  sim
+  487E-3    QPC1_TR2_UPC1       409   2994   2947    138   66%  sim
+  487E-3    QPC1_TR2_UPC2       507   3053   2947    152   70%  sim
+  451-5     QPC2_TFE1_UPC1      349   2339   2195    103   70%  sim
+  451-5     QPC2_TFE2_UPC1      349   2321   2195    103   70%  sim
+  751       QPC2_TR1_UPC1       264   1908   1903     47   82%  sim
+  751       QPC2_TR1_UPC2       264   1909   1903     47   82%  sim
+  751       QPC2_TR1_UPC3       264   1909   1903     47   82%  sim
+  751       QPC2_TR1_UPC4       264   1909   1903     47   82%  sim
+  751       QPC2_TR1_UPC5       264   1909   1903     47   82%  sim
+  751       QPC2_TR1_UPC6       265   1909   1903     47   82%  sim
+  751       QPC2_TR2_UPC1       264   1890   1903     47   82%  sim
+  751       QPC2_TR2_UPC2       264   1890   1903     47   82%  sim
+  751       QPC2_TR2_UPC3       264   1891   1903     47   82%  sim
+  751       QPC2_TR2_UPC4       264   1891   1903     47   82%  sim
+  751       QPC2_TR2_UPC5       264   1891   1903     47   82%  sim
+  751       QPC2_TR2_UPC6       264   1891   1903     47   82%  sim
+  751       QPC4_TR1_UPC1       232   1925   1903     41   82%  sim
+  751       QPC4_TR1_UPC2       234   1764   1903     49   79%  sim
+  2414      TR1-2414              0   1566   1551      0    --  sim
+  2414      TR2-2414              0   1566   1551      0    --  sim
+
+==========================================================================
+487E-3  --  163 variaveis sem endereco 61850  (4 rele(s))
+==========================================================================
+  -- outros  (67)
+     ABFITS       ABFITT       ATBFIS       ATBFIT       CLS          CLSS
+     CLST         CLT          ER           ETHRFLT      EXBFS        EXBFT
+     FAULT        IAS          IASBF        IAT          IAU          IAW
+     IAX          IBS          IBSBF        IBT          IBU          IBW
+     IBX          ICS          ICSBF        ICT          ICU          ICW
+     ICX          IY1          IY2          IY3          OPHAS        OPHAT
+     OPHBS        OPHBT        OPHCS        OPHCT        PHA_S        PHA_T
+     PHB_S        PHB_T        PHC_S        PHC_T        RF51TC1      RF51TC2
+     TRGTR        TRS          TRT          TRXFMR       TSNTPP       ULCLS
+     ULCLT        ULTRS        ULTRT        ULTXFMR      VAV          VAZ
+     VAZRC        VBV          VBZ          VBZRC        VCV          VCZ
+     VCZRC
+
+  -- seccionadora (89*)  (31)
+     89AM01       89AM02       89AM03       89BM01       89BM02       89BM03
+     89CBL01      89CBL02      89CBL03      89CC01       89CC02       89CC03
+     89CCN01      89CCN02      89CCN03      89CL01       89CL02       89CL03
+     89OBL01      89OBL02      89OBL03      89OC01       89OC02       89OC03
+     89OCN01      89OCN02      89OCN03      89OIP02      89OPN01      89OPN02
+     89OPN03
+
+  -- alvos de LED  (23)
+     T10_LED      T11_LED      T12_LED      T13_LED      T14_LED      T15_LED
+     T16_LED      T17_LED      T18_LED      T19_LED      T1_LED       T20_LED
+     T21_LED      T22_LED      T23_LED      T24_LED      T2_LED       T3_LED
+     T4_LED       T6_LED       T7_LED       T8_LED       T9_LED
+
+  -- saidas de bloco SELOGIC (sufixo Q/R)  (17)
+     AST01Q       PCN01Q       PCT01Q       PCT03Q       PCT07Q       PCT08Q
+     PCT10Q       PCT11Q       PCT13Q       PCT14Q       PCT16Q       PCT17Q
+     PCT28Q       PCT29Q       PCT30Q       PCT31Q       PCT32Q
+
+  -- elemento ANSI  (13)
+     27TC1        32OPT01      32OPT02      52A_S        52A_T        52CLT
+     52S_ALM      52T_ALM      59TC5        67TG1TC      67TP1TC      81D1
+     81D1T
+
+  -- botoeiras (PB)  (12)
+     PB10PUL      PB11PUL      PB12PUL      PB1_PUL      PB3_PUL      PB4_PUL
+     PB5_PUL      PB6_PUL      PB7_PUL      PB8_PUL      PB9          PB9_PUL
+
+  por rele:
+     QPC1_TR1_UPC1        138
+     QPC1_TR1_UPC2        152
+     QPC1_TR2_UPC1        138
+     QPC1_TR2_UPC2        152
+
+==========================================================================
+411L-A  --  161 variaveis sem endereco 61850  (2 rele(s))
+==========================================================================
+  -- outros  (59)
+     ANG1DIF      B1OPHA       B1OPHB       B1OPHC       BFI3P1       BFIN1
+     BFTR1        BFTRIP1      BFULTR1      BK1MCL       BK1MTR       BSYNBK1
+     COMZDTC      DLDB1        DLLB1        DTA          DTB          DTC
+     E3PR1        ER           FAULT        GROUND       IAW          IBW
+     ICW          KEYD         LLDB1        NBF1         PHASE_A      PHASE_B
+     PHASE_C      PT           PT1          PTDIR        SOTFT        TR
+     TRCOMM       TRCOMMD      TRGTR        TRSOTF       TSNTPP       ULCL1
+     ULMTR1       ULTR         VABRMS       VARMS        VAY          VAZ
+     VBCRMS       VBRMS        VBY          VBZ          VCARMS       VCRMS
+     VCY          VCZ          Z1T          Z2T          Z3T
+
+  -- seccionadora (89*)  (34)
+     89AM01       89AM02       89AM03       89AM04       89BM01       89BM02
+     89BM03       89BM04       89CBL01      89CBL02      89CBL03      89CC01
+     89CC02       89CC03       89CCN01      89CCN02      89CCN03      89CL01
+     89CL02       89CL03       89OBL01      89OBL02      89OBL03      89OC01
+     89OC02       89OC03       89OCN01      89OCN02      89OCN03      89OIP02
+     89OPN01      89OPN02      89OPN03      89OPN04
+
+  -- elemento ANSI  (26)
+     25A1BK1      32OP01       32OP02       32QF         3P1CLS       3PRI
+     3PSHOT1      3PSHOT2      3PSHOT3      3PT          50FA1        50FB1
+     50FC1        51TC01       51TC02       521_ALM      52AA1        67G1TC
+     67G2TC       67G3TC       67P1TC       67P2TC       67P3TC       79BRCT
+     79CY3        79DTL
+
+  -- alvos de LED  (24)
+     T10_LED      T11_LED      T12_LED      T13_LED      T14_LED      T15_LED
+     T16_LED      T17_LED      T18_LED      T19_LED      T1_LED       T20_LED
+     T21_LED      T22_LED      T23_LED      T24_LED      T2_LED       T3_LED
+     T4_LED       T5_LED       T6_LED       T7_LED       T8_LED       T9_LED
+
+  -- botoeiras (PB)  (12)
+     PB10PUL      PB11PUL      PB12PUL      PB1_PUL      PB2_PUL      PB3_PUL
+     PB4_PUL      PB5_PUL      PB6_PUL      PB7_PUL      PB9          PB9_PUL
+
+  -- saidas de bloco SELOGIC (sufixo Q/R)  (6)
+     AST01Q       PCT01Q       PCT03Q       PCT07Q       PCT28Q       PCT32Q
+
+  por rele:
+     QPC1_LT1_UPC1        161
+     QPC1_LT2_UPC1        161
+
+==========================================================================
+451-5  --  103 variaveis sem endereco 61850  (3 rele(s))
+==========================================================================
+  -- seccionadora (89*)  (38)
+     89AM01       89AM02       89AM03       89AM04       89BM01       89BM02
+     89BM03       89BM04       89CBL01      89CBL02      89CBL03      89CBL04
+     89CC01       89CC02       89CC03       89CC04       89CCN01      89CCN02
+     89CCN03      89CCN04      89CL01       89CL02       89CL03       89CL04
+     89OBL01      89OBL02      89OBL03      89OBL04      89OC01       89OC02
+     89OC03       89OC04       89OCN01      89OCN02      89OCN03      89OCN04
+     89OPN01      89OPN03
+
+  -- outros  (26)
+     ALTV         BK1MCL       DLDB1        DLLB1        EAFSRC       IAW
+     IAX          IBW          IBX          ICW          ICX          LLDB1
+     TR           TSNTPB       TSNTPP       ULCL1        ULTR         VABRMS
+     VAY          VAZ          VBCRMS       VBY          VBZ          VCARMS
+     VCY          VCZ
+
+  -- alvos de LED  (24)
+     T10_LED      T11_LED      T12_LED      T13_LED      T14_LED      T15_LED
+     T16_LED      T17_LED      T18_LED      T19_LED      T1_LED       T20_LED
+     T21_LED      T22_LED      T23_LED      T24_LED      T2_LED       T3_LED
+     T4_LED       T5_LED       T6_LED       T7_LED       T8_LED       T9_LED
+
+  -- botoeiras (PB)  (8)
+     PB10PUL      PB11PUL      PB12PUL      PB1_PUL      PB5_PUL      PB7_PUL
+     PB9          PB9_PUL
+
+  -- saidas de bloco SELOGIC (sufixo Q/R)  (4)
+     AST01Q       PCT03Q       PCT16Q       PCT28Q
+
+  -- elemento ANSI  (3)
+     25A1BK1      521_ALM      52AA1
+
+  por rele:
+     QPC1_TFE_UPC1        79
+     QPC2_TFE1_UPC1       103
+     QPC2_TFE2_UPC1       103
+
+==========================================================================
+751  --  84 variaveis sem endereco 61850  (14 rele(s))
+==========================================================================
+  -- outros  (24)
+     BFRT         CL           ER           IA           IB           IC
+     MTR          MTRIP        PDDETA       PDDETB       PDDETC       PDDTC
+     PHASE_A      PHASE_B      PHASE_C      TR           TRGTR        TSNTPB
+     TSNTPP       ULCL         ULMTRIP      VA           VB           VC
+
+  -- botoeiras (PB)  (16)
+     PB01         PB01_PUL     PB02         PB02_PUL     PB03         PB03_PUL
+     PB04         PB04_PUL     PB05         PB05_PUL     PB06         PB06_PUL
+     PB07         PB07_PUL     PB08         PB08_PUL
+
+  -- elemento ANSI  (15)
+     27I1TC       50A1P        50B1P        50C1P        50G1TC       50G2TC
+     50P1TC       50P2TC       51G1TC       51G2R        51G2TC       52A
+     79DTL        79RI         79RIS
+
+  -- seccionadora (89*)  (14)
+     89A2P6       89A2P7       89A2P8       89B2P6       89B2P7       89B2P8
+     89CM2P1      89CM2P2      89CM2P3      89CM2P4      89OM2P1      89OM2P2
+     89OM2P3      89OM2P4
+
+  -- contadores/temporizadores SELOGIC 7xx  (9)
+     SC01QU       SC02QU       SC03QU       SC04QU       SC05QU       SC07QU
+     SC08QU       SC10QU       SC11QU
+
+  -- alvos de LED  (6)
+     T01_LED      T02_LED      T03_LED      T04_LED      T05_LED      T06_LED
+
+  por rele:
+     QPC2_TR1_UPC1        47
+     QPC2_TR1_UPC2        47
+     QPC2_TR1_UPC3        47
+     QPC2_TR1_UPC4        47
+     QPC2_TR1_UPC5        47
+     QPC2_TR1_UPC6        47
+     QPC2_TR2_UPC1        47
+     QPC2_TR2_UPC2        47
+     QPC2_TR2_UPC3        47
+     QPC2_TR2_UPC4        47
+     QPC2_TR2_UPC5        47
+     QPC2_TR2_UPC6        47
+     QPC4_TR1_UPC1        41
+     QPC4_TR1_UPC2        49
+
+==========================================================================
+311C-1  --  46 variaveis sem endereco 61850  (2 rele(s))
+==========================================================================
+  -- outros  (33)
+     BFI          BFTR         BFULTR       COMMT        DP1          DP10
+     DP11         DP12         DP13         DP14         DP15         DP16
+     DP2          DP3          DP4          DP5          DP6          DP7
+     DP8          DP9          DTT          ER           FAULT        PT1
+     SOTFT        TR           TRCOMM       TRSOTF       TSNTPP       ULTR
+     Z1T          Z2T          Z3T
+
+  -- elemento ANSI  (12)
+     50BFA        50BFB        50BFC        51GTC        51PTC        67G1TC
+     67G2TC       67G3TC       67P1TC       67P2TC       67P3TC       67P4TC
+
+  -- botoeiras (PB)  (1)
+     PB1PUL
+
+  por rele:
+     QPC1_LT1_UPC2        46
+     QPC1_LT2_UPC2        46
+
+==========================================================================
+2414  --  nenhuma variavel faltando
+==========================================================================
+  TR1-2414, TR2-2414: o GLE desses reles e' um template vazio (uma
+  pagina sem elementos). Nao ha logica desenhada -- nada a comparar.
+

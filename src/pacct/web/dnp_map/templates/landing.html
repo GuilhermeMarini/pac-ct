@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Editor de Mapa DNP</title>
+<style>
+  /* Tokens e casca vem de /theme.css (pacct/web/themes/). Aqui fica so o
+     que e' desta tela. */
+  .lede {
+    color: var(--text-2);
+    max-width: 66ch;
+    margin: 0 0 var(--s4);
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--s4);
+    margin-bottom: var(--s4);
+  }
+  .card h2 {
+    margin: 0 0 var(--s3);
+    font: var(--w-label) var(--fs-2) var(--cond);
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    color: var(--text-2);
+  }
+  .card .hint {
+    color: var(--text-2);
+    font-size: var(--fs-2);
+    margin: var(--s2) 0 0;
+  }
+  .row {
+    display: flex;
+    gap: var(--s2);
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .card input[type=file] {
+    font: inherit;
+    color: var(--text);
+    max-width: 100%;
+  }
+  .card button {
+    font: var(--w-label) var(--fs-2) var(--cond);
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    padding: var(--pad-ctl);
+    background: var(--accent-strong);
+    color: var(--accent-fg);
+    border: 1px solid var(--accent-strong);
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .card button.secondary {
+    background: none;
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+  .card button:hover { opacity: .85; }
+  table#relays {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--fs-3);
+    margin-top: var(--s3);
+  }
+  table#relays th, table#relays td {
+    padding: var(--pad-cell);
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--border-hair);
+  }
+  table#relays th {
+    background: var(--surface-2);
+    color: var(--text-2);
+    font: var(--w-label) var(--fs-1) var(--cond);
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    border-bottom: 2px solid var(--border-strong);
+  }
+  table#relays td.relaytype { color: var(--text-2); font-family: var(--mono); }
+  table#relays a { color: var(--accent); }
+  #pending-list {
+    list-style: none;
+    margin: 0 0 var(--s3);
+    padding: 0;
+  }
+  #pending-list li {
+    padding: var(--pad-cell);
+    border-bottom: 1px solid var(--border-hair);
+    font-size: var(--fs-3);
+  }
+  #pending-list li:last-child { border-bottom: none; }
+  #out {
+    margin-top: var(--s3);
+    font-size: var(--fs-3);
+  }
+  #out a { color: var(--accent); }
+  #out .hint { display: block; margin-top: var(--s2); }
+  #models { font-size: var(--fs-2); color: var(--text-2); margin-top: var(--s2); }
+  #models code { font-family: var(--mono); color: var(--text); }
+  .col-notes .note code { font-family: var(--mono); }
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+  <div>
+    <h1>Editor de Mapa DNP</h1>
+    <div class="sub">Envie um RDB, escolha o rel&ecirc; e ajuste o mapa DNP3
+      antes de exportar.</div>
+  </div>
+  <span class="spacer"></span>
+  <a class="lnk" href="/" title="Voltar ao menu de ferramentas">&#x2190; Menu</a>
+</header>
+<div class="shell">
+<!--NAV:dnp-map-->
+<div class="grid">
+<main class="col-main">
+
+  <p class="lede">
+    Edite os pontos DNP3 dos rel&eacute;s de um RDB e gere um RDB novo com as
+    altera&ccedil;&otilde;es aplicadas.
+  </p>
+
+  <section class="card">
+    <h2>1. Escolha o RDB</h2>
+    <div id="pick-rdb"></div>
+  </section>
+
+  <section class="card" id="relays-step" hidden>
+    <h2>2. Escolha o rel&eacute;</h2>
+    <p class="hint" id="summary"></p>
+    <p class="hint">
+      Uma subesta&ccedil;&atilde;o &eacute; feita de bancos de rel&eacute;s
+      iguais: <a id="copy-link" href="./copiar">copie o mapa de uma
+      sess&atilde;o para outros rel&eacute;s do mesmo modelo</a> em vez de
+      redigitar rel&eacute; a rel&eacute;.
+    </p>
+    <table id="relays">
+      <thead><tr><th>Rel&eacute;</th><th>Modelo</th><th>Sess&otilde;es DNP</th><th></th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="card" id="pending" hidden>
+    <h2>Altera&ccedil;&otilde;es pendentes</h2>
+    <ul id="pending-list"></ul>
+    <button id="export" type="button">Exportar RDB</button>
+    <p id="out"></p>
+  </section>
+
+  <section class="card">
+    <h2>Perfil DNP do modelo</h2>
+    <p class="hint">
+      O perfil DNP3 publicado pela SEL diz quais nomes o rel&eacute; aceita em
+      cada bloco. Importe o do modelo para ligar os avisos de nome
+      desconhecido &mdash; &eacute; o caminho para um rel&eacute; que ainda
+      n&atilde;o tem list aqui. Baixe o arquivo
+      <code>dnp_r&lt;rev&gt;&lt;modelo&gt;.zip</code> em selinc.com e envie-o
+      abaixo.
+    </p>
+    <div class="row">
+      <input type="file" id="profile" accept=".zip,.xml">
+      <button id="import" type="button" class="secondary">Importar perfil DNP</button>
+    </div>
+    <p class="hint" id="profile-out"></p>
+    <div id="models"></div>
+  </section>
+
+</main>
+
+<aside class="col-notes">
+  <div class="cap">Notas</div>
+  <div class="note"><span class="n">1</span>O mapa DNP fica em
+    <code>SET_D&lt;n&gt;.TXT</code>, um arquivo por <b>sess&atilde;o</b> DNP do
+    rel&ecirc;. Um rel&ecirc; costuma ter de 1 a 5 sess&otilde;es, e elas
+    frequentemente s&atilde;o iguais entre si.</div>
+  <div class="note"><span class="n">2</span>Arrastar uma linha <b>troca</b> os
+    dois pontos de lugar; nunca insere e empurra. O &iacute;ndice DNP &eacute;
+    um contrato com o mestre SCADA. Escala e banda morta viajam junto com a
+    vari&aacute;vel.</div>
+  <div class="note"><span class="n">3</span>Os avisos <b>nunca</b> impedem a
+    exporta&ccedil;&atilde;o. As listas de nomes sempre ficam atr&aacute;s do
+    firmware, ent&atilde;o um nome desconhecido tem tanta chance de ser lacuna
+    nossa quanto erro de digita&ccedil;&atilde;o.</div>
+  <div class="note"><span class="n">4</span>O RDB reconstru&iacute;do sai bem
+    menor que o original. O QuickSet nunca compacta o arquivo; a
+    reconstru&ccedil;&atilde;o descarta o peso morto e n&atilde;o perde dados.</div>
+</aside>
+
+</div>
+</div>
+</div>
+
+<script>
+let RDB = null;
+
+// RDB-derived names (relay names, session names, relaytype, exported
+// filenames) come from the uploaded file's OLE storage/content and are never
+// sanitized server-side, so they must be escaped before reaching innerHTML.
+// Same helpers as pacct/web/vb_updater.py, kept in sync on purpose.
+function escapeHtml(s) {
+  return (s == null ? '' : String(s))
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function escapeAttr(s) {
+  return (s == null ? '' : String(s))
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+// Contagem de alteracoes pendentes por RDB, pendurada em cada linha da lista.
+// E' a unica coisa que esta ferramenta sabe sobre um arquivo e o acervo nao.
+let PENDING = {};
+
+const PICKER = SelLibrary.picker('pick-rdb', {
+  kind: 'rdb', label: 'RDB do projeto',
+  annotate: (f) => PENDING[f.short_sha]
+    ? PENDING[f.short_sha] + ' alteração(ões) pendente(s)' : '',
+  // A chave curta do acervo E' a chave desta ferramenta: as duas sao o sha256
+  // do conteudo. Nao ha nada a "carregar" antes -- `/relays` acha o RDB no
+  // acervo do visitante sozinho.
+  onPick: (f) => pickRdb(f.short_sha),
+});
+
+function showRelays(relays) {
+  const tb = document.querySelector('#relays tbody');
+  tb.innerHTML = '';
+  document.getElementById('summary').textContent =
+    relays.length + ' relé(s) com mapa DNP neste RDB.';
+  for (const r of relays) {
+    const tr = document.createElement('tr');
+    const groups = r.groups.map(g => g.join('=')).join(' · ');
+    tr.innerHTML =
+      '<td>' + escapeHtml(r.name) + '</td>' +
+      '<td class="relaytype">' + escapeHtml(r.relaytype || '—') + '</td>' +
+      '<td>' + escapeHtml(groups) + '</td>' +
+      '<td><a href="./editor?rdb=' + encodeURIComponent(RDB) +
+      '&relay=' + encodeURIComponent(r.name) +
+      '&d=' + encodeURIComponent(r.sessions[0]) + '">Editar</a></td>' +
+      // Copiar leva o relé da linha como ORIGEM: e' desta linha que o mapa
+      // sai, e a pagina de copia ja abre com ele escolhido.
+      '<td><a href="./copiar?rdb=' + encodeURIComponent(RDB) +
+      '&relay=' + encodeURIComponent(r.name) +
+      '&d=' + encodeURIComponent(r.sessions[0]) + '">Copiar</a></td>';
+    tb.appendChild(tr);
+  }
+  document.getElementById('copy-link').href =
+    './copiar?rdb=' + encodeURIComponent(RDB);
+  document.getElementById('relays-step').hidden = false;
+}
+
+// -- Restoring the session's RDBs -------------------------------------------
+//
+// The server has held every uploaded RDB since the upload (DnpMapState.rdbs,
+// keyed by short sha); only the browser forgot, because the selection lived
+// in the `RDB` variable above and that dies the moment the user navigates to
+// the editor and back. So on load we ask which RDBs this session already has
+// and restore the last-used one, and the editor's "← Relés" link comes back
+// to a page that is still populated instead of an empty upload form.
+//
+// Which one was last used is per-tab UI state, not data: sessionStorage is
+// exactly the right lifetime for it, and it degrades to "pick the newest"
+// when unavailable (private window, storage blocked).
+const PICK_KEY = 'dnp-map:rdb';
+
+function rememberPick(key) {
+  try { sessionStorage.setItem(PICK_KEY, key); } catch (e) { /* sem storage */ }
+}
+function rememberedPick() {
+  try { return sessionStorage.getItem(PICK_KEY); } catch (e) { return null; }
+}
+
+async function loadRdbs() {
+  let r;
+  try {
+    r = await (await fetch('/rdbs')).json();
+  } catch (e) { return []; }
+  const list = (r && r.rdbs) || [];
+  PENDING = {};
+  for (const item of list) {
+    // Contagem de CAMPOS alterados, nao de reles: e' o mesmo numero que o
+    // editor mostra na barra, e "1 pendente" ao lado de uma list que diz
+    // "D1 (2)" se le como contradicao.
+    const pending = (item.dirty || []).reduce(
+      (n, d) => n + Object.values(d.sessions).reduce((a, b) => a + b, 0), 0);
+    if (pending) PENDING[item.rdb] = pending;
+  }
+  return list;
+}
+
+async function pickRdb(key) {
+  const r = await (await fetch('/relays?rdb=' + encodeURIComponent(key))).json();
+  if (!r.ok) { alert(r.error || 'RDB não está mais no projeto.'); return; }
+  RDB = key;
+  rememberPick(key);
+  showRelays(r.relays);
+  await loadRdbs();
+  PICKER.refresh().then(() => PICKER.select(key));
+  await refreshPending();
+}
+
+async function refreshPending() {
+  if (!RDB) { document.getElementById('pending').hidden = true; return; }
+  const r = await (await fetch('/relays?rdb=' + encodeURIComponent(RDB))).json();
+  const ul = document.getElementById('pending-list');
+  ul.innerHTML = '';
+  for (const d of (r.dirty || [])) {
+    const li = document.createElement('li');
+    const sess = Object.entries(d.sessions)
+      .map(([k, v]) => k + ' (' + v + ')').join(', ');
+    li.textContent = d.relay + ' — ' + sess;
+    ul.appendChild(li);
+  }
+  document.getElementById('pending').hidden = (r.dirty || []).length === 0;
+}
+
+document.getElementById('export').onclick = async () => {
+  const r = await SelProgress.post('/export', {rdb: RDB},
+                                   {label: 'Exportando RDB'});
+  const out = document.getElementById('out');
+  const d = r.data || {};
+  if (!r.ok) { out.textContent = 'Falha: ' + (d.error || r.status); return; }
+  const links = [
+    '<a href="' + escapeAttr(d.download_url) + '" download>Baixar RDB</a>',
+  ].concat((d.txt_urls || []).map(
+    u => '<a href="' + escapeAttr(u.url) + '" download>' +
+         escapeHtml(u.name) + '</a>'));
+  // O RDB reconstruido sai bem menor que o original -- e' esperado, nao e'
+  // perda de dados (o servidor explica o motivo em `d.note`).
+  let msg = 'Pronto (' +
+    (d.method === 'rebuild' ? 'RDB reconstruído' : 'gravado no lugar') +
+    '): ' + links.join(' · ');
+  if (d.note) {
+    msg += '<span class="hint">' + escapeHtml(d.note) + '</span>';
+  }
+  msg += SelLibrary.savedNote(d.project_file);
+  out.innerHTML = msg;
+};
+
+// -- Importing a DNP device profile -----------------------------------------
+
+document.getElementById('import').onclick = async () => {
+  const f = document.getElementById('profile').files[0];
+  if (!f) { alert('Escolha o zip (ou o XML) do perfil DNP.'); return; }
+  const r = await SelProgress.upload('/import-profile', f, {
+    headers: {'X-Filename': encodeURIComponent(f.name)},
+    label: 'Importando perfil DNP',
+    doneLabel: 'Perfil importado.',
+  });
+  const out = document.getElementById('profile-out');
+  const d = r.data || {};
+  if (!r.ok) { out.textContent = 'Falha: ' + (d.error || r.status); return; }
+  const blocks = (d.check_kinds || []).join(', ') || 'nenhum';
+  out.textContent = 'Perfil de ' + (d.device_name || d.model) +
+    ' gravado em ' + d.file + '. Blocos com verificação de nome ativa: ' +
+    blocks + '.';
+  await loadModels();
+};
+
+async function loadModels() {
+  let r;
+  try {
+    r = await (await fetch('/wordbits')).json();
+  } catch (e) { return; }
+  const box = document.getElementById('models');
+  const ms = (r && r.models) || [];
+  if (!ms.length) {
+    box.textContent = 'Nenhum perfil instalado: a verificação de nomes está ' +
+      'desligada para todos os modelos.';
+    return;
+  }
+  box.innerHTML = 'Modelos com perfil instalado: ' + ms.map(m =>
+    '<code>' + escapeHtml(m.model) + '</code> (' +
+    (m.check_kinds.join('/') || 'só duplicados') + ')').join(' · ');
+}
+
+(async () => {
+  const list = await loadRdbs();
+  await PICKER.refresh();
+  if (list.length) {
+    const preferred = rememberedPick();
+    const target = list.find(x => x.rdb === preferred) || list[list.length - 1];
+    await pickRdb(target.rdb);
+  }
+  await loadModels();
+})();
+</script>
+</body>
+</html>

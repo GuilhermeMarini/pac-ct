@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pac-ct"
+description = "Protection, Automation & Control Commissioning Toolkit — web tools for commissioning SEL relays and IEC 61850 systems"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "Guilherme Marini" }]
+keywords = ["sel", "iec61850", "protection", "commissioning", "scada", "dnp3"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Manufacturing",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+]
+dynamic = ["version"]
+
+# Exactly requirements.txt. That file stays: `app.py` bootstraps from it, and
+# a substation installs from the offline bundle, never from an index.
+dependencies = [
+    "pyserial>=3.5",
+    "telnetlib3>=4.0.2",
+    "olefile>=0.47",
+    "openpyxl>=3.1",
+    # PRE-RELEASE on purpose: the MMS client the GLV calls exists from
+    # 0.2.0.dev1 and 0.2.0 final does not exist. Naming a pre-release in the
+    # specifier is what lets pip take a dev without `--pre` (PEP 440).
+    "py61850>=0.2.0.dev1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.11"]
+
+[project.urls]
+Homepage = "https://github.com/GuilhermeMarini/pac-ct"
+Source = "https://github.com/GuilhermeMarini/pac-ct"
+
+[project.scripts]
+pac-ct = "pacct.web.dashboard:main"
+
+[tool.setuptools.dynamic]
+version = { file = "VERSION" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pacct = ["web/**/templates/*.html", "web/static/**/*"]
+
+[tool.pytest.ini_options]
+# `src` for the package, `.` for the vendored selprotopy at the project root.
+pythonpath = ["src", "."]
+testpaths = ["tests"]

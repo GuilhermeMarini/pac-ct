@@ -1,0 +1,29 @@
+[Unit]
+Description=Fix WSL2 mirrored-mode source-address selection for connected routes
+Documentation=file:/usr/local/sbin/wsl-fix-src-routes.sh
+# Routes only exist once networking is up; the watcher tolerates coming up
+# early either way, since it re-applies on every subsequent netlink event.
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/wsl-fix-src-routes.sh --watch
+Restart=always
+RestartSec=2
+
+# The unit only rewrites route src hints -- nothing else needs to be reachable.
+CapabilityBoundingSet=CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_ADMIN
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_NETLINK AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

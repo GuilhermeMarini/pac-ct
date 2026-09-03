@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>VB Updater -- Selecionar arquivos</title>
+<style>
+  /* Tokens e casca vem de /theme.css (pacct/web/theme.py). */
+  main { padding: var(--s4) var(--s4) var(--s5); }
+  h2 { margin-top: var(--s4); }
+  #status {
+    color: var(--text-2); font-size: .9em; min-height: 1.2em;
+    margin-bottom: 18px;
+  }
+  #status.err { color: var(--err); }
+  #status.ok { color: var(--ok); }
+  table.matches {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    font-size: .9em;
+  }
+  table.matches th, table.matches td {
+    padding: var(--s2) var(--s3); text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  table.matches th {
+    background: var(--surface-2); color: var(--text-2);
+    font-weight: 500; font-size: .85em; text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  table.matches tr:last-child td { border-bottom: none; }
+  table.matches .by {
+    display: inline-block; font-size: .75em;
+    padding: 1px 6px; border-radius: var(--radius);
+    background: var(--surface-2); border: 1px solid var(--border);
+    color: var(--text-2);
+  }
+  table.matches select {
+    background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); padding: var(--s1) var(--s2);
+    border-radius: var(--radius); font: inherit; font-size: .9em;
+    min-width: 80px;
+  }
+  table.matches button.verify {
+    background: var(--accent); color: var(--bg);
+    border: 1px solid var(--accent);
+    padding: var(--s1) var(--s3); border-radius: var(--radius); cursor: pointer;
+    font: inherit; font-size: .85em; font-weight: 500;
+  }
+  table.matches button.verify:hover {
+    background: var(--accent-strong); border-color: var(--accent-strong);
+  }
+  table.matches button.verify:disabled {
+    opacity: .4; cursor: not-allowed;
+  }
+  table.matches th.col-select, table.matches td.col-select {
+    width: 1%; text-align: center; white-space: nowrap;
+  }
+  table.matches input[type=checkbox] {
+    cursor: pointer; width: 16px; height: 16px;
+    accent-color: var(--accent);
+    vertical-align: middle;
+  }
+  table.matches input[type=checkbox]:disabled { cursor: not-allowed; opacity: .4; }
+  .batch-bar {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 10px; padding: var(--s2) var(--s3);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: .9em;
+  }
+  .batch-bar button {
+    background: var(--accent); color: var(--bg);
+    border: 1px solid var(--accent);
+    padding: var(--s1) var(--s3); border-radius: var(--radius); cursor: pointer;
+    font: inherit; font-size: .85em; font-weight: 500;
+    transition: background .15s, border-color .15s;
+  }
+  .batch-bar button:hover:not(:disabled) {
+    background: var(--accent-strong); border-color: var(--accent-strong);
+  }
+  .batch-bar button:disabled { opacity: .4; cursor: not-allowed; }
+  .batch-bar .batch-count { color: var(--text-2); font-size: .85em; }
+  #batch-result {
+    margin-top: 12px; padding: var(--s3) var(--s3);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: .9em;
+  }
+  #batch-result.err { border-color: var(--warn); }
+  #batch-result .title { font-weight: 500; margin-bottom: 6px; }
+  #batch-result ul { margin: 6px 0 0 18px; padding: 0; color: var(--text-2); }
+  #batch-result .download {
+    display: inline-block; margin-top: 8px;
+    background: var(--accent); color: var(--bg);
+    padding: var(--s1) var(--s3); border-radius: var(--radius); text-decoration: none;
+    font-weight: 500;
+  }
+  #batch-result .download:hover { background: var(--accent-strong); }
+  #batch-result code {
+    background: var(--surface-2); padding: 1px 6px; border-radius: var(--radius);
+    color: var(--text);
+  }
+  #batch-result .warn { color: var(--warn); }
+  .unmatched {
+    margin-top: 24px; padding: var(--s3) var(--s3);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: .85em; color: var(--text-2);
+  }
+  .unmatched strong { color: var(--text); font-weight: 500; }
+  .unmatched ul { margin: 6px 0 0 18px; padding: 0; }
+  .empty-list {
+    padding: var(--s4); text-align: center; color: var(--text-2);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: .9em;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+  <div>
+    <h1>VB Updater</h1>
+    <div class="sub">Compara descri&ccedil;&otilde;es de Virtual Bits entre RDB (GLE)
+      e SCD, por rel&ecirc;/IED.</div>
+  </div>
+  <span class="spacer"></span>
+  <a class="lnk" href="/" title="Voltar ao menu de ferramentas">&#x2190; Menu</a>
+</header>
+<div class="shell">
+<!--NAV:vb-updater-->
+<div class="grid">
+<main class="col-main">
+  <div id="pick-rdb"></div>
+  <div id="pick-scd"></div>
+  <div id="status"></div>
+  <div id="matches-section" style="display:none">
+    <h2>Rel&eacute;s casados</h2>
+    <div id="matches-container"></div>
+    <div id="unmatched-container"></div>
+  </div>
+</main>
+
+<aside class="col-notes">
+  <div class="cap">Notas</div>
+  <div class="note"><span class="n">1</span>O casamento entre rel&eacute; do RDB e
+    IED do SCD &eacute; feito por <b>IP</b> e por <b>RID</b>. Quem n&atilde;o casar
+    por nenhum dos dois aparece na lista de n&atilde;o casados, no fim da p&aacute;gina.</div>
+  <div class="note"><span class="n">2</span>Do lado do RDB a descri&ccedil;&atilde;o
+    vem do <b>comment da porta</b> no GLE; do lado do SCD, do <b>desc do ExtRef</b>.
+    S&atilde;o campos diferentes do mesmo sinal, e &eacute; por isso que divergem.</div>
+  <div class="note"><span class="n">3</span>Para editar as descri&ccedil;&otilde;es do
+    lado do GLE em massa, use o <b>Exportador de Coment&aacute;rios GLE</b>: ele leva
+    tudo para Excel e devolve um RDB atualizado.</div>
+  <div class="note"><span class="n">4</span>Cada visitante trabalha no pr&oacute;prio
+    diret&oacute;rio de sess&atilde;o; dois RDBs de mesmo nome n&atilde;o se
+    sobrescrevem.</div>
+</aside>
+</div>
+</div>
+</div>
+
+<script>
+const statusEl = document.getElementById('status');
+function setStatus(msg, kind) {
+  statusEl.textContent = msg || '';
+  statusEl.className = kind || '';
+}
+
+// Os arquivos entram uma vez em Arquivos do Projeto; aqui se escolhe o par.
+SelLibrary.picker('pick-rdb', {
+  kind: 'rdb', label: 'RDB do projeto',
+  onPick: (f) => select('/select-rdb', f, 'RDB'),
+});
+SelLibrary.picker('pick-scd', {
+  kind: 'scd', label: 'SCD do projeto',
+  onPick: (f) => select('/select-scd', f, 'SCD'),
+});
+
+async function select(endpoint, f, kind) {
+  setStatus('Carregando ' + kind + '...', '');
+  const r = await SelProgress.post(endpoint, {sha256: f.sha256},
+                                   {label: 'Carregando ' + f.name});
+  if (!r.ok) {
+    setStatus('Falha: ' + ((r.data && r.data.error) || r.status), 'err');
+    return;
+  }
+  setStatus(kind + ' carregado.', 'ok');
+  refreshState();
+}
+
+async function refreshState() {
+  let data;
+  try {
+    const r = await fetch('/state', { cache: 'no-store' });
+    data = await r.json();
+  } catch (e) { return; }
+  renderMatches(data);
+}
+
+function renderMatches(data) {
+  const section = document.getElementById('matches-section');
+  const container = document.getElementById('matches-container');
+  const unmatchedC = document.getElementById('unmatched-container');
+  if (!data.has_rdb || !data.has_scd) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+
+  if (!data.matches.length) {
+    container.innerHTML = '<div class="empty-list">Nenhum relé casou entre RDB e SCD.</div>';
+  } else {
+    const rows = data.matches.map(m => {
+      const gles = (data.gles_by_relay[m.rdb_name] || []);
+      const opts = gles.map(g => `<option value="${escapeAttr(g)}">${escapeHtml(g)}</option>`).join('');
+      const noGle = gles.length === 0;
+      const select = noGle
+        ? '<span class="by">sem GLE</span>'
+        : `<select data-relay="${escapeAttr(m.rdb_name)}">${opts}</select>`;
+      const verifyBtn = noGle
+        ? '<button class="verify" disabled>Verify GLE comments</button>'
+        : `<button class="verify" data-relay="${escapeAttr(m.rdb_name)}" data-ied="${escapeAttr(m.scd_name)}">Verify GLE comments</button>`;
+      const rowCheckbox = noGle
+        ? '<input type="checkbox" disabled title="Sem GLE disponível">'
+        : `<input type="checkbox" class="row-select" data-relay="${escapeAttr(m.rdb_name)}" data-ied="${escapeAttr(m.scd_name)}" title="Selecionar para copia em lote">`;
+      return `<tr>
+        <td><strong>${escapeHtml(m.rdb_name)}</strong></td>
+        <td>${escapeHtml(m.scd_name)} <span class="by">${escapeHtml(m.matched_by)}</span></td>
+        <td>${escapeHtml(m.ip || '-')}</td>
+        <td>${select}</td>
+        <td>${verifyBtn}</td>
+        <td class="col-select">${rowCheckbox}</td>
+      </tr>`;
+    }).join('');
+    container.innerHTML = `
+      <div class="batch-bar">
+        <button type="button" id="batch-apply" disabled
+                title="Copia o desc do SCD para o comment do GLE em todos os relés selecionados e gera um unico RDB">
+          Copiar SCD &rarr; RDB (selecionados)</button>
+        <button type="button" id="batch-export" disabled
+                title="Exporta as descrições dos VBs dos IEDs selecionados para um arquivo Excel (uma aba por IED)">
+          Exportar descrições (Excel)</button>
+        <button type="button" id="batch-import" disabled
+                title="Importa um Excel editado e aplica as descrições ao SCD (so atualiza IEDs selecionados)">
+          Importar descrições (Excel) &rarr; SCD</button>
+        <input type="file" id="batch-import-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none">
+        <span class="batch-count" id="batch-count">0 selecionados</span>
+      </div>
+      <div id="batch-result" style="display:none"></div>
+      <table class="matches">
+        <thead><tr>
+          <th>RDB relay</th><th>IED (SCD)</th><th>IP</th><th>GLE</th><th></th>
+          <th class="col-select"><input type="checkbox" id="select-all" title="Selecionar/desselecionar todos"></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    container.querySelectorAll('button.verify').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const relay = btn.dataset.relay;
+        const ied = btn.dataset.ied;
+        const sel = container.querySelector(`select[data-relay="${cssEscape(relay)}"]`);
+        const gle = sel ? sel.value : '';
+        if (!gle) return;
+        const q = '?relay=' + encodeURIComponent(relay)
+                + '&ied=' + encodeURIComponent(ied)
+                + '&gle=' + encodeURIComponent(gle);
+        window.location.href = (window.MOUNT_PREFIX || '') + '/compare' + q;
+      });
+    });
+    setupBatchSelection(container);
+  }
+
+  const parts = [];
+  if (data.unmatched_rdb && data.unmatched_rdb.length) {
+    parts.push('<div class="unmatched"><strong>RDB sem par no SCD:</strong><ul>'
+      + data.unmatched_rdb.map(u =>
+          `<li>${escapeHtml(u.rdb_name)} <span class="by">${escapeHtml(u.reason || '')}</span></li>`
+        ).join('')
+      + '</ul></div>');
+  }
+  if (data.unmatched_scd && data.unmatched_scd.length) {
+    parts.push('<div class="unmatched"><strong>SCD sem par no RDB:</strong><ul>'
+      + data.unmatched_scd.map(u =>
+          `<li>${escapeHtml(u.scd_name)} (${escapeHtml(u.ip || 'sem IP')})</li>`
+        ).join('')
+      + '</ul></div>');
+  }
+  unmatchedC.innerHTML = parts.join('');
+}
+
+function escapeHtml(s) {
+  return (s == null ? '' : String(s))
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function escapeAttr(s) {
+  return (s == null ? '' : String(s))
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+function cssEscape(s) {
+  if (window.CSS && CSS.escape) return CSS.escape(s);
+  return String(s).replace(/["\\]/g, '\\$&');
+}
+
+function setupBatchSelection(container) {
+  const all = container.querySelector('#select-all');
+  const rowChecks = container.querySelectorAll('input.row-select');
+  const batchBtn = document.getElementById('batch-apply');
+  const exportBtn = document.getElementById('batch-export');
+  const importBtn = document.getElementById('batch-import');
+  const importFile = document.getElementById('batch-import-file');
+  const countEl = document.getElementById('batch-count');
+
+  function updateState() {
+    const total = rowChecks.length;
+    const checked = container.querySelectorAll('input.row-select:checked').length;
+    countEl.textContent = checked + ' selecionado' + (checked === 1 ? '' : 's');
+    batchBtn.disabled = checked === 0;
+    if (exportBtn) exportBtn.disabled = checked === 0;
+    if (importBtn) importBtn.disabled = checked === 0;
+    if (all) {
+      all.checked = total > 0 && checked === total;
+      all.indeterminate = checked > 0 && checked < total;
+      all.disabled = total === 0;
+    }
+  }
+
+  if (all) {
+    all.addEventListener('change', () => {
+      rowChecks.forEach(cb => { if (!cb.disabled) cb.checked = all.checked; });
+      updateState();
+    });
+  }
+  rowChecks.forEach(cb => cb.addEventListener('change', updateState));
+  batchBtn.addEventListener('click', () => applyBatch(container));
+  if (exportBtn) exportBtn.addEventListener('click', () => exportBatch(container));
+  if (importBtn && importFile) {
+    importBtn.addEventListener('click', () => importFile.click());
+    importFile.addEventListener('change', () => {
+      const f = importFile.files && importFile.files[0];
+      if (f) importBatch(container, f);
+      importFile.value = '';
+    });
+  }
+  updateState();
+}
+
+function collectSelections(container) {
+  const checks = container.querySelectorAll('input.row-select:checked');
+  const selections = [];
+  checks.forEach(cb => {
+    const relay = cb.dataset.relay;
+    const ied = cb.dataset.ied;
+    const sel = container.querySelector(`select[data-relay="${cssEscape(relay)}"]`);
+    const gle = sel ? sel.value : '';
+    selections.push({ relay, ied, gle });
+  });
+  return selections;
+}
+
+async function exportBatch(container) {
+  const btn = document.getElementById('batch-export');
+  const resultEl = document.getElementById('batch-result');
+  const selections = collectSelections(container);
+  if (!selections.length) return;
+  resultEl.style.display = 'none';
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Exportando...';
+  try {
+    const r = await fetch('/export-descriptions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selections }),
+    });
+    const data = await r.json();
+    if (!r.ok) { renderExportResult(data, true); return; }
+    renderExportResult(data, false);
+  } catch (e) {
+    renderExportResult({ error: String(e) }, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+function renderExportResult(data, isError) {
+  const el = document.getElementById('batch-result');
+  el.className = isError ? 'err' : '';
+  el.style.display = 'block';
+  if (isError) {
+    el.innerHTML = '<div class="title">Falha no export</div>'
+      + '<div>' + escapeHtml(data.error || JSON.stringify(data)) + '</div>';
+    return;
+  }
+  el.innerHTML =
+    '<div class="title">Excel gerado: <code>' + escapeHtml(data.output_name || '') + '</code> '
+    + '<span style="color:var(--text-2)">(' + (data.ied_count || 0) + ' IED(s), 1 aba por IED)</span></div>'
+    + '<a class="download" href="' + escapeAttr(data.download_url || '#') + '" download>Baixar Excel</a>'
+    + SelLibrary.savedNote(data.project_file);
+}
+
+async function importBatch(container, file) {
+  const btn = document.getElementById('batch-import');
+  const resultEl = document.getElementById('batch-result');
+  const checks = container.querySelectorAll('input.row-select:checked');
+  if (!checks.length) return;
+  const ieds = Array.from(checks).map(cb => cb.dataset.ied).filter(Boolean);
+  resultEl.style.display = 'none';
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Importando...';
+  try {
+    // JSON percent-encoded, e nao "a,b": encodeURIComponent escapa a virgula
+    // literal de um nome de IED para %2C exatamente como o separador, e depois
+    // do unquote() do servidor as duas eram indistinguiveis -- um IED chamado
+    // "A,B" chegava la como dois, "A" e "B".
+    const r = await SelProgress.upload('/import-descriptions', file, {
+      headers: {
+        'X-Selected-Ieds': encodeURIComponent(JSON.stringify(ieds)),
+        'Content-Type': 'application/octet-stream',
+      },
+      label: 'Enviando planilha',
+      doneLabel: 'SCD atualizado.',
+    });
+    renderImportResult(r.data || { error: 'resposta invalida' }, !r.ok);
+  } catch (e) {
+    renderImportResult({ error: String(e) }, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+function renderImportResult(data, isError) {
+  const el = document.getElementById('batch-result');
+  el.className = isError ? 'err' : '';
+  el.style.display = 'block';
+  if (isError) {
+    let html = '<div class="title">Falha no import</div>'
+      + '<div>' + escapeHtml(data.error || JSON.stringify(data)) + '</div>';
+    if (data.ignored_ieds && data.ignored_ieds.length) {
+      html += '<div style="margin-top:6px;color:var(--text-2)">IEDs ignorados (fora da seleção): '
+        + escapeHtml(data.ignored_ieds.join(', ')) + '</div>';
+    }
+    el.innerHTML = html;
+    return;
+  }
+  const totals = data.totals || {};
+  const perIed = data.per_ied || {};
+  const ignored = data.ignored_ieds || [];
+  const skipped = data.skipped_ieds || [];
+  const items = Object.keys(perIed).map(ied => {
+    const s = perIed[ied] || {};
+    return '<li><strong>' + escapeHtml(ied) + '</strong> &middot; '
+      + (s.updated || 0) + ' atualizados, '
+      + (s.inserted || 0) + ' inseridos, '
+      + (s.untouched || 0) + ' inalterados</li>';
+  }).join('');
+  const extras = [];
+  if (ignored.length) {
+    extras.push('<div style="color:var(--text-2);margin-top:6px">IEDs no xlsx fora da seleção (ignorados): <code>'
+      + escapeHtml(ignored.join(', ')) + '</code></div>');
+  }
+  if (skipped.length) {
+    extras.push('<div class="warn" style="margin-top:6px">IEDs não encontrados no SCD: <code>'
+      + escapeHtml(skipped.join(', ')) + '</code></div>');
+  }
+  el.innerHTML =
+    '<div class="title">SCD gerado: <code>' + escapeHtml(data.output_name || '') + '</code> '
+    + '<span style="color:var(--text-2)">(' + (totals.updated || 0) + ' updated, '
+    + (totals.inserted || 0) + ' inserted)</span></div>'
+    + '<ul>' + items + '</ul>'
+    + extras.join('')
+    + '<a class="download" href="' + escapeAttr(data.download_url || '#') + '" download>Baixar SCD</a>'
+    + SelLibrary.savedNote(data.project_file);
+}
+
+async function applyBatch(container) {
+  const btn = document.getElementById('batch-apply');
+  const resultEl = document.getElementById('batch-result');
+  const checks = container.querySelectorAll('input.row-select:checked');
+  if (!checks.length) return;
+  const selections = [];
+  checks.forEach(cb => {
+    const relay = cb.dataset.relay;
+    const ied = cb.dataset.ied;
+    const sel = container.querySelector(`select[data-relay="${cssEscape(relay)}"]`);
+    const gle = sel ? sel.value : '';
+    if (gle) selections.push({ relay, ied, gle });
+  });
+  if (!selections.length) {
+    renderBatchResult({ error: 'Nenhuma seleção com GLE valido.' }, true);
+    return;
+  }
+  resultEl.style.display = 'none';
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Aplicando...';
+  try {
+    const r = await fetch('/apply-batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selections }),
+    });
+    const data = await r.json();
+    renderBatchResult(data, !r.ok);
+  } catch (e) {
+    renderBatchResult({ error: String(e) }, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+function renderBatchResult(data, isError) {
+  const el = document.getElementById('batch-result');
+  el.className = isError ? 'err' : '';
+  el.style.display = 'block';
+  if (isError) {
+    el.innerHTML = '<div class="title">Falha ao aplicar</div>'
+      + '<div>' + escapeHtml(data.error || JSON.stringify(data)) + '</div>';
+    return;
+  }
+  const succ = data.succeeded || 0;
+  const fail = data.failed || 0;
+  const results = data.results || [];
+  const items = results.map(r => {
+    if (r.ok) {
+      const st = r.stats || {};
+      return '<li><strong>' + escapeHtml(r.relay) + '</strong> &middot; '
+        + escapeHtml(r.gle) + ' &middot; '
+        + (st.instances_updated || 0) + ' instancias atualizadas, '
+        + (st.vbs_in_scd_with_desc || 0) + ' com desc, '
+        + (st.vbs_in_scd_renamed_to_reserva || 0) + ' renomeados para <code>'
+        + escapeHtml(st.reserva_label || 'reserva') + '</code></li>';
+    }
+    return '<li><strong>' + escapeHtml(r.relay) + '</strong> &middot; '
+      + escapeHtml(r.gle || '') + ' &middot; '
+      + '<span class="warn">' + escapeHtml(r.error || 'falha') + '</span></li>';
+  }).join('');
+  el.innerHTML =
+    '<div class="title">RDB gerado: <code>' + escapeHtml(data.output_name || '') + '</code> '
+    + '<span style="color:var(--text-2)">(' + succ + ' ok, ' + fail + ' falha)</span></div>'
+    + '<ul>' + items + '</ul>'
+    + '<a class="download" href="' + escapeAttr(data.download_url || '#') + '" download>Baixar RDB</a>'
+    + SelLibrary.savedNote(data.project_file);
+}
+
+(function setupBackToMenu() {
+  // O menu fica sempre no ar em "/" -- nao ha mais teardown/espera de porta.
+  const btn = document.getElementById('back-to-menu');
+  if (btn) btn.addEventListener('click', () => { window.location.href = '/'; });
+})();
+
+refreshState();
+</script>
+</body>
+</html>

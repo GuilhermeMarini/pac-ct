@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>09 · SCL / 61850 — SEL Toolkit</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../sellib/web/static/fonts/fonts.css">
+<style>
+/* ===========================================================================
+   DIRECAO 09 — SCL / 61850
+   Referencia: a arvore do SCD. Se metade do trabalho e' percorrer caminhos
+   IED/LD/LN/DO/DA, a interface inteira e' endereco: barra de caminho no topo,
+   guias de indentacao a esquerda, mono em tudo. Cada rele e' um no'; cada
+   ajuste e' uma folha. Sem cards, sem sombras — so' hierarquia.
+   =========================================================================== */
+:root{
+  --bg:#0f1114; --panel:#14171b; --panel-2:#191d22; --edge:#242a31; --guide:#2b323a;
+  --text:#d8dee6; --muted:#7c8794;
+  --path:#67e8f9; --key:#c4b5fd; --str:#fbbf24; --ok:#4ade80; --err:#f87171; --vb:#f0abfc;
+  --mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+  --sans:system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:13px/1.6 var(--mono)}
+
+/* --- ASSINATURA: barra de caminho ---------------------------------------- */
+.pathbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:0;flex-wrap:wrap;
+  padding:11px 18px;background:var(--panel);border-bottom:1px solid var(--edge);font-size:12.5px}
+.pathbar a{color:var(--muted);text-decoration:none;padding:2px 0}
+.pathbar a:hover{color:var(--path)}
+.pathbar .sep{color:#3d454e;margin:0 8px}
+.pathbar .cur{color:var(--path);font-weight:500}
+.pathbar .right{margin-left:auto;color:var(--muted);font-size:11.5px}
+.pathbar .right b{color:var(--ok)}
+
+.title{padding:20px 18px 4px;max-width:1220px;margin:0 auto}
+.title h1{margin:0;font:500 19px/1.2 var(--sans);letter-spacing:-.01em}
+.title p{margin:4px 0 0;color:var(--muted);font-size:12px}
+main{max-width:1220px;margin:0 auto;padding:10px 18px 70px}
+h2{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:500;
+  margin:26px 0 8px}
+
+/* --- arvore --------------------------------------------------------------- */
+.tree{background:var(--panel);border:1px solid var(--edge)}
+.node{display:flex;gap:10px;padding:7px 14px;border-bottom:1px solid #1c2127;text-decoration:none;color:inherit;position:relative}
+.node:last-child{border-bottom:0}
+.node:hover{background:var(--panel-2)}
+.node:focus-visible{outline:2px solid var(--path);outline-offset:-2px}
+.node .tw{color:#4a545f;flex:none;width:16px}
+.node .nm{color:var(--key);font-weight:500}
+.node .eq{color:#4a545f}
+.node .ds{color:var(--muted)}
+.node .st{margin-left:auto;color:var(--ok);font-size:11.5px}
+.node.off{opacity:.45}.node.off .st{color:var(--muted)}
+.node.child{padding-left:38px}
+.node.child::before{content:"";position:absolute;left:22px;top:0;bottom:0;width:1px;background:var(--guide)}
+
+/* --- folhas de dado ------------------------------------------------------- */
+.leafs{background:var(--panel);border:1px solid var(--edge);overflow-x:auto}
+.leaf{display:grid;grid-template-columns:190px 1fr;gap:0;border-bottom:1px solid #1c2127}
+.leaf:last-child{border-bottom:0}
+.leaf > .addr{padding:8px 14px;border-right:1px solid var(--edge);white-space:nowrap;position:relative}
+.leaf > .addr .n{color:var(--text);font-weight:700}
+.leaf > .addr .a{color:#5b6672;font-size:11px;display:block}
+.vals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+.v{padding:8px 14px;border-right:1px solid #1c2127;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.v:last-child{border-right:0}
+.v .who{color:#5b6672;font-size:10.5px;display:block;letter-spacing:.04em}
+.v .d{color:var(--str)}
+.v.same .d{color:#93a0ad}
+.v.bad .d{color:var(--err)}
+.v.miss .d{color:#4a545f;font-style:italic}
+.leaf.dif{box-shadow:inset 3px 0 0 var(--err)}
+.leaf.vbd{box-shadow:inset 3px 0 0 var(--vb)}
+.leaf.okrow{box-shadow:inset 3px 0 0 #263a2c}
+.foot{display:flex;gap:20px;flex-wrap:wrap;padding:10px 14px;margin-top:8px;background:var(--panel);
+  border:1px solid var(--edge);color:var(--muted);font-size:11.5px}
+.foot b{color:var(--text)}
+.tokens{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:24px;padding:14px;
+  background:var(--panel);border:1px solid var(--edge)}
+.sw{width:74px}.sw i{display:block;height:28px;border:1px solid var(--edge)}
+.sw span{font-size:9.5px;color:var(--muted);display:block;margin-top:5px;letter-spacing:.06em}
+.badge{position:fixed;right:14px;bottom:14px;padding:6px 11px;font-size:11px;color:var(--text);
+  background:var(--panel);border:1px solid var(--edge);text-decoration:none}
+.badge:hover{color:var(--path)}
+@media (max-width:780px){.leaf{grid-template-columns:1fr}.vals{grid-template-columns:1fr}
+  .leaf > .addr{border-right:0;border-bottom:1px solid var(--edge)}}
+</style></head>
+<body>
+
+<nav class="pathbar">
+  <a href="#">SE_EXEMPLO_III</a><span class="sep">/</span>
+  <a href="#">QPC2_TR1</a><span class="sep">/</span>
+  <a href="#">comparador</a><span class="sep">/</span>
+  <span class="cur">G:Logica1</span>
+  <span class="right">659 nós · <b>654 conformes</b> · 5 divergentes</span>
+</nav>
+
+<div class="title">
+  <h1>Comissionamento SEL</h1>
+  <p>Tudo é endereço: ferramenta, relé, grupo e ajuste ocupam o mesmo caminho.</p>
+</div>
+
+<main>
+  <h2>/ferramentas</h2>
+  <div class="tree">
+    <a class="node" href="#"><span class="tw">▸</span><span class="nm">glv</span><span class="eq">=</span><span class="ds">"estado do relé ao vivo sobre o GLE"</span><span class="st">ativo</span></a>
+    <a class="node" href="#"><span class="tw">▾</span><span class="nm">comparador</span><span class="eq">=</span><span class="ds">"até 7 relés da mesma família"</span><span class="st">ativo</span></a>
+    <a class="node child" href="#"><span class="tw">▸</span><span class="nm">relés</span><span class="eq">=</span><span class="ds">[QPC2_TR1_UPC1 … UPC6, QPC2_TR2_UPC1]</span><span class="st">7</span></a>
+    <a class="node child" href="#"><span class="tw">▾</span><span class="nm">grupos</span><span class="eq">=</span><span class="ds">[G1…G4, Logica1…4, DNP, Ethernet, …]</span><span class="st">25</span></a>
+    <a class="node" href="#"><span class="tw">▸</span><span class="nm">vb_updater</span><span class="eq">=</span><span class="ds">"virtual bits GLE ↔ SCD"</span><span class="st">ativo</span></a>
+    <a class="node" href="#"><span class="tw">▸</span><span class="nm">vlan_mapper</span><span class="eq">=</span><span class="ds">"VLANs GOOSE por porta"</span><span class="st">ativo</span></a>
+    <a class="node" href="#"><span class="tw">▸</span><span class="nm">gle_exporter</span><span class="eq">=</span><span class="ds">"comentários de porta em Excel"</span><span class="st">ativo</span></a>
+    <span class="node off"><span class="tw">▸</span><span class="nm">rdb_scd</span><span class="eq">=</span><span class="ds">"cruza RDB com IEDs do SCD"</span><span class="st">em breve</span></span>
+  </div>
+
+  <h2>/comparador/G:Logica1</h2>
+  <div class="leafs">
+    <div class="leaf okrow"><div class="addr"><span class="n">51G2TC</span><span class="a">$SP$value</span></div>
+      <div class="vals"><div class="v same"><span class="who">UPC1</span><span class="d">0.40</span></div>
+        <div class="v same"><span class="who">UPC2</span><span class="d">0.40</span></div>
+        <div class="v same"><span class="who">UPC3</span><span class="d">0.40</span></div></div></div>
+    <div class="leaf okrow"><div class="addr"><span class="n">52A</span><span class="a">$SP$set</span></div>
+      <div class="vals"><div class="v same"><span class="who">UPC1</span><span class="d">NOT IN101 AND IN102</span></div>
+        <div class="v same"><span class="who">UPC2</span><span class="d">NOT IN101 AND IN102</span></div>
+        <div class="v same"><span class="who">UPC3</span><span class="d">NOT IN101 AND IN102</span></div></div></div>
+    <div class="leaf vbd"><div class="addr"><span class="n">LT14</span><span class="a">$SP$set</span></div>
+      <div class="vals"><div class="v"><span class="who">UPC1</span><span class="d">VB102 OR VB103</span></div>
+        <div class="v"><span class="who">UPC2</span><span class="d">VB101 OR VB102</span></div>
+        <div class="v"><span class="who">UPC3</span><span class="d">VB101 OR VB102</span></div></div></div>
+    <div class="leaf dif"><div class="addr"><span class="n">LT17</span><span class="a">$SP$set</span></div>
+      <div class="vals"><div class="v same"><span class="who">UPC1</span><span class="d">SV02 AND LT03</span></div>
+        <div class="v same"><span class="who">UPC2</span><span class="d">SV02 AND LT03</span></div>
+        <div class="v bad"><span class="who">UPC3</span><span class="d">SV02 AND LT04</span></div></div></div>
+    <div class="leaf dif"><div class="addr"><span class="n">27I1CFA</span><span class="a">$SP$value</span></div>
+      <div class="vals"><div class="v same"><span class="who">UPC1</span><span class="d">1.00</span></div>
+        <div class="v same"><span class="who">UPC2</span><span class="d">1.00</span></div>
+        <div class="v miss"><span class="who">UPC3</span><span class="d">ausente</span></div></div></div>
+    <div class="leaf okrow"><div class="addr"><span class="n">50P1P</span><span class="a">$SP$value</span></div>
+      <div class="vals"><div class="v same"><span class="who">UPC1</span><span class="d">5.00</span></div>
+        <div class="v same"><span class="who">UPC2</span><span class="d">5.00</span></div>
+        <div class="v same"><span class="who">UPC3</span><span class="d">5.00</span></div></div></div>
+  </div>
+  <div class="foot"><span>nós <b>659</b></span><span>conformes <b>654</b></span><span>divergentes <b>5</b></span><span>difere VB <b>16</b></span></div>
+
+  <h2>/tokens</h2>
+  <div class="tokens">
+    <div class="sw"><i style="background:#0f1114"></i><span>fundo</span></div>
+    <div class="sw"><i style="background:#14171b"></i><span>painel</span></div>
+    <div class="sw"><i style="background:#67e8f9"></i><span>caminho</span></div>
+    <div class="sw"><i style="background:#c4b5fd"></i><span>chave</span></div>
+    <div class="sw"><i style="background:#fbbf24"></i><span>valor</span></div>
+    <div class="sw"><i style="background:#f87171"></i><span>divergente</span></div>
+    <div style="flex:1;min-width:250px;font-size:11.5px;color:var(--muted)">
+      <b style="color:var(--text)">JetBrains Mono</b> em toda a interface — inclusive nos rótulos.
+      A cor segue a gramática do SCL (chave, valor, caminho), então a mesma leitura vale no XML e na tela.
+    </div>
+  </div>
+</main>
+
+<a class="badge" href="index.html">09 · SCL / 61850</a>
+</body></html>

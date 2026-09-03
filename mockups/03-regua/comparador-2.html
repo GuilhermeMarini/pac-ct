@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comparador · grupos — Régua de Bornes</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../../sellib/web/static/fonts/fonts.css">
+<link rel="stylesheet" href="theme.css">
+<style>
+.steps{display:flex;gap:2px;margin-bottom:var(--s4)}
+.step{flex:1;padding:8px 12px;background:var(--bake-2);border:1px solid var(--edge);
+  font:700 10px var(--cond);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:center;text-decoration:none}
+.step.on{color:var(--text);border-color:var(--wire-blue);box-shadow:inset 0 -3px 0 var(--wire-blue)}
+.step.done{color:var(--wire-green);border-color:#2d5a3f}
+.gg{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.g{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--bake-2);
+  border:1px solid var(--edge);cursor:pointer;border-left:3px solid var(--edge)}
+.g:hover{background:var(--bake-3)}
+.g.sel{border-left-color:var(--wire-blue);background:var(--bake-3)}
+.g .k{font:700 11px var(--mono);color:var(--brass);width:26px;flex:none}
+.g .n{font-size:13px}
+.g .n small{display:block;color:var(--muted);font-size:11px;font-family:var(--mono)}
+.g.part{border-left-color:var(--wire-yellow)}
+</style>
+</head><body>
+<div class="top">
+  <h1>Comissionamento SEL</h1>
+  <span class="sub">Borne 2 · Comparador de Ajustes</span>
+  <span class="spacer"></span>
+  <span class="rid">passo 2 de 3 · 7 relés 7xx</span>
+  <a class="lnk" href="index.html">← menu</a>
+</div>
+<div class="shell">
+  <nav class="strip">
+    <div class="cap">Régua X1 — ferramentas</div>
+    <a class="borne" href="glv-landing.html"><span class="num">1</span><span class="lbl">Visualizador de Lógica<small>estado ao vivo no GLE</small></span></a>
+    <a class="borne on" href="comparador-1.html"><span class="num">2</span><span class="lbl">Comparador de Ajustes<small>até 7 relés lado a lado</small></span></a>
+    <a class="borne" href="vb-updater.html"><span class="num">3</span><span class="lbl">VB Updater<small>virtual bits GLE ↔ SCD</small></span></a>
+    <a class="borne" href="vlan-mapper.html"><span class="num">4</span><span class="lbl">VLAN Mapper<small>GOOSE por porta</small></span></a>
+    <a class="borne" href="exportador.html"><span class="num">5</span><span class="lbl">Exportador de Comentários<small>Excel ida e volta</small></span></a>
+    <span class="borne off"><span class="num">6</span><span class="lbl">Comparador RDB ↔ SCD<small>em breve</small></span></span>
+    <span class="borne off"><span class="num">7</span><span class="lbl">Validador de Settings<small>em breve</small></span></span>
+    <span class="borne off"><span class="num">8</span><span class="lbl">Relatório de Comissionamento<small>em breve</small></span></span>
+  </nav>
+  <main>
+    <div class="steps">
+      <a class="step done" href="comparador-1.html">1 · RDBs e relés ✓</a>
+      <span class="step on">2 · Grupos</span>
+      <a class="step" href="comparador-3.html">3 · Comparação</a>
+    </div>
+
+    <h2>Grupos de ajustes</h2>
+    <p class="lead">Cada grupo marcado vira uma aba na comparação. Os que existem em apenas parte
+    dos relés ficam com o fio amarelo — dá para comparar, mas o que faltar aparece como faltante.</p>
+
+    <div class="bar">
+      <button class="btn">Selecionar todos</button>
+      <button class="btn">Limpar</button>
+      <button class="btn">Apenas lógica</button>
+      <span class="count">25 de 25 grupos marcados</span>
+      <span class="spacer"></span>
+      <a class="btn" href="comparador-1.html">← trocar relés</a>
+      <a class="btn pri" href="comparador-3.html">Comparar →</a>
+    </div>
+
+    <div class="gg">
+      <label class="g sel"><input type="checkbox" checked><span class="k">1</span><span class="n">Grupo 1<small>ajustes de proteção</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">2</span><span class="n">Grupo 2<small>ajustes de proteção</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">3</span><span class="n">Grupo 3<small>ajustes de proteção</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">4</span><span class="n">Grupo 4<small>ajustes de proteção</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">L1</span><span class="n">Lógica 1<small>SELOGIC</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">L2</span><span class="n">Lógica 2<small>SELOGIC</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">L3</span><span class="n">Lógica 3<small>SELOGIC</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">L4</span><span class="n">Lógica 4<small>SELOGIC</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">G</span><span class="n">Global<small>ajustes gerais</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">M</span><span class="n">Modbus<small>mapa de registros</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">R</span><span class="n">Relatórios<small>oscilografia e SER</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">F</span><span class="n">Front Panel<small>display e LEDs</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">I</span><span class="n">Info<small>identificação</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">P1</span><span class="n">Porta 1<small>serial</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">P2</span><span class="n">Porta 2<small>serial</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">P3</span><span class="n">Porta 3<small>serial</small></span></label>
+      <label class="g sel part"><input type="checkbox" checked><span class="k">P4</span><span class="n">Porta 4 (Ethernet)<small>em 6 de 7 relés</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">PF</span><span class="n">Painel Frontal<small>pushbuttons</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">HMI</span><span class="n">HMI<small>telas do display</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">D1</span><span class="n">DNP 1<small>mapa DNP3</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">D2</span><span class="n">DNP 2<small>mapa DNP3</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">D3</span><span class="n">DNP 3<small>mapa DNP3</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">E1</span><span class="n">Ethernet 1<small>rede</small></span></label>
+      <label class="g sel"><input type="checkbox" checked><span class="k">E2</span><span class="n">Ethernet 2<small>rede</small></span></label>
+      <label class="g sel part"><input type="checkbox" checked><span class="k">E3</span><span class="n">Ethernet 3<small>em 4 de 7 relés</small></span></label>
+    </div>
+  </main>
+</div>
+</body></html>

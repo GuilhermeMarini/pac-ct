@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revisão de design — SEL Commissioning Toolkit</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../sellib/web/static/fonts/fonts.css">
+<style>
+/* Esta pagina e' o material de revisao, nao uma das propostas: fica
+   deliberadamente neutra pra nao puxar a escolha pra nenhuma direcao. */
+:root{
+  --bg:#101215; --panel:#171a1e; --panel-2:#1d2126; --edge:#2a2f36;
+  --text:#e7eaee; --muted:#98a1ac; --accent:#7cc4ff; --ok:#5ad48a; --warn:#ffc46b; --err:#ff7a70;
+  --sans:'IBM Plex Sans',system-ui,sans-serif; --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.65 var(--sans)}
+header{padding:38px 24px 26px;border-bottom:1px solid var(--edge);background:var(--panel)}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+header h1{margin:0;font:600 30px/1.15 var(--sans);letter-spacing:-.02em}
+header p{margin:8px 0 0;color:var(--muted);max-width:70ch}
+h2{font:600 12px var(--sans);letter-spacing:.18em;text-transform:uppercase;color:var(--muted);
+  margin:46px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--edge)}
+h3{font:600 17px var(--sans);margin:0 0 4px}
+p{margin:0 0 12px}
+code{font-family:var(--mono);font-size:.88em;background:var(--panel-2);padding:1px 5px;border-radius:3px;color:#cfe3f5}
+
+/* achados */
+.finding{display:grid;grid-template-columns:34px minmax(0,1fr);gap:14px;padding:16px 0;border-bottom:1px solid var(--edge)}
+.finding .n{font:500 13px var(--mono);color:var(--accent);padding-top:3px}
+.finding p{color:var(--muted);margin:0}
+.finding p+p{margin-top:8px}
+.finding b{color:var(--text);font-weight:600}
+.sev{display:inline-block;font:500 10px var(--sans);letter-spacing:.12em;text-transform:uppercase;
+  padding:2px 7px;border-radius:99px;border:1px solid currentColor;margin-left:8px;vertical-align:2px}
+.s-alta{color:var(--err)}.s-media{color:var(--warn)}.s-baixa{color:var(--muted)}
+
+/* galeria */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:18px}
+.card{background:var(--panel);border:1px solid var(--edge);border-radius:8px;overflow:hidden;
+  display:flex;flex-direction:column;text-decoration:none;color:inherit}
+.card:hover{border-color:var(--accent)}
+.card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.shot{height:210px;overflow:hidden;position:relative;background:#000;border-bottom:1px solid var(--edge)}
+.shot iframe{width:1500px;height:1050px;border:0;transform:scale(.29);transform-origin:0 0;pointer-events:none}
+.card .body{padding:14px 16px 16px}
+.card .kicker{font:500 11px var(--mono);color:var(--muted);letter-spacing:.1em}
+.card p{color:var(--muted);font-size:13.5px;margin:6px 0 0}
+.card .for{margin-top:10px;font-size:12.5px;color:var(--text);border-top:1px solid var(--edge);padding-top:9px}
+.card .for b{color:var(--ok);font-weight:600}
+.card .for i{color:var(--warn);font-style:normal;font-weight:600}
+
+/* prototipos navegaveis */
+.protos{display:grid;grid-template-columns:repeat(auto-fit,minmax(370px,1fr));gap:18px}
+.proto{background:var(--panel);border:1px solid var(--edge);border-radius:8px;overflow:hidden}
+.proto .shot{height:250px;overflow:hidden;position:relative;background:#000;border-bottom:1px solid var(--edge)}
+.proto .shot iframe{width:1500px;height:1000px;border:0;transform:scale(.33);transform-origin:0 0;pointer-events:none}
+.proto .body{padding:16px 18px 18px}
+.proto h3{margin:0 0 2px}
+.proto .kicker{font:500 11px var(--mono);color:var(--muted);letter-spacing:.1em}
+.proto p{color:var(--muted);font-size:13.5px;margin:8px 0 0}
+.pages-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.pages-list a{font:500 11.5px var(--mono);color:var(--text);text-decoration:none;
+  border:1px solid var(--edge);border-radius:4px;padding:5px 9px;background:var(--panel-2)}
+.pages-list a:hover{border-color:var(--accent);color:var(--accent)}
+.pages-list a.first{border-color:var(--accent);color:var(--accent)}
+.rec{background:var(--panel);border:1px solid var(--edge);border-left:3px solid var(--ok);
+  border-radius:6px;padding:18px 20px;margin-top:16px}
+.rec h3{margin-bottom:8px}
+.rec p{color:var(--muted);margin-bottom:10px}
+.rec p:last-child{margin-bottom:0}
+footer{color:var(--muted);font-size:13px;padding:40px 0 60px}
+ul{color:var(--muted);margin:0 0 12px;padding-left:20px}
+li{margin-bottom:6px}
+</style></head>
+<body>
+
+<header><div class="wrap" style="padding:0">
+  <h1>Revisão de design</h1>
+  <p>SEL Commissioning Toolkit — leitura das seis páginas em produção e dez direções visuais
+  para escolher uma. Cada proposta mostra o mesmo conteúdo (menu de ferramentas + tabela de
+  comparação real) para a comparação ser honesta.</p>
+</div></header>
+
+<div class="wrap">
+
+  <h2>O que a revisão encontrou</h2>
+
+  <div class="finding"><span class="n">01</span><div>
+    <h3>Não existe um sistema — existem seis cópias dele<span class="sev s-alta">alta</span></h3>
+    <p>A mesma paleta está colada em seis arquivos e já divergiu: <code>--bg</code> é <code>#0e1117</code>
+    em cinco tools e <code>#0d1117</code> no comparador; <code>--panel-2</code> é <code>#1f262d</code>
+    em uns e <code>#1c2128</code> em outro. Há 7 valores de <code>border-radius</code> (2, 3, 4, 5, 6, 8, 12 px),
+    mais de 20 combinações de <code>padding</code> e 5 pilhas de fonte diferentes — além de
+    <code>font-family: monospace</code> puro em 30 lugares, que cai numa fonte diferente em cada SO.</p>
+    <p>Nada disso é descuido de quem escreveu: cada tool serve o próprio <code>&lt;style&gt;</code>, então
+    não há onde a consistência morar. <b>Qualquer direção escolhida precisa virar um arquivo de tokens
+    único, importado pelas seis páginas.</b></p>
+  </div></div>
+
+  <div class="finding"><span class="n">02</span><div>
+    <h3>O GLV parece outro produto<span class="sev s-alta">alta</span></h3>
+    <p>A ferramenta principal tem cabeçalho <code>#222</code>, tela de diagrama clara, tipografia e
+    tamanhos próprios. Sair do painel de ferramentas e entrar no GLV parece trocar de aplicativo.
+    O diagrama <em>precisa</em> ser claro — é um desenho técnico — mas a moldura em volta dele não precisa
+    ser estranha ao resto.</p>
+  </div></div>
+
+  <div class="finding"><span class="n">03</span><div>
+    <h3>As telas iniciais estão vazias<span class="sev s-media">média</span></h3>
+    <p>VB Updater, VLAN Mapper e Exportador abrem com uma ou duas áreas de arrastar arquivo boiando
+    em ~800 px de vazio. Não dizem o que acontece depois, não mostram os RDBs já carregados na sessão,
+    não têm exemplo. A primeira tela é a que mais ensina o produto e hoje é a que menos fala.</p>
+  </div></div>
+
+  <div class="finding"><span class="n">04</span><div>
+    <h3>Emoji fazendo papel de ícone<span class="sev s-media">média</span></h3>
+    <p>📚 🔗 🌐 📝 ☰ 🔍 no menu inicial. Cada sistema operacional desenha de um jeito, não formam
+    família, e o do Comparador de Ajustes é um menu-sanduíche — que significa outra coisa em qualquer
+    interface. Ou some com os ícones, ou eles viram um conjunto desenhado.</p>
+  </div></div>
+
+  <div class="finding"><span class="n">05</span><div>
+    <h3>A densidade não é administrada<span class="sev s-media">média</span></h3>
+    <p>A tabela de comparação é o artefato central do produto e até esta semana ficava com 375 px de
+    uma tela de 950 px, enquanto o menu inicial espalha seis cartões numa página de 1900 px com margens
+    enormes. As duas pontas erram para lados opostos: falta uma escala de densidade dizendo o que é
+    tela de leitura e o que é tela de escolha.</p>
+  </div></div>
+
+  <div class="finding"><span class="n">06</span><div>
+    <h3>A cor de status carrega significado sem sistema<span class="sev s-media">média</span></h3>
+    <p>São sete vereditos (igual, lógica igual/comentário diferente, deslocado, difere VB, equivalente,
+    diferente, faltante), cada um com um hex escolhido à parte, e os mesmos verde/vermelho/âmbar também
+    aparecem como cor de interface. O usuário precisa distinguir sete estados numa tabela de 659 linhas —
+    isso pede uma escala projetada e testada em contraste sobre os fundos tingidos, não sete cores avulsas.</p>
+  </div></div>
+
+  <div class="finding"><span class="n">07</span><div>
+    <h3>O português está sem acento em metade dos textos<span class="sev s-baixa">baixa</span></h3>
+    <p>“Compara descricoes de Virtual Bits”, “Ferramentas para comissionamento de reles SEL”,
+    “Relatorio de Comissionamento” convivem com strings acentuadas em outras telas. É barato de
+    corrigir e é a primeira coisa que um leitor nativo percebe.</p>
+  </div></div>
+
+  <div class="finding"><span class="n">08</span><div>
+    <h3>Restrição real: a subestação pode não ter internet<span class="sev s-baixa">nota</span></h3>
+    <p>As propostas abaixo carregam fontes do Google só para você avaliar. Na implementação, a fonte
+    escolhida precisa ser embarcada como arquivo no projeto ou substituída por pilha de sistema —
+    caso contrário a tipografia cai para o padrão justamente no notebook da casa de comando.</p>
+  </div></div>
+
+  <h2>Dez direções</h2>
+
+  <div class="grid">
+
+    <a class="card" href="01-placa-gravada.html">
+      <div class="shot"><iframe src="01-placa-gravada.html" loading="lazy" title=""></iframe></div>
+      <div class="body"><span class="kicker">01</span><h3>Placa Gravada</h3>
+        <p>Cada bloco é uma traffolyte parafusada no painel: chanfro, bisel de 1 px, texto gravado em
+        condensada. O vocabulário vem do próprio painel de proteção.</p>
+        <div class="for"><b>Bom para</b> identidade forte sem inventar nada — o engenheiro já lê essas placas.
+        <i>Cuidado:</i> o relevo precisa de execução precisa ou vira skeuomorfismo barato.</div>
+      </div></a>
+
+    <a class="card" href="02-oscilografia.html">
+      <div class="shot"><iframe src="02-oscilografia.html" loading="lazy" title=""></iframe></div>
+      <div class="body"><span class="kicker">02</span><h3>Oscilografia</h3>
+        <p>Fundo milimetrado de verdade, fósforo verde, e o cabeçalho é um traço de oscilografia.
+        A grade de 8 px do fundo é a mesma grade de espaçamento do layout.</p>
+        <div class="for"><b>Bom para</b> o GLV e qualquer coisa ao vivo. <i>Cuidado:</i> verde sobre preto
+        cansa em jornada longa de leitura de tabela.</div>
+      </div></a>
+
+    <a class="card" href="03-regua-de-bornes.html">
+      <div class="shot"><iframe src="03-regua-de-bornes.html" loading="lazy" title=""></iframe></div>
+      <div class="body"><span class="kicker">03 · app completo abaixo</span><h3>Régua de Bornes</h3>
+        <p>A navegação é a régua: cada ferramenta é um borne numerado com parafuso. Cor não decora —
+        é cor de fio, e o mesmo código vale na tabela.</p>
+        <div class="for"><b>Bom para</b> dar ordem numerada estável às ferramentas. <i>Cuidado:</i> a metáfora
+        só funciona enquanto a lista for curta.</div>
+      </div></a>
+
+    <a class="card" href="04-painel-frontal.html">
+      <div class="shot"><iframe src="04-painel-frontal.html" loading="lazy" title=""></iframe></div>
+      <div class="body"><span class="kicker">04</span><h3>Painel Frontal</h3>
+        <p>Homenagem à frente do relé: coluna de LEDs de target, visor de LCD verde para o dado vivo,
+        botoeira F1–F5 no rodapé. A tela combina com o equipamento na bancada.</p>
+        <div class="for"><b>Bom para</b> o GLV e para quem opera de teclado. <i>Cuidado:</i> LED e LCD precisam
+        significar algo de verdade, senão viram enfeite.</div>
+      </div></a>
+
+    <a class="card" href="05-prancha-asbuilt.html">
+      <div class="shot"><iframe src="05-prancha-asbuilt.html" loading="lazy" title=""></iframe></div>
+      <div class="body"><span class="kicker">05</span><h3>Prancha As-Built</h3>
+        <p>A página é uma folha de projeto: moldura, legenda de ferramentas e carimbo com obra, arquivo,
+        escopo e revisão. Divergência ganha o triângulo de revisão do as-built.</p>
+        <div class="for"><b>Bom para</b> quem entrega documentação junto com o comissionamento.
+        <i>Cuidado:</i> o carimbo precisa de dado real ou vira moldura vazia.</div>
+      </div></a>
+
+    <a class="card" href="06-folha-de-dados.html">
+      <div class="shot"><iframe src="06-folha-de-dados.html" loading="lazy" title=""></iframe></div>
+      <div class="body"><span class="kicker">06 · app completo abaixo</span><h3>Folha de Dados</h3>
+        <p>O manual do relé como linguagem: papel claro, filete de 1 px, canto vivo, densidade alta —
+        e uma coluna de margem com notas numeradas ancoradas nas linhas da tabela.</p>
+        <div class="for"><b>Bom para</b> ler 659 linhas sem cansar, e imprime como relatório.
+        <i>Cuidado:</i> claro demais para casa de comando à noite.</div>
+      </div></a>
+
+    <a class="card" href="07-ladder.html">
+      <div class="shot"><iframe src="07-ladder.html" loading="lazy" title=""></iframe></div>
+      <div class="body"><span class="kicker">07</span><h3>Ladder</h3>
+        <p>Dois trilhos seguram a página e cada seção é um degrau. O menu é um rung com contatos, e a
+        ferramenta ativa é a bobina energizada; na tabela, o contato fecha quando os relés batem.</p>
+        <div class="for"><b>Bom para</b> ler a coluna de status sem ler texto nenhum.
+        <i>Cuidado:</i> a metáfora não se estende a telas de upload.</div>
+      </div></a>
+
+    <a class="card" href="08-turno-da-noite.html">
+      <div class="shot"><iframe src="08-turno-da-noite.html" loading="lazy" title=""></iframe></div>
+      <div class="body"><span class="kicker">08</span><h3>Turno da Noite</h3>
+        <p>Decisão ergonômica antes de estética: preto real, âmbar (pouca luz azul), corpo de 17 px,
+        alvo de 48 px, barra de ação fixa no rodapé e comparação empilhada — sem rolagem lateral.</p>
+        <div class="for"><b>Bom para</b> tablet, luva e 3 h da manhã. <i>Cuidado:</i> cabe muito menos
+        informação por tela; troca densidade por alcance.</div>
+      </div></a>
+
+    <a class="card" href="09-scl-61850.html">
+      <div class="shot"><iframe src="09-scl-61850.html" loading="lazy" title=""></iframe></div>
+      <div class="body"><span class="kicker">09</span><h3>SCL / 61850</h3>
+        <p>Se metade do trabalho é percorrer caminhos, tudo vira endereço: barra de caminho no topo,
+        guias de indentação, mono em toda a interface, cor seguindo a gramática do SCL.</p>
+        <div class="for"><b>Bom para</b> quem vive dentro do SCD. <i>Cuidado:</i> mono em 100% da interface
+        afasta quem só quer comparar dois ajustes.</div>
+      </div></a>
+
+    <a class="card" href="10-caderno-de-campo.html">
+      <div class="shot"><iframe src="10-caderno-de-campo.html" loading="lazy" title=""></iframe></div>
+      <div class="body"><span class="kicker">10 · app completo abaixo</span><h3>Caderno de Campo</h3>
+        <p>Papel quadriculado de 5 mm, fichas presas por cima e carimbos girados de CONFERE / DIVERGE
+        no lugar do rótulo de status.</p>
+        <div class="for"><b>Bom para</b> luz do sol e para virar relatório impresso.
+        <i>Cuidado:</i> carimbo é a coisa mais fácil de exagerar da série inteira.</div>
+      </div></a>
+
+  </div>
+
+  <h2>Protótipos navegáveis — 03, 06 e 10</h2>
+  <p style="color:var(--muted);max-width:74ch;margin:-4px 0 16px">
+    Três direções viraram o app inteiro: nove telas cada uma, ligadas pela própria navegação da
+    direção — dá para clicar de uma ferramenta à outra como se fosse o produto. No visualizador de
+    lógica o desenho <b style="color:var(--text)">não foi redesenhado</b>: sai do mesmo
+    <code>render_page()</code> do app, a partir de <code>samples/QPC2_TR2_UPC1_GL1.gle.xml</code>,
+    página “L-R / WatchDog” — mesmas coordenadas, mesmos símbolos, mesmo estilo, com o estado dos bits
+    por cima nas mesmas classes que o dashboard usa ao vivo. O que muda entre as três é a moldura.
+    Cada conjunto carrega <b style="color:var(--text)">um único <code>theme.css</code></b> com paleta,
+    escala de espaçamento e escala de tipo; é exatamente o arquivo de tokens que o achado 01 pede.
+  </p>
+
+  <div class="protos">
+    <div class="proto">
+      <div class="shot"><iframe src="03-regua/index.html" loading="lazy" title=""></iframe></div>
+      <div class="body">
+        <span class="kicker">03 · nove telas</span>
+        <h3>Régua de Bornes</h3>
+        <p>A régua numerada é a espinha do app e aparece em todas as telas — a ferramenta ativa é o
+        borne energizado. Cor sempre significa tipo de sinal, do menu à tabela de comparação.
+        O GLV é a única tela sem a régua: o desenho precisa da largura inteira, e o borne de origem
+        vira a plaqueta <code>X1:1</code> no cabeçalho.</p>
+        <div class="pages-list">
+          <a class="first" href="03-regua/index.html">menu</a>
+          <a href="03-regua/glv-landing.html">GLV · escolher GLE</a>
+          <a href="03-regua/glv.html">GLV · ao vivo</a>
+          <a href="03-regua/comparador-1.html">comparador 1</a>
+          <a href="03-regua/comparador-2.html">comparador 2</a>
+          <a href="03-regua/comparador-3.html">comparador 3</a>
+          <a href="03-regua/vb-updater.html">VB updater</a>
+          <a href="03-regua/vlan-mapper.html">VLAN mapper</a>
+          <a href="03-regua/exportador.html">exportador</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="proto">
+      <div class="shot"><iframe src="06-folha/index.html" loading="lazy" title=""></iframe></div>
+      <div class="body">
+        <span class="kicker">06 · nove telas</span>
+        <h3>Folha de Dados</h3>
+        <p>Cada tela é uma folha de documento numerada, e a coluna de margem carrega as notas técnicas
+        ancoradas na tabela por marcador superscrito — é ali que moram os avisos que hoje não têm lugar
+        na interface. O veredito é rótulo tipográfico, não pastilha. No GLV a moldura clara encosta no
+        próprio desenho, sem disputa de cor.</p>
+        <div class="pages-list">
+          <a class="first" href="06-folha/index.html">menu</a>
+          <a href="06-folha/glv-landing.html">GLV · escolher GLE</a>
+          <a href="06-folha/glv.html">GLV · ao vivo</a>
+          <a href="06-folha/comparador-1.html">comparador 1</a>
+          <a href="06-folha/comparador-2.html">comparador 2</a>
+          <a href="06-folha/comparador-3.html">comparador 3</a>
+          <a href="06-folha/vb-updater.html">VB updater</a>
+          <a href="06-folha/vlan-mapper.html">VLAN mapper</a>
+          <a href="06-folha/exportador.html">exportador</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="proto">
+      <div class="shot"><iframe src="10-caderno/index.html" loading="lazy" title=""></iframe></div>
+      <div class="body">
+        <span class="kicker">10 · nove telas</span>
+        <h3>Caderno de Campo</h3>
+        <p>As ferramentas viram divisórias de caderno e cada tela é uma folha presa por cima. O carimbo
+        substitui o rótulo de status em todo lugar — inclusive nos filtros, onde ele vira a própria
+        legenda. O GLE cai direto no papel quadriculado, sem moldura escura em volta.</p>
+        <div class="pages-list">
+          <a class="first" href="10-caderno/index.html">menu</a>
+          <a href="10-caderno/glv-landing.html">GLV · escolher GLE</a>
+          <a href="10-caderno/glv.html">GLV · ao vivo</a>
+          <a href="10-caderno/comparador-1.html">comparador 1</a>
+          <a href="10-caderno/comparador-2.html">comparador 2</a>
+          <a href="10-caderno/comparador-3.html">comparador 3</a>
+          <a href="10-caderno/vb-updater.html">VB updater</a>
+          <a href="10-caderno/vlan-mapper.html">VLAN mapper</a>
+          <a href="10-caderno/exportador.html">exportador</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Recomendação</h2>
+  <div class="rec">
+    <h3>06 Folha de Dados como sistema, 04 Painel Frontal só no GLV</h3>
+    <p>O trabalho do produto é ler e comparar documentos densos; a direção 06 é a única que sustenta
+    659 linhas sem cansar, imprime como relatório de comissionamento e resolve o achado 05 (densidade)
+    junto com o 06 (cor de status), porque a escala de cor sobre papel tem contraste muito mais folgado
+    que sobre os fundos tingidos de hoje.</p>
+    <p>O GLV é o caso em que a tela clara não serve — ela já é clara <em>dentro</em> do diagrama, e a moldura
+    escura ajuda o desenho a aparecer. Manter ali o vocabulário de LED e LCD da direção 04 resolve o
+    achado 02 sem forçar a mesma pele: as duas dividiriam a mesma escala de espaçamento, o mesmo tipo e
+    os mesmos sete estados, invertendo só o par fundo/tinta.</p>
+    <p>Se o uso em campo (tablet, luva, turno da noite) for mais comum do que eu suponho, a escolha muda
+    para a <b>08</b> — é a única pensada para essa situação, e é uma decisão de uso, não de gosto.</p>
+  </div>
+
+  <h2>O que vem depois da escolha</h2>
+  <ul>
+    <li>Um <code>sellib/web/theme.py</code> (ou um <code>.css</code> servido pelo mount) com a paleta,
+      a escala de espaçamento e a escala de tipo — importado pelas seis páginas, no lugar das seis cópias.</li>
+    <li>Os sete vereditos viram uma escala só, verificada em contraste sobre o fundo tingido da linha.</li>
+    <li>Fonte embarcada no projeto ou pilha de sistema, nunca CDN (achado 08).</li>
+    <li>Primeiras telas com o que já existe na sessão: RDBs carregados, último grupo comparado, um exemplo.</li>
+    <li>Passar o pente nos acentos das strings em português.</li>
+  </ul>
+
+  <footer>Dez arquivos independentes nesta pasta — abra qualquer um em tela cheia; o rodapé de cada
+  proposta volta para cá.</footer>
+</div>
+</body></html>

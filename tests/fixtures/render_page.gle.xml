@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="utf-8"?>
+<editor>
+  <version major="0" minor="7" />
+  <pages>
+    <page name="PROTECAO" description="Fixture pequena para o teste de golden file" revisiondate="10/05/2026">
+      <elements>
+        <group id="40" type="Block" execution_order="1">
+          <label>PROTECAO PRINCIPAL</label>
+          <elements>
+            <element id="100" type="SYMBOL" left="60" top="96" locked="False" image_stream_length="0" image_stream="">
+              <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="IN101" alias="">
+                <comment />
+                <ports>
+                  <port index="0">
+                    <comment>ENTRADA DE BLOQUEIO EXTERNO 86BF</comment>
+                  </port>
+                </ports>
+                <ports>
+                  <port index="0">
+                    <comment />
+                  </port>
+                </ports>
+              </logic_element>
+            </element>
+            <element id="101" type="SYMBOL" left="60" top="132" locked="False" image_stream_length="0" image_stream="">
+              <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="IN102" alias="">
+                <comment />
+                <ports>
+                  <port index="0">
+                    <comment />
+                  </port>
+                </ports>
+                <ports>
+                  <port index="0">
+                    <comment>PARTIDA INSTANTÂNEA</comment>
+                  </port>
+                </ports>
+              </logic_element>
+            </element>
+            <element id="200" type="AND" left="240" top="96" locked="False" image_stream_length="0" image_stream="">
+              <logic_element type="AND" physical_instance_number="0" physical_instance_name="" alias="">
+                <comment />
+                <ports>
+                  <port index="0">
+                    <comment />
+                  </port>
+                  <port index="1">
+                    <port_operator operator_type="NOT" />
+                    <comment />
+                  </port>
+                </ports>
+                <ports>
+                  <port index="0">
+                    <comment />
+                  </port>
+                </ports>
+              </logic_element>
+            </element>
+          </elements>
+        </group>
+        <group id="41" type="Block" execution_order="2">
+          <elements>
+            <element id="400" type="SYMBOL" left="60" top="222" locked="False" image_stream_length="0" image_stream="">
+              <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="600" alias="">
+                <comment />
+                <ports>
+                  <port index="0">
+                    <comment />
+                  </port>
+                </ports>
+                <ports>
+                  <port index="0">
+                    <comment />
+                  </port>
+                </ports>
+              </logic_element>
+            </element>
+            <element id="600" type="Text" left="24" top="282" locked="False" image_stream_length="0" image_stream="">
+              <rtf_text>nota de rodape</rtf_text>
+            </element>
+          </elements>
+        </group>
+        <element id="201" type="OR" left="240" top="156" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="OR" physical_instance_number="0" physical_instance_name="" alias="">
+            <comment />
+            <ports>
+              <port index="0">
+                <comment />
+              </port>
+              <port index="1">
+                <comment />
+              </port>
+            </ports>
+            <ports>
+              <port index="0">
+                <port_operator operator_type="NOT" />
+                <comment />
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="300" type="PLT" left="360" top="96" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="PLT" physical_instance_number="4" physical_instance_name="_PLT04" alias="" execution_order="1">
+            <comment />
+            <ports>
+              <port index="0">
+                <comment>RELE EM LOCAL</comment>
+              </port>
+              <port index="1">
+                <comment />
+              </port>
+            </ports>
+            <ports>
+              <port index="0">
+                <comment />
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="301" type="PCNDTIMER" left="360" top="192" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="PCNDTIMER" physical_instance_number="3" physical_instance_name="PCT03" alias="" execution_order="2">
+            <comment />
+            <ports>
+              <port index="0">
+                <comment>PARTIDA 50P1</comment>
+              </port>
+              <port index="1">
+                <comment />
+              </port>
+              <port index="2">
+                <comment />
+              </port>
+            </ports>
+            <ports>
+              <port index="0">
+                <comment>TEMPORIZADO 200MS</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="500" type="SYMBOL" left="540" top="120" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="TRIP" alias="">
+            <comment />
+            <ports>
+              <port index="0">
+                <port_operator operator_type="RTRIG" />
+                <comment />
+              </port>
+            </ports>
+            <ports>
+              <port index="0">
+                <comment />
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+      </elements>
+      <connections>
+        <connection id="900" type="logic">
+          <source_port element_id="100" port_number="0" />
+          <sink_port element_id="200" port_number="0" />
+          <points>
+            <point x="126" y="108" />
+            <point x="240" y="108" />
+          </points>
+          <show_name>False</show_name>
+          <show_comment>True</show_comment>
+        </connection>
+        <connection id="901" type="logic">
+          <source_port element_id="101" port_number="0" />
+          <sink_port element_id="200" port_number="1" />
+          <points>
+            <point x="126" y="138" />
+            <point x="180" y="138" />
+            <point x="180" y="120" />
+            <point x="240" y="120" />
+          </points>
+          <show_name>False</show_name>
+          <show_comment>True</show_comment>
+        </connection>
+        <connection id="902" type="logic">
+          <source_port element_id="200" port_number="0" />
+          <sink_port element_id="300" port_number="0" />
+          <points>
+            <point x="276" y="108" />
+            <point x="318" y="108" />
+            <point x="318" y="120" />
+            <point x="360" y="120" />
+          </points>
+          <show_name>False</show_name>
+          <show_comment>True</show_comment>
+        </connection>
+        <connection id="903" type="logic">
+          <source_port element_id="200" port_number="0" />
+          <sink_port element_id="301" port_number="0" />
+          <points>
+            <point x="276" y="108" />
+            <point x="318" y="108" />
+            <point x="318" y="216" />
+            <point x="360" y="216" />
+          </points>
+          <show_name>False</show_name>
+          <show_comment>True</show_comment>
+        </connection>
+        <connection id="904" type="logic">
+          <source_port element_id="200" port_number="0" />
+          <sink_port element_id="301" port_number="2" />
+          <points>
+            <point x="276" y="108" />
+            <point x="318" y="108" />
+            <point x="318" y="240" />
+            <point x="360" y="240" />
+          </points>
+          <show_name>False</show_name>
+          <show_comment>True</show_comment>
+        </connection>
+        <connection id="905" type="logic">
+          <source_port element_id="400" port_number="0" />
+          <sink_port element_id="301" port_number="1" />
+          <points>
+            <point x="126" y="228" />
+            <point x="360" y="228" />
+          </points>
+          <show_name>False</show_name>
+          <show_comment>True</show_comment>
+        </connection>
+        <connection id="906" type="logic">
+          <source_port element_id="101" port_number="0" />
+          <sink_port element_id="201" port_number="0" />
+          <points>
+            <point x="126" y="138" />
+            <point x="180" y="138" />
+            <point x="180" y="168" />
+            <point x="240" y="168" />
+          </points>
+          <show_name>False</show_name>
+          <show_comment>True</show_comment>
+        </connection>
+        <connection id="907" type="logic">
+          <source_port element_id="300" port_number="0" />
+          <sink_port element_id="201" port_number="1" />
+          <points>
+            <point x="414" y="120" />
+            <point x="450" y="120" />
+            <point x="450" y="180" />
+            <point x="240" y="180" />
+          </points>
+          <show_name>False</show_name>
+          <show_comment>True</show_comment>
+        </connection>
+        <connection id="908" type="logic">
+          <source_port element_id="201" port_number="0" />
+          <sink_port element_id="500" port_number="0" />
+          <points>
+            <point x="276" y="168" />
+            <point x="504" y="168" />
+            <point x="504" y="126" />
+            <point x="540" y="126" />
+          </points>
+          <show_name>False</show_name>
+          <show_comment>True</show_comment>
+        </connection>
+      </connections>
+    </page>
+  </pages>
+</editor>

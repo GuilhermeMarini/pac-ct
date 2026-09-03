@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QPC2_TR1_UPC1 · lógica ao vivo — Caderno de Campo</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../../sellib/web/static/fonts/fonts.css">
+<link rel="stylesheet" href="theme.css">
+<style>
+/* Aqui o caderno funciona sozinho: o GLE ja' e' desenho preto no branco.
+   A folha ocupa a tela toda e o painel de valores e' a margem anotada. */
+body{height:100vh;overflow:hidden;display:flex;flex-direction:column}
+.hdr{display:flex;align-items:center;gap:var(--s3);padding:9px var(--s4);background:var(--card);
+  border-bottom:2px solid var(--ink);flex:none;flex-wrap:wrap}
+.hdr h1{margin:0;font:700 17px/1 var(--sans)}
+.hdr .live{display:inline-flex;align-items:center;gap:7px;font:400 12px var(--mono);color:var(--ok)}
+.hdr .live::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ok);
+  animation:p 1.6s ease-in-out infinite}
+@keyframes p{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.hdr .live::before{animation:none}}
+.hdr .spacer{flex:1}
+.hdr input[type=search]{background:var(--card-2);border:1px solid var(--rule);color:var(--ink);
+  font:inherit;font-size:12.5px;padding:5px 10px;min-width:180px}
+.grp{display:inline-flex}
+.grp .btn{box-shadow:none;border-left-width:0}
+.grp .btn:first-child{border-left-width:1px}
+.grp .btn.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.pages{display:flex;overflow-x:auto;background:var(--card-2);border-bottom:1px solid var(--rule);flex:none}
+.pg{font:700 11px var(--sans);color:var(--pencil);padding:7px 13px;border:0;border-right:1px solid var(--rule-2);
+  background:none;white-space:nowrap;cursor:pointer}
+.pg:hover{background:var(--card);color:var(--ink)}
+.pg.on{background:var(--card);color:var(--ink);box-shadow:inset 0 -3px 0 var(--ink)}
+.stage{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 292px;min-height:0}
+.viewer{overflow:auto;padding:var(--s4);position:relative;background:
+  linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px),
+  var(--card);background-size:5mm 5mm}
+.viewer .cap{font:700 10px var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--pencil)}
+.viewer .gle{display:block;width:100%;max-width:1100px;margin:0 auto;
+  min-height:70vh;background:#fefefe;border:1px solid var(--rule)}
+.side{background:var(--card);border-left:1px solid var(--rule);overflow-y:auto;padding:var(--s3) var(--s3) var(--s5)}
+.side h3{font:700 10px var(--sans);letter-spacing:.18em;text-transform:uppercase;color:var(--pencil);
+  margin:var(--s4) 0 var(--s2);padding-bottom:5px;border-bottom:1px solid var(--rule)}
+.side h3:first-child{margin-top:0}
+.leg{display:flex;align-items:center;gap:9px;font-size:12.5px;padding:3px 0;color:var(--pencil)}
+.leg i{width:16px;height:12px;border:1px solid #8a8a8a;display:block}
+.bits{display:flex;flex-wrap:wrap;gap:4px}
+.bit{font:700 11px var(--mono);padding:2px 6px;border:1px solid var(--rule);color:var(--ink);background:var(--card-2)}
+.bit.on{background:#dff3e3;border-color:var(--ok);color:#17512f}
+.bit.unk{background:#fdf3d4;border-color:#c08b00;color:#5a4200}
+.an{display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;
+  padding:3px 0;border-bottom:1px solid var(--rule-2);color:var(--pencil)}
+.an b{color:var(--ink)}
+.kv{font-family:var(--mono);font-size:12px;color:var(--pencil);line-height:1.9}
+.kv b{color:var(--ink)}
+</style>
+</head><body>
+
+<div class="hdr">
+  <h1>QPC2_TR1_UPC1</h1>
+  <span class="live">ao vivo · 0,4 s · 8/10 bits conhecidos</span>
+  <span class="spacer"></span>
+  <input type="search" placeholder="Localizar variável…  /">
+  <span class="grp"><button class="btn on">Mouse</button><button class="btn">Marcador</button></span>
+  <span class="grp"><button class="btn">−</button><button class="btn">61%</button><button class="btn">+</button></span>
+  <button class="btn">Notas</button>
+  <a class="btn" href="glv-landing.html">← trocar GLE</a>
+  <a class="btn" href="index.html">← menu</a>
+</div>
+
+<nav class="pages">
+  <button class="pg">Capa</button>
+  <button class="pg">Entradas</button>
+  <button class="pg">Goose</button>
+  <button class="pg">Saídas</button>
+  <button class="pg">52 · Posição</button>
+  <button class="pg">52 · Intertrav</button>
+  <button class="pg">52 · Cmd. Fechar</button>
+  <button class="pg">52 · Cmd. Abrir</button>
+  <button class="pg">89-1 Pos/Intertr</button>
+  <button class="pg">89-2 Pos/Intertrav</button>
+  <button class="pg on">L-R / WatchDog</button>
+  <button class="pg">79 · Religamento</button>
+  <button class="pg">50/51N · Bloq</button>
+  <button class="pg">50/62BF</button>
+  <button class="pg">Trip/TC/SL</button>
+  <button class="pg">Sup. Bobina</button>
+  <button class="pg">Push Button</button>
+  <button class="pg">Leds/Bay Screen</button>
+  <button class="pg">Message Quality</button>
+  <button class="pg">SCADA</button>
+  <button class="pg">RX 50BF</button>
+  <button class="pg">RX 86BF</button>
+  <button class="pg">Alta Impedância</button>
+</nav>
+
+<div class="stage">
+  <div class="viewer">
+    <div class="cap">QPC2_TR1_UPC1 · L-R / WatchDog</div>
+<!-- O desenho e' o proprio render do GLE (sellib/parsers/gle.py) a partir de
+         samples/QPC2_TR2_UPC1_GL1.gle.xml, pagina "L-R / WatchDog": mesmas
+         coordenadas, mesmos simbolos, mesmo estilo do app. Entra como <object>
+         pra que o CSS do desenho fique no documento dele e nao encoste no tema.
+         O tema muda a moldura; a logica fica como sempre foi. -->
+    <object class="gle" type="image/svg+xml" data="gle-page.svg"
+            aria-label="Pagina L-R / WatchDog do GLE com estado dos bits"></object>
+  </div>
+
+  <aside class="side">
+    <h3>Legenda</h3>
+    <div class="leg"><i style="background:#6fdc6f;border-color:#1a6a1a"></i> Ativo (1)</div>
+    <div class="leg"><i style="background:#e8e8e8"></i> Inativo (0)</div>
+    <div class="leg"><i style="background:repeating-linear-gradient(45deg,#fff4c8 0 3px,#d49a00 3px 5px);border-color:#d49a00"></i> Indeterminado</div>
+
+    <h3>Bits na página</h3>
+    <div class="kv">
+      símbolos <b>13</b> — distintos <b>10</b><br>
+      conhecidos <b>8</b> — ativos <b>6</b>, inativos <b>2</b><br>
+      indeterminados <b>2</b><br>
+      portas <b>10</b> · temporizadores <b>3</b> · latches <b>3</b>
+    </div>
+
+    <h3>Bits ativos</h3>
+    <div class="bits">
+      <span class="bit on">LT03</span><span class="bit on">PB01_PUL</span><span class="bit on">PB06</span>
+      <span class="bit on">TRIP</span><span class="bit on">BFT</span><span class="bit on">OUT103</span>
+    </div>
+
+    <h3>Inativos</h3>
+    <div class="bits">
+      <span class="bit">LT05</span><span class="bit">PB08_PUL</span>
+    </div>
+
+    <h3>Indeterminados</h3>
+    <div class="bits">
+      <span class="bit unk">HALARM</span><span class="bit unk">LINKFAIL</span>
+    </div>
+
+    <h3>Analógicos</h3>
+    <div class="an"><span>IAS</span><b>118,4 A</b></div>
+    <div class="an"><span>IBS</span><b>119,7 A</b></div>
+    <div class="an"><span>ICS</span><b>117,9 A</b></div>
+    <div class="an"><span>VAB</span><b>138,2 kV</b></div>
+    <div class="an"><span>VBC</span><b>138,0 kV</b></div>
+    <div class="an"><span>VCA</span><b>138,1 kV</b></div>
+
+    <h3>Anotação</h3>
+    <div class="hand" style="margin-top:0">HALARM e LINKFAIL não reportam no modo visualização —
+    conferir com o relé em linha.</div>
+  </aside>
+</div>
+</body></html>

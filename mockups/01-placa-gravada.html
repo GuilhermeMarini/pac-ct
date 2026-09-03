@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01 · Placa Gravada — SEL Toolkit</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../sellib/web/static/fonts/fonts.css">
+<style>
+/* ===========================================================================
+   DIRECAO 01 — PLACA GRAVADA
+   Referencia: a traffolyte branca-sobre-preta parafusada em todo painel de
+   protecao. Tudo na tela e' uma placa: chanfro no canto, bisel de 1px claro
+   em cima e escuro embaixo, texto gravado em caixa alta condensada.
+   =========================================================================== */
+:root{
+  --plate:#14161a; --plate-hi:#1c1f25; --engrave:#f2f0ea; --edge:#2b2f36;
+  --bevel-top:rgba(255,255,255,.10); --bevel-bot:rgba(0,0,0,.55);
+  --amber:#f0a500; --red:#cc2f26; --green:#3f9d5c; --cyan:#4aa8c4;
+  --muted:#8c9199;
+  --sans:'Archivo',system-ui,sans-serif;
+  --cond:'Archivo Narrow','Arial Narrow',system-ui,sans-serif;
+  --mono:ui-monospace,'SFMono-Regular',Menlo,monospace;
+  --step:8px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#0a0b0d;color:var(--engrave);font:14px/1.5 var(--sans);
+  background-image:radial-gradient(circle at 20% -10%,#1a1d22 0,#0a0b0d 60%)}
+.plate{background:var(--plate);border:1px solid var(--edge);
+  clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+  box-shadow:inset 0 1px 0 var(--bevel-top),inset 0 -1px 0 var(--bevel-bot),0 2px 6px rgba(0,0,0,.5)}
+/* parafusos nos cantos — so' nas placas estruturais */
+.screwed{position:relative}
+.screwed::before,.screwed::after{content:"";position:absolute;width:6px;height:6px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#6b7078,#26292e 70%);box-shadow:0 1px 1px rgba(0,0,0,.6)}
+.screwed::before{top:8px;right:9px}.screwed::after{bottom:8px;right:9px}
+
+/* engraving: caixa alta condensada, tracking largo, sombra invertida */
+.eng{font-family:var(--cond);text-transform:uppercase;letter-spacing:.14em;
+  text-shadow:0 1px 0 rgba(0,0,0,.9),0 -1px 0 rgba(255,255,255,.06)}
+
+header{display:flex;align-items:center;gap:20px;padding:14px 22px;max-width:1180px;margin:18px auto 0;}
+header h1{margin:0;font:600 22px/1 var(--cond);text-transform:uppercase;letter-spacing:.2em}
+header .sub{color:var(--muted);font-size:12px;letter-spacing:.04em}
+.tag{margin-left:auto;font:600 11px var(--cond);letter-spacing:.18em;color:#0a0b0d;
+  background:var(--amber);padding:4px 10px;text-transform:uppercase}
+
+main{max-width:1180px;margin:0 auto;padding:20px 16px 80px}
+.rail{font:600 11px var(--cond);letter-spacing:.22em;color:var(--muted);
+  text-transform:uppercase;margin:26px 0 10px;display:flex;align-items:center;gap:12px}
+.rail::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--edge),transparent)}
+
+/* --- seletor de ferramentas: cada uma e' uma placa de identificacao ------- */
+.tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.tool{padding:16px 18px 14px;display:flex;flex-direction:column;gap:8px;min-height:132px;
+  text-decoration:none;color:inherit;transition:background .12s,transform .12s}
+.tool:hover{background:var(--plate-hi);transform:translateY(-1px)}
+.tool:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.tool .id{font:600 10px var(--cond);letter-spacing:.2em;color:var(--amber)}
+.tool h3{margin:0;font:500 16px/1.2 var(--sans)}
+.tool p{margin:0;color:var(--muted);font-size:12.5px;flex:1}
+.tool .state{font:600 10px var(--cond);letter-spacing:.16em;color:var(--green)}
+.tool.soon{opacity:.55}.tool.soon .state{color:var(--muted)}
+
+/* --- tabela de diff: placa com linhas gravadas ---------------------------- */
+.table-plate{margin-top:10px;overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead th{background:#0f1114;font:600 10px var(--cond);letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted);text-align:left;padding:9px 12px;
+  border-bottom:1px solid var(--edge)}
+td{padding:8px 12px;border-bottom:1px solid #1e2127;vertical-align:top}
+td.var{font-family:var(--mono);font-weight:600;white-space:nowrap}
+td.val{font-family:var(--mono);color:#c7ccd3;font-size:12px}
+tbody tr:hover{background:#181b20}
+.v{font:600 10px var(--cond);letter-spacing:.14em;white-space:nowrap;padding:2px 7px;
+  border:1px solid currentColor}
+.v.ok{color:var(--green)}.v.dif{color:var(--red)}.v.vb{color:var(--cyan)}.v.falta{color:var(--muted)}
+.bar{display:flex;gap:18px;padding:10px 14px;margin-top:10px;font-family:var(--mono);
+  font-size:11.5px;color:var(--muted)}
+.bar b{color:var(--engrave);font-weight:600}
+
+/* --- tokens -------------------------------------------------------------- */
+.tokens{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;padding:14px}
+.sw{width:72px}.sw i{display:block;height:34px;border:1px solid var(--edge)}
+.sw span{font:600 9px var(--cond);letter-spacing:.1em;color:var(--muted);display:block;margin-top:5px}
+.badge{position:fixed;right:14px;bottom:14px;padding:7px 12px;font:600 10px var(--cond);
+  letter-spacing:.18em;text-decoration:none;color:var(--engrave);background:var(--plate);
+  border:1px solid var(--edge)}
+.badge:hover{color:var(--amber)}
+@media (max-width:640px){header{flex-wrap:wrap;gap:8px}.tag{margin-left:0}}
+</style></head>
+<body>
+
+<header class="plate screwed">
+  <div>
+    <h1 class="eng">Comissionamento SEL</h1>
+    <div class="sub">Subestação Exemploópolis III · 25 relés no RDB</div>
+  </div>
+  <span class="tag">Placa gravada</span>
+</header>
+
+<main>
+  <div class="rail">Ferramentas</div>
+  <div class="tools">
+    <a class="tool plate" href="#"><span class="id">GLV</span><h3>Visualizador de Lógica</h3>
+      <p>Estado do relé ao vivo sobre o diagrama GLE.</p><span class="state">Disponível</span></a>
+    <a class="tool plate" href="#"><span class="id">CMP</span><h3>Comparador de Ajustes</h3>
+      <p>Até 7 relés da mesma família, lado a lado.</p><span class="state">Disponível</span></a>
+    <a class="tool plate" href="#"><span class="id">VBU</span><h3>VB Updater</h3>
+      <p>Descrições de Virtual Bits entre GLE e SCD.</p><span class="state">Disponível</span></a>
+    <a class="tool plate" href="#"><span class="id">VLN</span><h3>VLAN Mapper</h3>
+      <p>Mapa de VLANs GOOSE por porta de switch.</p><span class="state">Disponível</span></a>
+    <a class="tool plate" href="#"><span class="id">EXP</span><h3>Exportador de Comentários</h3>
+      <p>Comentários de porta em Excel, ida e volta.</p><span class="state">Disponível</span></a>
+    <span class="tool plate soon"><span class="id">RSC</span><h3>Comparador RDB ↔ SCD</h3>
+      <p>Cruza ajustes do RDB com IEDs do SCD.</p><span class="state">Em breve</span></span>
+  </div>
+
+  <div class="rail">Comparador de ajustes · Lógica 1</div>
+  <div class="table-plate plate">
+    <table>
+      <thead><tr><th>Variável</th><th>Campo</th><th>QPC2_TR1_UPC1</th><th>QPC2_TR1_UPC2</th><th>QPC2_TR1_UPC3</th><th>Situação</th></tr></thead>
+      <tbody>
+        <tr><td class="var">51G2TC</td><td class="val">value</td><td class="val">0.40</td><td class="val">0.40</td><td class="val">0.40</td><td><span class="v ok">Igual</span></td></tr>
+        <tr><td class="var">52A</td><td class="val">set</td><td class="val">NOT IN101 AND IN102</td><td class="val">NOT IN101 AND IN102</td><td class="val">NOT IN101 AND IN102</td><td><span class="v ok">Igual</span></td></tr>
+        <tr><td class="var">LT14</td><td class="val">set</td><td class="val">VB102 OR VB103</td><td class="val">VB101 OR VB102</td><td class="val">VB101 OR VB102</td><td><span class="v vb">Difere VB</span></td></tr>
+        <tr><td class="var">LT17</td><td class="val">set</td><td class="val">SV02 AND LT03</td><td class="val">SV02 AND LT03</td><td class="val">SV02 AND LT04</td><td><span class="v dif">Diferente</span></td></tr>
+        <tr><td class="var">27I1CFA</td><td class="val">value</td><td class="val">1.00</td><td class="val">1.00</td><td class="val">—</td><td><span class="v falta">Faltante</span></td></tr>
+        <tr><td class="var">50P1P</td><td class="val">value</td><td class="val">5.00</td><td class="val">5.00</td><td class="val">5.00</td><td><span class="v ok">Igual</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="bar plate"><span><b>659</b> variáveis</span><span><b>654</b> iguais</span><span><b>5</b> diferentes</span><span><b>16</b> difere VB</span></div>
+
+  <div class="rail">Tokens</div>
+  <div class="tokens plate">
+    <div class="sw"><i style="background:#14161a"></i><span>placa</span></div>
+    <div class="sw"><i style="background:#1c1f25"></i><span>placa alta</span></div>
+    <div class="sw"><i style="background:#2b2f36"></i><span>borda</span></div>
+    <div class="sw"><i style="background:#f2f0ea"></i><span>gravado</span></div>
+    <div class="sw"><i style="background:#f0a500"></i><span>âmbar</span></div>
+    <div class="sw"><i style="background:#3f9d5c"></i><span>igual</span></div>
+    <div class="sw"><i style="background:#cc2f26"></i><span>diferente</span></div>
+    <div class="sw"><i style="background:#4aa8c4"></i><span>vb</span></div>
+    <div style="flex:1;min-width:260px;color:var(--muted);font-size:12px;align-self:center">
+      <b style="font-family:var(--cond);letter-spacing:.14em;text-transform:uppercase;color:var(--engrave)">Archivo Narrow</b> gravado em caixa alta ·
+      <b style="color:var(--engrave)">Archivo</b> para texto corrido ·
+      <span style="font-family:var(--mono);color:var(--engrave)">mono</span> para todo valor de relé.
+      Chanfro de 10 px e bisel de 1 px são a única “decoração”.
+    </div>
+  </div>
+</main>
+
+<a class="badge" href="index.html">01 · Placa Gravada</a>
+</body></html>

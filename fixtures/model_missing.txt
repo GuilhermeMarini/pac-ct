@@ -1,0 +1,1323 @@
+==========================================================================
+BITS DA RELAY WORD SEM ENDERECO IEC 61850
+==========================================================================
+
+Gerado em 2026-08-29 por tools/relay_word_vs_61850.py.
+SCD: SE EXEMPLO III_R0j_28082026.scd
+
+METODO
+  Base (Relay Word)  cache GLV `cache/<FID>.json` quando existe; senao os
+                     `bits` de `data/wordbits/<MODELO>.json`. Ambos vem de
+                     um rele real -- nao de documentacao.
+  Lado 61850         uniao do sAddr="db:NOME" dos IEDs daquele modelo no
+                     SCD do projeto com o mapa de fabrica do ICD.
+  Faltando           bit que existe na Relay Word e nao tem sAddr em
+                     nenhuma das duas: nao ha endereco MMS pra ele.
+
+  O sAddr e' atributo de SCL e o rele NAO o serve por MMS (verificado no
+  SEL-451-5 R331: $DC$Ind01$d -> object-non-existent), entao o mapa so vem
+  de arquivo -- nunca de descoberta no rele, como o TAR faz no telnet.
+
+  ATENCAO AO 7xx: um rele `fast_read=fast_meter_digitals` nao tem regiao
+  TARGET; a Relay Word dele chega pelo bloco DNA do Fast Meter, que carrega
+  MENOS nomes que o mapa SCL. Base menor que o mapa e' ESTRUTURAL nessa
+  familia, nao captura parcial -- e o que o mapa tem a mais inclui os 256
+  VB, que o telnet nao le de jeito nenhum.
+
+RESUMO
+  modelo        Relay Word  mapa 61850  coberto  faltando  cobertura  fontes
+  SEL-311C             731         693      579       152     79.2%  SCD
+  SEL-411L            3432        2437     1356      2076     39.5%  SCD+ICD
+  SEL-451             3027        2339     1350      1677     44.6%  SCD+ICD
+  SEL-487E            3384        3206     1398      1986     41.3%  SCD+ICD
+  SEL-751             1118        2074      704       414     63.0%  SCD+ICD
+
+MODELOS SEM BASE (nao da pra calcular)
+  Um modelo so entra na tabela acima quando existe uma captura REAL da
+  Relay Word dele. Sem isso nao ha o que subtrair, e inventar a partir do
+  manual seria pior que a ausencia.
+  23 pecas tem mapa 61850 mas nenhuma captura de Relay Word:
+    2411        2414        2440        400G        401         411L2S      411L2T      421
+    4217P       4217S       4217T       4516P       4516S       4516T       487B        487B2S
+    487B2T      487E5P      487E5S      487E5T      487V        787L        851
+
+  Pra incluir uma: abra o rele uma vez no GLV por telnet -- o
+  AsciiTargetReader grava `cache/<FID>.json` -- e rode este gerador de novo.
+
+==========================================================================
+SEL-311C   --   152 de 731 bits sem endereco 61850 (20.8%)
+==========================================================================
+  Relay Word :   731 bits   fonte: cache GLV SEL-311C-1-R509-V0-Z104101-D20240709
+               fast_read=tar_digitals
+  SCD        :   693 bits   IEDs: QPC1_LT1_UPC2, QPC1_LT2_UPC2
+               configVersion: ICD-311C1-R505-V0-Z507005-D20150205
+  ICD        :     -          sem mapa pra peca '311C1'
+
+  COBERTO    :   579 (79.2%)
+  FALTANDO   :   152 (20.8%)
+
+  COBERTURA POR FAMILIA
+    familia                                       RW  61850     %
+    outros                                       551    430   78%
+    elemento ANSI                                128    107   84%
+    botoeiras (PB)                                10      0    0%
+    alvos de LED                                  26     26  100%
+    contadores/temporizadores SELOGIC 7xx         16     16  100%
+
+  BITS FALTANDO, POR FAMILIA
+    -- outros  (121)
+     BCW          BCWA         BCWB         BCWC         BTX          CF
+     CLOSE        COMMT        CVTBL        DD           DELTA        DST
+     DSTP         DSTRT        DTT          ESOAL        F32I         F32Q
+     F32QG        F32V         FIDEN        FREQOK       FSA          FSB
+     FSC          GDEM         IAMET        IBMET        ICMET        ILOP
+     INMET        L51          LCOMM        LPSEC        LPSECP       LSOTF
+     LTIME        LTRIP        LZONE1       LZONE2       LZONE3       LZONE4
+     M2PSEQT      MSOAL        NDEM         NSTRT        OPTMN        OSB
+     OSB1         OSB2         OSB3         OSB4         OST          OSTI
+     OSTO         PDEM         PMDOK        PMTRIG       PT           PTRX1
+     PTRX2        QDEM         R32I         R32Q         R32QG        R32V
+     RCSF         RSTDNPE      RSTMN        RSTTRGT      RST_BK       RST_DEM
+     RST_ENE      RST_HAL      RST_HIS      RST_MML      RST_PDM      SF
+     SFAST        SOTFE        SOTFT        SSLOW        STOP         TESTDB
+     TIRIG        TQUAL1       TQUAL2       TQUAL3       TQUAL4       TREA1
+     TREA2        TREA3        TREA4        TRGTR        TSNTPB       TSNTPP
+     TSOK         UBB          UBB1         UBB2         UBOSB        V0GAIN
+     VPOLV        WFC          WYE          X5ABC        X6ABC        Z1T
+     Z1X          Z1XG         Z1XP         Z2GSEQT      Z2PGS        Z2SEQT
+     Z2T          Z3T          Z3XT         Z4T          ZLIN         ZLOAD
+     ZLOUT
+
+    -- elemento ANSI  (21)
+     25A1         25A2         32IE         32QE         32QGE        32VE
+     3V0          50ABC        50BFA        50BFB        50BFC        50BFT
+     51GR         51PR         51QR         59VA         59VP         59VS
+     67QG2S       67QUBF       67QUBR
+
+    -- botoeiras (PB)  (10)
+     PB10PUL      PB1PUL       PB2PUL       PB3PUL       PB4PUL       PB5PUL
+     PB6PUL       PB7PUL       PB8PUL       PB9PUL
+
+
+==========================================================================
+SEL-411L   --   2076 de 3432 bits sem endereco 61850 (60.5%)
+==========================================================================
+  Relay Word :  3432 bits   fonte: cache GLV SEL-411L-A-R133-V2-Z022004-D20251103
+               fast_read=target_region
+  SCD        :  2244 bits   IEDs: QPC1_LT1_UPC1, QPC1_LT2_UPC1
+               configVersion: ICD-411L-R309-V0-Z133010-D20250430
+  ICD        :  2357 bits   grupos: 411L/010, 411L/011
+
+  COBERTO    :  1356 (39.5%)
+  FALTANDO   :  2076 (60.5%)
+
+  COBERTURA POR FAMILIA
+    familia                                       RW  61850     %
+    outros                                      1876   1144   61%
+    elemento ANSI                                616    123   20%
+    saidas de bloco SELOGIC (sufixo Q/R)         320      0    0%
+    seccionadora (89*)                           282     40   14%
+    Fast Operate (FOP)                           128      0    0%
+    latch bits (LB_)                             128      0    0%
+    botoeiras (PB)                                38     12   32%
+    contadores/temporizadores SELOGIC 7xx          4      0    0%
+    RTD                                           15     12   80%
+    alvos de LED                                  25     25  100%
+
+  BITS FALTANDO, POR FAMILIA
+    -- outros  (732)
+     A3PT         ACCESSP      AFRTEXA      AFRTEXP      ALTI         ALTP11
+     ALTP12       ALTP21       ALTP22       ALTS1        ALTS2        ALTV
+     APS          ATPA         ATPB         ATPC         AUNRLBL      B1BITAL
+     B1KAIAL      B1MRTAL      B1MRTIN      B1OPHA       B1OPHB       B1OPHC
+     B1PDAL       B1PSAL       B2BITAL      B2KAIAL      B2MRTAL      B2MRTIN
+     B2OPHA       B2OPHB       B2OPHC       B2PDAL       B2PSAL       BCALRMA
+     BCALRMB      BCALRMC      BCALRTC      BCDETA       BCDETB       BCDETC
+     BCDKCLA      BCDKCLB      BCDKCLC      BCDTC        BCENA        BCENB
+     BCENC        BCIAAS       BCIAIAS      BCIAMS       BCIBAS       BCIBIAS
+     BCIBMS       BCICAS       BCICIAS      BCICMS       BCIDETA      BCIDETB
+     BCIDETC      BCZ1A        BCZ1B        BCZ1C        BCZ2A        BCZ2B
+     BCZ2C        BFI3P1       BFI3P2       BFI3PT1      BFI3PT2      BFIA1
+     BFIA2        BFIAT1       BFIAT2       BFIB1        BFIB2        BFIBT1
+     BFIBT2       BFIC1        BFIC2        BFICT1       BFICT2       BFILC1
+     BFILC2       BFIN1        BFIN2        BFTR1        BFTR2        BFTRIP1
+     BFTRIP2      BFULTR1      BFULTR2      BK1BFT       BK1CFT       BK1CLSS
+     BK1CLST      BK1EXT       BK1LO        BK1RCIP      BK1RS        BK1SPT
+     BK2BFT       BK2CFT       BK2CLSS      BK2CLST      BK2EXT       BK2LO
+     BK2RCIP      BK2RS        BK2SPT       BLKFOA1      BLKFOA2      BLKFOB1
+     BLKFOB2      BLKFOC1      BLKFOC2      BLKLPTS      BM1CLSA      BM1CLSB
+     BM1CLSC      BM1TRPA      BM1TRPB      BM1TRPC      BM2CLSA      BM2CLSB
+     BM2CLSC      BM2TRPA      BM2TRPB      BM2TRPC      BNCSYNC      BNC_BNP
+     BNC_OK       BNC_RST      BNC_SET      BNC_TIM      BPS          BSYNBK1
+     BSYNBK2      CNR1AB       CNR1BC       CNR1CA       CNR2AB       CNR2BC
+     CNR2CA       CNRAG1R      CNRAGRF      CNRAGRR      CNRBG1R      CNRBGRF
+     CNRBGRR      CNRCG1R      CNRCGRF      CNRCGRR      COMPRM       CPS
+     CVTBL        CVTBLH       DDTO         DELAY        DFAULT       DLDB1
+     DLDB2        DLLB1        DLLB2        DOSB         DPF3_OK      DPFA_OK
+     DPFB_OK      DPFC_OK      DST          DSTP         DSTRT        DTA
+     DTB          DTC          DTR          E2AC         E32OP01      E32OP02
+     E32OP03      E32OP04      E32UP01      E32UP02      E32UP03      E32UP04
+     E3PT         E3PT1        E3PT2        E87DTT       E87LGS       E87LPS
+     E87LQS       EACC         EAFSRC       ECH1OUT      ECH2OUT      ECTTA
+     ECTTB        ECTTC        EKEYA        EKEYB        EKEYC        ENX2AB
+     ENX2AG       ENX2BC       ENX2BG       ENX2CA       ENX2CG       ER
+     ESTUB        ETL1         ETL2         ETL3         EVELOCK      EWDSEC
+     F32I         F32QG        F32V         FAST1        FAST2        FIDEN
+     FLTINT       FOA1         FOA2         FOB1         FOB2         FOBF1
+     FOBF2        FOC1         FOC2         FOLBK0       FOLBK1       FOLBK2
+     FREQFZ       FREQOK       FROKPM       FSA          FSB          FSC
+     FSERP1       FSERP2       FSERP3       FSERP5       FSERPF       FTDLG
+     FTMPH        FTPH         FTSA         FTSAB        FTSABC       FTSABG
+     FTSAG        FTSB         FTSBC        FTSBCG       FTSBG        FTSC
+     FTSCA        FTSCAG       FTSCG        FTSG         FTSLG        GDEM
+     GROUND       HALARMA      HALARML      HALARMP      HSDGF        HSDGR
+     HSDQF        HSDQR        ILOP         IO300OK      IO400OK      IO500OK
+     IWDD         IXDD         KEY1         KEY3         KEYA         KEYB
+     KEYC         KEYD         LCBF1        LCBF2        LD_DPF3      LD_DPFA
+     LD_DPFB      LD_DPFC      LEADBK0      LEADBK1      LEADBK2      LG_DPF3
+     LG_DPFA      LG_DPFB      LG_DPFC      LLDB1        LLDB2        LOADTE
+     LOPEXT       LOPHA        LOPHB        LOPHC        LOPTC        LPSEC
+     LPSECP       M1P          M1PT         M2P          M2PT         M3P
+     M3PT         M4P          M4PT         M5P          M5PT         MAB1
+     MAB1F        MAB1H        MAB2         MAB2F        MAB2H        MAB3
+     MAB3F        MAB3H        MAB4         MAB4F        MAB5         MAB5F
+     MAG1         MAG1F        MAG1H        MAG2         MAG2F        MAG2H
+     MAG3         MAG3F        MAG3H        MAG4         MAG4F        MAG5
+     MAG5F        MATHERR      MBC1         MBC1F        MBC1H        MBC2
+     MBC2F        MBC2H        MBC3         MBC3F        MBC3H        MBC4
+     MBC4F        MBC5         MBC5F        MBG1         MBG1F        MBG1H
+     MBG2         MBG2F        MBG2H        MBG3         MBG3F        MBG3H
+     MBG4         MBG4F        MBG5         MBG5F        MCA1         MCA1F
+     MCA1H        MCA2         MCA2F        MCA2H        MCA3         MCA3F
+     MCA3H        MCA4         MCA4F        MCA5         MCA5F        MCG1
+     MCG1F        MCG1H        MCG2         MCG2F        MCG2H        MCG3
+     MCG3F        MCG3H        MCG4         MCG4F        MCG5         MCG5F
+     NBF1         NBF2         NBK0         NBK1         NBK2         NSTRT
+     OOSDET       OSBA         OSBB         OSBC         OSTI         OSTO
+     P5ABSW       P5CDSW       PDEM         PF3_OK       PFA_OK       PFB_OK
+     PFC_OK       PFRTEX       PHASE_A      PHASE_B      PHASE_C      PLDTE
+     PMDOK        PMTEST       PMTRIG       PT           PTA          PTB
+     PTC          PTDRX        PTPSYNC      PTP_BNP      PTP_OK       PTP_RST
+     PTP_SET      PTP_TIM      PTRX1        PTRX2        PUNRLBL      QDEM
+     R1T          R32I         R32QG        R32V         R3PTE        R3PTE1
+     R3PTE2       R6T          R7T          RL6          RL7          RR6
+     RR7          RSTDNPE      RSTFLOC      RSTMMB1      RSTMMB2      RSTMML
+     RSTOCT       RSTTRGT      RST_79C      RST_BAT      RST_BK1      RST_BK2
+     RST_DEM      RST_ENE      RST_HAL      RST_PDM      RT3P1        RT3P2
+     RTCCFGA      RTCCFGB      RTCDLYA      RTCDLYB      RTCENA       RTCENB
+     RTCROK       RTCROKA      RTCROKB      RTCSEQA      RTCSEQB      RTS3P1
+     RTS3P2       RTSA1        RTSA2        RTSB1        RTSB2        RTSC1
+     RTSC2        RVRS1        RVRS2        RVRS3        RVRS4        RVRS5
+     SCBK1BC      SCBK1BO      SCBK2BC      SCBK2BO      SD           SERCA
+     SERCAB       SERCB        SERCBC       SERCC        SERCCA       SERSYNC
+     SER_BNP      SER_OK       SER_RST      SER_SET      SER_TIM      SFBK1
+     SFBK2        SFZBK1       SFZBK2       SLOW1        SLOW2        SOTFE
+     SOTFT        SP1CLS       SP2CLS       SPARC        SPCER1       SPCER2
+     SPCER3       SPCERF       SPEN         SPLSHT       SPO          SPOA
+     SPOB         SPOBK1       SPOBK2       SPOC         SPOI         SPOISC
+     SPRCIP       SPRI         SPSHOT0      SPSHOT1      SPSHOT2      SPT
+     SPT_A        SPT_B        SPT_C        SSD          STALLTE      STOP
+     TBBK         TBNC         TESTDB       TESTDB2      TESTFM       TESTPUL
+     TGLOBAL      TIRIG        TLOCAL       TOP          TPLLEXT      TPTP
+     TQUAL1       TQUAL2       TQUAL4       TQUAL8       TREA1        TREA2
+     TREA3        TREA4        TRGTR        TRPRM        TSER         TSNTPB
+     TSNTPP       TSOK         TSSW         TSYNC        TSYNCA       TUPDH
+     TUTC1        TUTC2        TUTC4        TUTC8        TUTCH        TUTCS
+     TWALTI       TWFLIF       TWIW         TWIX         TWPOST       TWREC
+     TWRTV        TWWAIT       UBB          UBB1         UBB2         UBOSB
+     ULCL1        ULCL2        ULMTR1       ULMTR2       ULTR         ULTRA
+     ULTRB        ULTRC        UPD_BLK      UPD_EN       VMEMC        VPOLV
+     VYDD         VZDD         WFC          X6ABC        X6T          X7ABC
+     X7T          XAB1         XAB1F        XAB1H        XAB2         XAB2F
+     XAB2H        XAB3         XAB3F        XAB3H        XAB4         XAB4F
+     XAB5         XAB5F        XAG1         XAG1F        XAG1H        XAG2
+     XAG2F        XAG2H        XAG3         XAG3F        XAG3H        XAG4
+     XAG4F        XAG5         XAG5F        XBC1         XBC1F        XBC1H
+     XBC2         XBC2F        XBC2H        XBC3         XBC3F        XBC3H
+     XBC4         XBC4F        XBC5         XBC5F        XBG1         XBG1F
+     XBG1H        XBG2         XBG2F        XBG2H        XBG3         XBG3F
+     XBG3H        XBG4         XBG4F        XBG5         XBG5F        XCA1
+     XCA1F        XCA1H        XCA2         XCA2F        XCA2H        XCA3
+     XCA3F        XCA3H        XCA4         XCA4F        XCA5         XCA5F
+     XCG1         XCG1F        XCG1H        XCG2         XCG2F        XCG2H
+     XCG3         XCG3F        XCG3H        XCG4         XCG4F        XCG5
+     XCG5F        YEAR1        YEAR10       YEAR2        YEAR20       YEAR4
+     YEAR40       YEAR8        YEAR80       Z1MGTC       Z1MPTC       Z1T
+     Z1XGTC       Z1XPTC       Z2MGTC       Z2MPTC       Z2PGS        Z2T
+     Z2XGTC       Z2XPTC       Z3MGTC       Z3MPTC       Z3RBA        Z3RBB
+     Z3RBC        Z3T          Z3XGTC       Z3XPTC       Z3XT         Z4MGTC
+     Z4MPTC       Z4T          Z4XGTC       Z4XPTC       Z5MGTC       Z5MPTC
+     Z5T          Z5XGTC       Z5XPTC       ZLIN         ZLOAD        ZLOUT
+
+    -- elemento ANSI  (493)
+     25A1BK1      25A1BK2      25A2BK1      25A2BK2      25ENBK1      25ENBK2
+     25W1BK1      25W1BK2      25W2BK1      25W2BK2      27APO        27AWI
+     27BPO        27BWI        27CPO        27CWI        27TC1        27TC2
+     27TC3        27TC4        27TC5        27TC6        2POBK1       2POBK2
+     32IE         32OP01       32OP02       32OP03       32OP04       32OPT01
+     32OPT02      32OPT03      32OPT04      32QE         32QF         32QGE
+     32QR         32SPOF       32SPOR       32UP01       32UP02       32UP03
+     32UP04       32UPT01      32UPT02      32UPT03      32UPT04      32VE
+     3P1CLS       3P2CLS       3PARC        3PLSHT       3PO          3POBK1
+     3POBK2       3POI         3POISC       3POLINE      3PRCIP       3PRI
+     3PS          3PSHOT0      3PSHOT1      3PSHOT2      3PSHOT3      3PSHOT4
+     3PT          50ABC        50FA1        50FA2        50FB1        50FB2
+     50FC1        50FC2        50FOA1       50FOA2       50FOB1       50FOB2
+     50FOC1       50FOC2       50GF         50GR         50HSTC       50LCA1
+     50LCA2       50LCB1       50LCB2       50LCC1       50LCC2       50PHS
+     50PPHS       50QF         50QR         50R1         50R2         51MM01
+     51MM02       51MM03       51MM04       51MM05       51MM06       51MM07
+     51MM08       51MM09       51MM10       51R01        51R02        51R03
+     51R04        51R05        51R06        51R07        51R08        51R09
+     51R10        51TC01       51TC02       51TC03       51TC04       51TC05
+     51TC06       51TC07       51TC08       51TC09       51TC10       51TM01
+     51TM02       51TM03       51TM04       51TM05       51TM06       51TM07
+     51TM08       51TM09       51TM10       521CLSM      521RACK      521TEST
+     521_ALM      522CLSM      522RACK      522TEST      522_ALM      523CLSM
+     523RACK      523TEST      523_ALM      52AA1        52AA2        52AAL1
+     52AAL2       52AB1        52AB2        52AC1        52AC2        52ACL1
+     52ACL2       52BAL1       52BAL2       52BCL1       52BCL2       52CAL1
+     52CAL2       52CCL1       52CCL2       59TC1        59TC2        59TC3
+     59TC4        59TC5        59TC6        59VDIF1      59VDIF2      59VP
+     59VP1        59VP2        59VS1        59VS2        67PHS        67PPHS
+     67QG2S       67QUBF       67QUBR       79CY1        79CY3        79STRT
+     81D1         81D1OVR      81D1UDR      81D2         81D2OVR      81D2UDR
+     81D3         81D3OVR      81D3UDR      81D4         81D4OVR      81D4UDR
+     81D5         81D5OVR      81D5UDR      81D6         81D6OVR      81D6UDR
+     87ABK2       87ABK5       87ALARM      87BBK2       87BBK5       87BLOCK
+     87C1BCH      87C2BCH      87C3BCH      87CBK2       87CBK5       87CCB
+     87CCC        87CCD        87CCU        87CH1AM      87CH1BR      87CH1CH
+     87CH1CL      87CH1CS      87CH1DT      87CH1FB      87CH1FC      87CH1FO
+     87CH1FT      87CH1HS      87CH1LP      87CH1LS      87CH1NB      87CH1NS
+     87CH1RQ      87CH1T       87CH1TK      87CH1TS      87CH2AM      87CH2BR
+     87CH2CH      87CH2CL      87CH2CS      87CH2DT      87CH2FB      87CH2FC
+     87CH2FO      87CH2FT      87CH2HS      87CH2LP      87CH2LS      87CH2NB
+     87CH2NS      87CH2RQ      87CH2T       87CH2TK      87CH2TS      87CH3BR
+     87CH3CH      87CH3CL      87CH3CS      87CH3DT      87CH3FB      87CH3FC
+     87CH3FO      87CH3FT      87CH3HS      87CH3LP      87CH3LS      87CH3NB
+     87CH3NS      87CH3RQ      87CH3T       87CH3TK      87CH3TS      87CHTRG
+     87CTWL       87CTXL       87DDIL       87DDL        87DDR        87DDRD
+     87DDSUP      87DDVL       87DTT1       87DTT2       87DTT3       87DTTI
+     87DTTRX      87DTTTX      87EFD        87EFDL       87EFDR       87FDFID
+     87FIDEN      87FIDPH      87FLSOK      87FTS        87HBA        87HBB
+     87HBC        87HRA        87HRB        87HRC        87IFDL       87L50A
+     87L50B       87L50C       87L50G       87L50Q       87LGSEC      87LOOPT
+     87LP         87LPSEC      87LQSEC      87LSP        87LST        87LU
+     87LUA        87LUB        87LUC        87MTR        87OCT        87OCTA
+     87OCTB       87OCTC       87QB         87R01P1      87R01P2      87R01P3
+     87R02P1      87R02P2      87R02P3      87R03P1      87R03P2      87R03P3
+     87R04P1      87R04P2      87R04P3      87R05P1      87R05P2      87R05P3
+     87R06P1      87R06P2      87R06P3      87R07P1      87R07P2      87R07P3
+     87R08P1      87R08P2      87R08P3      87R09P1      87R09P2      87R09P3
+     87R10P1      87R10P2      87R10P3      87R11P1      87R11P2      87R11P3
+     87R12P1      87R12P2      87R12P3      87R13P1      87R13P2      87R13P3
+     87R14P1      87R14P2      87R14P3      87R15P1      87R15P2      87R15P3
+     87R16P1      87R16P2      87R16P3      87R17P1      87R17P2      87R17P3
+     87R18P1      87R18P2      87R18P3      87R19P1      87R19P2      87R19P3
+     87R20P1      87R20P2      87R20P3      87R21P1      87R21P2      87R21P3
+     87R22P1      87R22P2      87R22P3      87R23P1      87R23P2      87R23P3
+     87R24P1      87R24P2      87R24P3      87R25P1      87R25P2      87R25P3
+     87R26P1      87R26P2      87R26P3      87R27P1      87R27P2      87R27P3
+     87R28P1      87R28P2      87R28P3      87R29P1      87R29P2      87R29P3
+     87R30P1      87R30P2      87R30P3      87R31P1      87R31P2      87R31P3
+     87R32P1      87R32P2      87R32P3      87ROCT       87ROCTA      87ROCTB
+     87ROCTC      87ROCTU      87SLV        87SPTS       87STAG       87STBG
+     87STCG       87SYNH       87SYNL       87T01E       87T02E       87T03E
+     87T04E       87T05E       87T06E       87T07E       87T08E       87T09E
+     87T10E       87T11E       87T12E       87T13E       87T14E       87T15E
+     87T16E       87T17E       87T18E       87T19E       87T1P1       87T1P2
+     87T20E       87T21E       87T22E       87T23E       87T24E       87T25E
+     87T26E       87T27E       87T28E       87T29E       87T2P1       87T2P2
+     87T30E       87T31E       87T32E       87T3P1       87T3P2       87T4P1
+     87T4P2       87T5P1       87T5P2       87T6P1       87T6P2       87T7P1
+     87T7P2       87T8P1       87T8P2       87TEST       87TESTL      87TESTR
+     87TMSUP      87TOUT       87TST1       87TST2       87TST3       87USAFE
+     87XBK2
+
+    -- saidas de bloco SELOGIC (sufixo Q/R)  (320)
+     ACN01Q       ACN01R       ACN02Q       ACN02R       ACN03Q       ACN03R
+     ACN04Q       ACN04R       ACN05Q       ACN05R       ACN06Q       ACN06R
+     ACN07Q       ACN07R       ACN08Q       ACN08R       ACN09Q       ACN09R
+     ACN10Q       ACN10R       ACN11Q       ACN11R       ACN12Q       ACN12R
+     ACN13Q       ACN13R       ACN14Q       ACN14R       ACN15Q       ACN15R
+     ACN16Q       ACN16R       ACN17Q       ACN17R       ACN18Q       ACN18R
+     ACN19Q       ACN19R       ACN20Q       ACN20R       ACN21Q       ACN21R
+     ACN22Q       ACN22R       ACN23Q       ACN23R       ACN24Q       ACN24R
+     ACN25Q       ACN25R       ACN26Q       ACN26R       ACN27Q       ACN27R
+     ACN28Q       ACN28R       ACN29Q       ACN29R       ACN30Q       ACN30R
+     ACN31Q       ACN31R       ACN32Q       ACN32R       ACT01Q       ACT02Q
+     ACT03Q       ACT04Q       ACT05Q       ACT06Q       ACT07Q       ACT08Q
+     ACT09Q       ACT10Q       ACT11Q       ACT12Q       ACT13Q       ACT14Q
+     ACT15Q       ACT16Q       ACT17Q       ACT18Q       ACT19Q       ACT20Q
+     ACT21Q       ACT22Q       ACT23Q       ACT24Q       ACT25Q       ACT26Q
+     ACT27Q       ACT28Q       ACT29Q       ACT30Q       ACT31Q       ACT32Q
+     AST01Q       AST01R       AST02Q       AST02R       AST03Q       AST03R
+     AST04Q       AST04R       AST05Q       AST05R       AST06Q       AST06R
+     AST07Q       AST07R       AST08Q       AST08R       AST09Q       AST09R
+     AST10Q       AST10R       AST11Q       AST11R       AST12Q       AST12R
+     AST13Q       AST13R       AST14Q       AST14R       AST15Q       AST15R
+     AST16Q       AST16R       AST17Q       AST17R       AST18Q       AST18R
+     AST19Q       AST19R       AST20Q       AST20R       AST21Q       AST21R
+     AST22Q       AST22R       AST23Q       AST23R       AST24Q       AST24R
+     AST25Q       AST25R       AST26Q       AST26R       AST27Q       AST27R
+     AST28Q       AST28R       AST29Q       AST29R       AST30Q       AST30R
+     AST31Q       AST31R       AST32Q       AST32R       PCN01Q       PCN01R
+     PCN02Q       PCN02R       PCN03Q       PCN03R       PCN04Q       PCN04R
+     PCN05Q       PCN05R       PCN06Q       PCN06R       PCN07Q       PCN07R
+     PCN08Q       PCN08R       PCN09Q       PCN09R       PCN10Q       PCN10R
+     PCN11Q       PCN11R       PCN12Q       PCN12R       PCN13Q       PCN13R
+     PCN14Q       PCN14R       PCN15Q       PCN15R       PCN16Q       PCN16R
+     PCN17Q       PCN17R       PCN18Q       PCN18R       PCN19Q       PCN19R
+     PCN20Q       PCN20R       PCN21Q       PCN21R       PCN22Q       PCN22R
+     PCN23Q       PCN23R       PCN24Q       PCN24R       PCN25Q       PCN25R
+     PCN26Q       PCN26R       PCN27Q       PCN27R       PCN28Q       PCN28R
+     PCN29Q       PCN29R       PCN30Q       PCN30R       PCN31Q       PCN31R
+     PCN32Q       PCN32R       PCT01Q       PCT02Q       PCT03Q       PCT04Q
+     PCT05Q       PCT06Q       PCT07Q       PCT08Q       PCT09Q       PCT10Q
+     PCT11Q       PCT12Q       PCT13Q       PCT14Q       PCT15Q       PCT16Q
+     PCT17Q       PCT18Q       PCT19Q       PCT20Q       PCT21Q       PCT22Q
+     PCT23Q       PCT24Q       PCT25Q       PCT26Q       PCT27Q       PCT28Q
+     PCT29Q       PCT30Q       PCT31Q       PCT32Q       PST01Q       PST01R
+     PST02Q       PST02R       PST03Q       PST03R       PST04Q       PST04R
+     PST05Q       PST05R       PST06Q       PST06R       PST07Q       PST07R
+     PST08Q       PST08R       PST09Q       PST09R       PST10Q       PST10R
+     PST11Q       PST11R       PST12Q       PST12R       PST13Q       PST13R
+     PST14Q       PST14R       PST15Q       PST15R       PST16Q       PST16R
+     PST17Q       PST17R       PST18Q       PST18R       PST19Q       PST19R
+     PST20Q       PST20R       PST21Q       PST21R       PST22Q       PST22R
+     PST23Q       PST23R       PST24Q       PST24R       PST25Q       PST25R
+     PST26Q       PST26R       PST27Q       PST27R       PST28Q       PST28R
+     PST29Q       PST29R       PST30Q       PST30R       PST31Q       PST31R
+     PST32Q       PST32R
+
+    -- seccionadora (89*)  (242)
+     89AL         89AL01       89AL02       89AL03       89AL04       89AL05
+     89AL06       89AL07       89AL08       89AL09       89AL10       89AM01
+     89AM02       89AM03       89AM04       89AM05       89AM06       89AM07
+     89AM08       89AM09       89AM10       89BM01       89BM02       89BM03
+     89BM04       89BM05       89BM06       89BM07       89BM08       89BM09
+     89BM10       89CBL01      89CBL02      89CBL03      89CBL04      89CBL05
+     89CBL06      89CBL07      89CBL08      89CBL09      89CBL10      89CC01
+     89CC02       89CC03       89CC04       89CC05       89CC06       89CC07
+     89CC08       89CC09       89CC10       89CCM01      89CCM02      89CCM03
+     89CCM04      89CCM05      89CCM06      89CCM07      89CCM08      89CCM09
+     89CCM10      89CCN01      89CCN02      89CCN03      89CCN04      89CCN05
+     89CCN06      89CCN07      89CCN08      89CCN09      89CCN10      89CIM01
+     89CIM02      89CIM03      89CIM04      89CIM05      89CIM06      89CIM07
+     89CIM08      89CIM09      89CIM10      89CIR01      89CIR02      89CIR03
+     89CIR04      89CIR05      89CIR06      89CIR07      89CIR08      89CIR09
+     89CIR10      89CL01       89CL02       89CL03       89CL04       89CL05
+     89CL06       89CL07       89CL08       89CL09       89CL10       89CLB01
+     89CLB02      89CLB03      89CLB04      89CLB05      89CLB06      89CLB07
+     89CLB08      89CLB09      89CLB10      89CRS01      89CRS02      89CRS03
+     89CRS04      89CRS05      89CRS06      89CRS07      89CRS08      89CRS09
+     89CRS10      89CSI01      89CSI02      89CSI03      89CSI04      89CSI05
+     89CSI06      89CSI07      89CSI08      89CSI09      89CSI10      89CTL01
+     89CTL02      89CTL03      89CTL04      89CTL05      89CTL06      89CTL07
+     89CTL08      89CTL09      89CTL10      89OBL01      89OBL02      89OBL03
+     89OBL04      89OBL05      89OBL06      89OBL07      89OBL08      89OBL09
+     89OBL10      89OC01       89OC02       89OC03       89OC04       89OC05
+     89OC06       89OC07       89OC08       89OC09       89OC10       89OCM01
+     89OCM02      89OCM03      89OCM04      89OCM05      89OCM06      89OCM07
+     89OCM08      89OCM09      89OCM10      89OCN01      89OCN02      89OCN03
+     89OCN04      89OCN05      89OCN06      89OCN07      89OCN08      89OCN09
+     89OCN10      89OIM01      89OIM02      89OIM03      89OIM04      89OIM05
+     89OIM06      89OIM07      89OIM08      89OIM09      89OIM10      89OIP
+     89OIP01      89OIP02      89OIP03      89OIP04      89OIP05      89OIP06
+     89OIP07      89OIP08      89OIP09      89OIP10      89OIR01      89OIR02
+     89OIR03      89OIR04      89OIR05      89OIR06      89OIR07      89OIR08
+     89OIR09      89OIR10      89OPN01      89OPN02      89OPN03      89OPN04
+     89OPN05      89OPN06      89OPN07      89OPN08      89OPN09      89OPN10
+     89ORS01      89ORS02      89ORS03      89ORS04      89ORS05      89ORS06
+     89ORS07      89ORS08      89ORS09      89ORS10      89OSI01      89OSI02
+     89OSI03      89OSI04      89OSI05      89OSI06      89OSI07      89OSI08
+     89OSI09      89OSI10
+
+    -- Fast Operate (FOP)  (128)
+     FOP1_01      FOP1_02      FOP1_03      FOP1_04      FOP1_05      FOP1_06
+     FOP1_07      FOP1_08      FOP1_09      FOP1_10      FOP1_11      FOP1_12
+     FOP1_13      FOP1_14      FOP1_15      FOP1_16      FOP1_17      FOP1_18
+     FOP1_19      FOP1_20      FOP1_21      FOP1_22      FOP1_23      FOP1_24
+     FOP1_25      FOP1_26      FOP1_27      FOP1_28      FOP1_29      FOP1_30
+     FOP1_31      FOP1_32      FOP2_01      FOP2_02      FOP2_03      FOP2_04
+     FOP2_05      FOP2_06      FOP2_07      FOP2_08      FOP2_09      FOP2_10
+     FOP2_11      FOP2_12      FOP2_13      FOP2_14      FOP2_15      FOP2_16
+     FOP2_17      FOP2_18      FOP2_19      FOP2_20      FOP2_21      FOP2_22
+     FOP2_23      FOP2_24      FOP2_25      FOP2_26      FOP2_27      FOP2_28
+     FOP2_29      FOP2_30      FOP2_31      FOP2_32      FOP3_01      FOP3_02
+     FOP3_03      FOP3_04      FOP3_05      FOP3_06      FOP3_07      FOP3_08
+     FOP3_09      FOP3_10      FOP3_11      FOP3_12      FOP3_13      FOP3_14
+     FOP3_15      FOP3_16      FOP3_17      FOP3_18      FOP3_19      FOP3_20
+     FOP3_21      FOP3_22      FOP3_23      FOP3_24      FOP3_25      FOP3_26
+     FOP3_27      FOP3_28      FOP3_29      FOP3_30      FOP3_31      FOP3_32
+     FOPF_01      FOPF_02      FOPF_03      FOPF_04      FOPF_05      FOPF_06
+     FOPF_07      FOPF_08      FOPF_09      FOPF_10      FOPF_11      FOPF_12
+     FOPF_13      FOPF_14      FOPF_15      FOPF_16      FOPF_17      FOPF_18
+     FOPF_19      FOPF_20      FOPF_21      FOPF_22      FOPF_23      FOPF_24
+     FOPF_25      FOPF_26      FOPF_27      FOPF_28      FOPF_29      FOPF_30
+     FOPF_31      FOPF_32
+
+    -- latch bits (LB_)  (128)
+     LB_DP01      LB_DP02      LB_DP03      LB_DP04      LB_DP05      LB_DP06
+     LB_DP07      LB_DP08      LB_DP09      LB_DP10      LB_DP11      LB_DP12
+     LB_DP13      LB_DP14      LB_DP15      LB_DP16      LB_DP17      LB_DP18
+     LB_DP19      LB_DP20      LB_DP21      LB_DP22      LB_DP23      LB_DP24
+     LB_DP25      LB_DP26      LB_DP27      LB_DP28      LB_DP29      LB_DP30
+     LB_DP31      LB_DP32      LB_DP33      LB_DP34      LB_DP35      LB_DP36
+     LB_DP37      LB_DP38      LB_DP39      LB_DP40      LB_DP41      LB_DP42
+     LB_DP43      LB_DP44      LB_DP45      LB_DP46      LB_DP47      LB_DP48
+     LB_DP49      LB_DP50      LB_DP51      LB_DP52      LB_DP53      LB_DP54
+     LB_DP55      LB_DP56      LB_DP57      LB_DP58      LB_DP59      LB_DP60
+     LB_DP61      LB_DP62      LB_DP63      LB_DP64      LB_SP01      LB_SP02
+     LB_SP03      LB_SP04      LB_SP05      LB_SP06      LB_SP07      LB_SP08
+     LB_SP09      LB_SP10      LB_SP11      LB_SP12      LB_SP13      LB_SP14
+     LB_SP15      LB_SP16      LB_SP17      LB_SP18      LB_SP19      LB_SP20
+     LB_SP21      LB_SP22      LB_SP23      LB_SP24      LB_SP25      LB_SP26
+     LB_SP27      LB_SP28      LB_SP29      LB_SP30      LB_SP31      LB_SP32
+     LB_SP33      LB_SP34      LB_SP35      LB_SP36      LB_SP37      LB_SP38
+     LB_SP39      LB_SP40      LB_SP41      LB_SP42      LB_SP43      LB_SP44
+     LB_SP45      LB_SP46      LB_SP47      LB_SP48      LB_SP49      LB_SP50
+     LB_SP51      LB_SP52      LB_SP53      LB_SP54      LB_SP55      LB_SP56
+     LB_SP57      LB_SP58      LB_SP59      LB_SP60      LB_SP61      LB_SP62
+     LB_SP63      LB_SP64
+
+    -- botoeiras (PB)  (26)
+     PB1          PB10         PB10PUL      PB11         PB11PUL      PB12
+     PB12PUL      PB1_PUL      PB2          PB2_PUL      PB3          PB3_PUL
+     PB4          PB4_PUL      PB5          PB5_PUL      PB6          PB6_PUL
+     PB7          PB7_PUL      PB8          PB8_PUL      PB9          PB9_PUL
+     PB_CLSE      PB_TRIP
+
+    -- contadores/temporizadores SELOGIC 7xx  (4)
+     SC850BM      SC850LS      SC850SM      SC850TM
+
+    -- RTD  (3)
+     RTDCOMF      RTDFL        RTDIN
+
+
+==========================================================================
+SEL-451   --   1677 de 3027 bits sem endereco 61850 (55.4%)
+==========================================================================
+  Relay Word :  3027 bits   fonte: cache GLV SEL-451-5-R331-V1-Z033014-D20250919
+               fast_read=target_region
+  SCD        :  2339 bits   IEDs: QPC1_TFE_UPC1, QPC2_TFE1_UPC1, QPC2_TFE2_UPC1
+               configVersion: ICD-451-R408-V1-Z330010-D20250430
+  ICD        :  2195 bits   grupos: 451/010, 451/011
+
+  COBERTO    :  1350 (44.6%)
+  FALTANDO   :  1677 (55.4%)
+
+  COBERTURA POR FAMILIA
+    familia                                       RW  61850     %
+    outros                                      1572   1117   71%
+    seccionadora (89*)                           544     92   17%
+    saidas de bloco SELOGIC (sufixo Q/R)         320      0    0%
+    elemento ANSI                                253     92   36%
+    Fast Operate (FOP)                           128      0    0%
+    latch bits (LB_)                             128      0    0%
+    botoeiras (PB)                                38     12   32%
+    contadores/temporizadores SELOGIC 7xx          4      0    0%
+    RTD                                           15     12   80%
+    alvos de LED                                  25     25  100%
+
+  BITS FALTANDO, POR FAMILIA
+    -- outros  (455)
+     ACCESSP      AFRTEXA      AFRTEXP      ALTI         ALTP11       ALTP12
+     ALTP21       ALTP22       ALTS1        ALTS2        ALTV         ALTVD
+     AUNRLBL      B1BITAL      B1KAIAL      B1MRTAL      B1MRTIN      B1OPHA
+     B1OPHB       B1OPHC       B2BITAL      B2KAIAL      B2MRTAL      B2MRTIN
+     B2OPHA       B2OPHB       B2OPHC       BFI3PT1      BFI3PT2      BFILC1
+     BFILC2       BFIN1        BFIN2        BFTR1        BFTR2        BFTRIP1
+     BFTRIP2      BFULTR1      BFULTR2      BK1BFT       BK1CFT       BK1CLSS
+     BK1CLST      BK1EXT       BK1LO        BK1RCIP      BK1RS        BK2BFT
+     BK2CFT       BK2CLSS      BK2CLST      BK2EXT       BK2LO        BK2RCIP
+     BK2RS        BLKFOA1      BLKFOA2      BLKFOB1      BLKFOB2      BLKFOC1
+     BLKFOC2      BLKLPTS      BM1CLSA      BM1CLSB      BM1CLSC      BM1TRPA
+     BM1TRPB      BM1TRPC      BM2CLSA      BM2CLSB      BM2CLSC      BM2TRPA
+     BM2TRPB      BM2TRPC      BNCSYNC      BNC_BNP      BNC_OK       BNC_RST
+     BNC_SET      BNC_TIM      BSYNBK1      BSYNBK2      CHIZ0        CLDSTRT
+     COMPRM       CPUDO0       CSV02        CSV03        CSV08        CSV09
+     CSV10        CSV11        CSV12        CSV13        CSV14        CSV15
+     CSV16        CSV17        CSV18        CSV19        CSV20        CSV21
+     CSV22        CSV23        CSV24        CSV25        CSV26        CSV27
+     CSV28        CSV29        CSV30        CSV31        CSV32        DDNA
+     DDNB         DDNC         DDNG         DELAY        DFAULT       DIA_DIS
+     DIB_DIS      DIC_DIS      DIG_DIS      DL2CLR       DL2CLRA      DL2CLRB
+     DL2CLRC      DL2CLRG      DLDB1        DLDB2        DLLB1        DLLB2
+     DPF3_OK      DPFA_OK      DPFB_OK      DPFC_OK      DST          DSTP
+     DSTRT        DUPA         DUPB         DUPC         DUPG         DVA_DIS
+     DVB_DIS      DVC_DIS      DVG_DIS      E2AC         E32OP01      E32OP02
+     E32OP03      E32OP04      E32UP01      E32UP02      E32UP03      E32UP04
+     EACC         EAFSRC       ER           ERDY         EVELOCK      F32I
+     F32QG        F32V         FAST1        FAST2        FIDEN        FOA1
+     FOA2         FOB1         FOB2         FOBF1        FOBF2        FOC1
+     FOC2         FOLBK0       FOLBK1       FOLBK2       FREQFZ       FREQOK
+     FROKPM       FRZCLR       FRZCLRA      FRZCLRB      FRZCLRC      FRZCLRG
+     FSA          FSB          FSC          FSERP1       FSERP2       FSERP3
+     FSERP5       FSERPF       GDEM         GROUND       HALARMA      HALARML
+     HALARMP      HIA1_A       HIA1_B       HIA1_C       HIA1_G       HIA2_A
+     HIA2_B       HIA2_C       HIA2_G       HIF1_G       HIF2_G       HIFARMA
+     HIFARMB      HIFARMC      HIFER        HIFFRZ       HIFITUN      HIFMODE
+     HIFREC       HIZ170       HIZ171       HIZ172       HIZ173       HIZ174
+     HIZ175       HIZ180       HIZ181       HIZ190       HIZ191       HIZ192
+     HIZRST       IA2HB        IA5HB        IB2HB        IB5HB        IC2HB
+     IC5HB        ILOP         INT3P        INTA         INTB         INTC
+     IO300OK      IO400OK      IO500OK      ITUNE_A      ITUNE_B      ITUNE_C
+     ITUNE_G      LCBF1        LCBF2        LD_DPF3      LD_DPFA      LD_DPFB
+     LD_DPFC      LEADBK0      LEADBK1      LEADBK2      LG_DPF3      LG_DPFA
+     LG_DPFB      LG_DPFC      LLDB1        LLDB2        LOADTE       LOL_A
+     LOL_B        LOL_C        LOPEXT       LOPHA        LOPHB        LOPHC
+     LOPTC        LPSEC        LPSECP       LR3          LRA          LRB
+     LRC          MATHERR      MPH_EVE      NBF1         NBF2         NBK0
+     NBK1         NBK2         NSTRT        NTUNE_A      NTUNE_B      NTUNE_C
+     NTUNE_G      P5ABSW       PDEM         PF3_OK       PFA_OK       PFB_OK
+     PFC_OK       PFRTEX       PHASE_A      PHASE_B      PHASE_C      PLDTE
+     PMDOK        PMTEST       PMTRIG       PT           PTPSYNC      PTP_BNP
+     PTP_OK       PTP_RST      PTP_SET      PTP_TIM      PTRX1        PTRX2
+     PUNRLBL      QDEM         R32I         R32QG        R32V         RSTDNPE
+     RSTFLOC      RSTMMB1      RSTMMB2      RSTMML       RSTTRGT      RST_79C
+     RST_BAT      RST_BK1      RST_BK2      RST_DEM      RST_ENE      RST_HAL
+     RST_PDM      RTCCFGA      RTCCFGB      RTCDLYA      RTCDLYB      RTCENA
+     RTCENB       RTCROK       RTCROKA      RTCROKB      RTCSEQA      RTCSEQB
+     SAG3P        SAGA         SAGB         SAGC         SCBK1BC      SCBK1BO
+     SCBK2BC      SCBK2BO      SERSYNC      SER_BNP      SER_OK       SER_RST
+     SER_SET      SER_TIM      SFBK1        SFBK2        SFZBK1       SFZBK2
+     SLOW1        SLOW2        SOTFE        SOTFT        SPCER1       SPCER2
+     SPCER3       SPCERF       SPEN         SRDY         STALLTE      STOP
+     SW1A         SW1B         SW1C         SWL3P        SWLA         SWLB
+     SWLC         TBBK         TBNC         TESTDB       TESTDB2      TESTFM
+     TESTPUL      TGLOBAL      TIRIG        TLOCAL       TPLLEXT      TPTP
+     TQUAL1       TQUAL2       TQUAL4       TQUAL8       TREA1        TREA2
+     TREA3        TREA4        TRGTR        TRPRM        TSER         TSNTPB
+     TSNTPP       TSOK         TSSW         TSYNC        TSYNCA       TUNRSTA
+     TUNRSTB      TUNRSTC      TUNSTLA      TUNSTLB      TUNSTLC      TUPDH
+     TUTC1        TUTC2        TUTC4        TUTC8        TUTCH        TUTCS
+     UBB          UBB1         UBB2         ULCL1        ULCL2        ULMTR1
+     ULMTR2       ULTR         ULTRA        UPD_BLK      UPD_EN       VMEMC
+     VPOLV        VSSARM       VSSBLK       VSSCTG       VSSENL       VSSINI
+     VSSPLD       VSSSTG       WFC          XFMR2HB      XFMR5HB      YEAR1
+     YEAR10       YEAR2        YEAR20       YEAR4        YEAR40       YEAR8
+     YEAR80       Z3XT         ZLIN         ZLOAD        ZLOUT
+
+    -- seccionadora (89*)  (452)
+     89AL         89AL01       89AL02       89AL03       89AL04       89AL05
+     89AL06       89AL07       89AL08       89AL09       89AL10       89AL11
+     89AL12       89AL13       89AL14       89AL15       89AL16       89AL17
+     89AL18       89AL19       89AL20       89AM01       89AM02       89AM03
+     89AM04       89AM05       89AM06       89AM07       89AM08       89AM09
+     89AM10       89AM11       89AM12       89AM13       89AM14       89AM15
+     89AM16       89AM17       89AM18       89AM19       89AM20       89BM01
+     89BM02       89BM03       89BM04       89BM05       89BM06       89BM07
+     89BM08       89BM09       89BM10       89BM11       89BM12       89BM13
+     89BM14       89BM15       89BM16       89BM17       89BM18       89BM19
+     89BM20       89CBL01      89CBL02      89CBL03      89CBL05      89CBL06
+     89CBL07      89CBL08      89CBL09      89CBL10      89CBL11      89CBL12
+     89CBL13      89CBL14      89CBL15      89CBL16      89CBL17      89CBL18
+     89CBL19      89CBL20      89CC01       89CC02       89CC03       89CC04
+     89CC05       89CC06       89CC07       89CC08       89CC09       89CC10
+     89CC11       89CC12       89CC13       89CC14       89CC15       89CC16
+     89CC17       89CC18       89CC19       89CC20       89CCM01      89CCM02
+     89CCM03      89CCM04      89CCM05      89CCM06      89CCM07      89CCM08
+     89CCM09      89CCM10      89CCM11      89CCM12      89CCM13      89CCM14
+     89CCM15      89CCM16      89CCM17      89CCM18      89CCM19      89CCM20
+     89CCN01      89CCN02      89CCN03      89CCN04      89CCN05      89CCN06
+     89CCN07      89CCN08      89CCN09      89CCN10      89CCN11      89CCN12
+     89CCN13      89CCN14      89CCN15      89CCN16      89CCN17      89CCN18
+     89CCN19      89CCN20      89CIM01      89CIM02      89CIM04      89CIM05
+     89CIM06      89CIM07      89CIM08      89CIM09      89CIM10      89CIM11
+     89CIM12      89CIM13      89CIM14      89CIM15      89CIM16      89CIM17
+     89CIM18      89CIM19      89CIM20      89CIR01      89CIR02      89CIR03
+     89CIR05      89CIR06      89CIR07      89CIR08      89CIR09      89CIR10
+     89CIR11      89CIR12      89CIR13      89CIR14      89CIR15      89CIR16
+     89CIR17      89CIR18      89CIR19      89CIR20      89CL01       89CL02
+     89CL03       89CL04       89CL05       89CL06       89CL07       89CL08
+     89CL09       89CL10       89CL11       89CL12       89CL13       89CL14
+     89CL15       89CL16       89CL17       89CL18       89CL19       89CL20
+     89CLB01      89CLB02      89CLB03      89CLB04      89CLB05      89CLB06
+     89CLB07      89CLB08      89CLB09      89CLB10      89CLB11      89CLB12
+     89CLB13      89CLB14      89CLB15      89CLB16      89CLB17      89CLB18
+     89CLB19      89CLB20      89CRS01      89CRS02      89CRS03      89CRS05
+     89CRS06      89CRS07      89CRS08      89CRS09      89CRS10      89CRS11
+     89CRS12      89CRS13      89CRS14      89CRS15      89CRS16      89CRS17
+     89CRS18      89CRS19      89CRS20      89CSI01      89CSI02      89CSI03
+     89CSI05      89CSI06      89CSI07      89CSI08      89CSI09      89CSI10
+     89CSI11      89CSI12      89CSI13      89CSI14      89CSI15      89CSI16
+     89CSI17      89CSI18      89CSI19      89CSI20      89OBL01      89OBL02
+     89OBL03      89OBL05      89OBL06      89OBL07      89OBL08      89OBL09
+     89OBL10      89OBL11      89OBL12      89OBL13      89OBL14      89OBL15
+     89OBL16      89OBL17      89OBL18      89OBL19      89OBL20      89OC01
+     89OC02       89OC03       89OC04       89OC05       89OC06       89OC07
+     89OC08       89OC09       89OC10       89OC11       89OC12       89OC13
+     89OC14       89OC15       89OC16       89OC17       89OC18       89OC19
+     89OC20       89OCM01      89OCM02      89OCM03      89OCM04      89OCM05
+     89OCM06      89OCM07      89OCM08      89OCM09      89OCM10      89OCM11
+     89OCM12      89OCM13      89OCM14      89OCM15      89OCM16      89OCM17
+     89OCM18      89OCM19      89OCM20      89OCN01      89OCN02      89OCN03
+     89OCN04      89OCN05      89OCN06      89OCN07      89OCN08      89OCN09
+     89OCN10      89OCN11      89OCN12      89OCN13      89OCN14      89OCN15
+     89OCN16      89OCN17      89OCN18      89OCN19      89OCN20      89OIM01
+     89OIM02      89OIM04      89OIM05      89OIM06      89OIM07      89OIM08
+     89OIM09      89OIM10      89OIM11      89OIM12      89OIM13      89OIM14
+     89OIM15      89OIM16      89OIM17      89OIM18      89OIM19      89OIM20
+     89OIP        89OIP01      89OIP02      89OIP03      89OIP04      89OIP05
+     89OIP06      89OIP07      89OIP08      89OIP09      89OIP10      89OIP11
+     89OIP12      89OIP13      89OIP14      89OIP15      89OIP16      89OIP17
+     89OIP18      89OIP19      89OIP20      89OIR01      89OIR02      89OIR03
+     89OIR05      89OIR06      89OIR07      89OIR08      89OIR09      89OIR10
+     89OIR11      89OIR12      89OIR13      89OIR14      89OIR15      89OIR16
+     89OIR17      89OIR18      89OIR19      89OIR20      89OPN01      89OPN02
+     89OPN03      89OPN04      89OPN05      89OPN06      89OPN07      89OPN08
+     89OPN09      89OPN10      89OPN11      89OPN12      89OPN13      89OPN14
+     89OPN15      89OPN16      89OPN17      89OPN18      89OPN19      89OPN20
+     89ORS01      89ORS02      89ORS03      89ORS05      89ORS06      89ORS07
+     89ORS08      89ORS09      89ORS10      89ORS11      89ORS12      89ORS13
+     89ORS14      89ORS15      89ORS16      89ORS17      89ORS18      89ORS19
+     89ORS20      89OSI01      89OSI02      89OSI03      89OSI05      89OSI06
+     89OSI07      89OSI08      89OSI09      89OSI10      89OSI11      89OSI12
+     89OSI13      89OSI14      89OSI15      89OSI16      89OSI17      89OSI18
+     89OSI19      89OSI20
+
+    -- saidas de bloco SELOGIC (sufixo Q/R)  (320)
+     ACN01Q       ACN01R       ACN02Q       ACN02R       ACN03Q       ACN03R
+     ACN04Q       ACN04R       ACN05Q       ACN05R       ACN06Q       ACN06R
+     ACN07Q       ACN07R       ACN08Q       ACN08R       ACN09Q       ACN09R
+     ACN10Q       ACN10R       ACN11Q       ACN11R       ACN12Q       ACN12R
+     ACN13Q       ACN13R       ACN14Q       ACN14R       ACN15Q       ACN15R
+     ACN16Q       ACN16R       ACN17Q       ACN17R       ACN18Q       ACN18R
+     ACN19Q       ACN19R       ACN20Q       ACN20R       ACN21Q       ACN21R
+     ACN22Q       ACN22R       ACN23Q       ACN23R       ACN24Q       ACN24R
+     ACN25Q       ACN25R       ACN26Q       ACN26R       ACN27Q       ACN27R
+     ACN28Q       ACN28R       ACN29Q       ACN29R       ACN30Q       ACN30R
+     ACN31Q       ACN31R       ACN32Q       ACN32R       ACT01Q       ACT02Q
+     ACT03Q       ACT04Q       ACT05Q       ACT06Q       ACT07Q       ACT08Q
+     ACT09Q       ACT10Q       ACT11Q       ACT12Q       ACT13Q       ACT14Q
+     ACT15Q       ACT16Q       ACT17Q       ACT18Q       ACT19Q       ACT20Q
+     ACT21Q       ACT22Q       ACT23Q       ACT24Q       ACT25Q       ACT26Q
+     ACT27Q       ACT28Q       ACT29Q       ACT30Q       ACT31Q       ACT32Q
+     AST01Q       AST01R       AST02Q       AST02R       AST03Q       AST03R
+     AST04Q       AST04R       AST05Q       AST05R       AST06Q       AST06R
+     AST07Q       AST07R       AST08Q       AST08R       AST09Q       AST09R
+     AST10Q       AST10R       AST11Q       AST11R       AST12Q       AST12R
+     AST13Q       AST13R       AST14Q       AST14R       AST15Q       AST15R
+     AST16Q       AST16R       AST17Q       AST17R       AST18Q       AST18R
+     AST19Q       AST19R       AST20Q       AST20R       AST21Q       AST21R
+     AST22Q       AST22R       AST23Q       AST23R       AST24Q       AST24R
+     AST25Q       AST25R       AST26Q       AST26R       AST27Q       AST27R
+     AST28Q       AST28R       AST29Q       AST29R       AST30Q       AST30R
+     AST31Q       AST31R       AST32Q       AST32R       PCN01Q       PCN01R
+     PCN02Q       PCN02R       PCN03Q       PCN03R       PCN04Q       PCN04R
+     PCN05Q       PCN05R       PCN06Q       PCN06R       PCN07Q       PCN07R
+     PCN08Q       PCN08R       PCN09Q       PCN09R       PCN10Q       PCN10R
+     PCN11Q       PCN11R       PCN12Q       PCN12R       PCN13Q       PCN13R
+     PCN14Q       PCN14R       PCN15Q       PCN15R       PCN16Q       PCN16R
+     PCN17Q       PCN17R       PCN18Q       PCN18R       PCN19Q       PCN19R
+     PCN20Q       PCN20R       PCN21Q       PCN21R       PCN22Q       PCN22R
+     PCN23Q       PCN23R       PCN24Q       PCN24R       PCN25Q       PCN25R
+     PCN26Q       PCN26R       PCN27Q       PCN27R       PCN28Q       PCN28R
+     PCN29Q       PCN29R       PCN30Q       PCN30R       PCN31Q       PCN31R
+     PCN32Q       PCN32R       PCT01Q       PCT02Q       PCT03Q       PCT04Q
+     PCT05Q       PCT06Q       PCT07Q       PCT08Q       PCT09Q       PCT10Q
+     PCT11Q       PCT12Q       PCT13Q       PCT14Q       PCT15Q       PCT16Q
+     PCT17Q       PCT18Q       PCT19Q       PCT20Q       PCT21Q       PCT22Q
+     PCT23Q       PCT24Q       PCT25Q       PCT26Q       PCT27Q       PCT28Q
+     PCT29Q       PCT30Q       PCT31Q       PCT32Q       PST01Q       PST01R
+     PST02Q       PST02R       PST03Q       PST03R       PST04Q       PST04R
+     PST05Q       PST05R       PST06Q       PST06R       PST07Q       PST07R
+     PST08Q       PST08R       PST09Q       PST09R       PST10Q       PST10R
+     PST11Q       PST11R       PST12Q       PST12R       PST13Q       PST13R
+     PST14Q       PST14R       PST15Q       PST15R       PST16Q       PST16R
+     PST17Q       PST17R       PST18Q       PST18R       PST19Q       PST19R
+     PST20Q       PST20R       PST21Q       PST21R       PST22Q       PST22R
+     PST23Q       PST23R       PST24Q       PST24R       PST25Q       PST25R
+     PST26Q       PST26R       PST27Q       PST27R       PST28Q       PST28R
+     PST29Q       PST29R       PST30Q       PST30R       PST31Q       PST31R
+     PST32Q       PST32R
+
+    -- elemento ANSI  (161)
+     25A1BK1      25A1BK2      25A2BK1      25A2BK2      25ENBK1      25ENBK2
+     25W1BK1      25W1BK2      25W2BK1      25W2BK2      27APO        27B81
+     27BPO        27CPO        27TC1        27TC2        27TC3        27TC4
+     27TC5        27TC6        32IE         32OP01       32OP02       32OP03
+     32OP04       32OPT01      32OPT02      32OPT03      32OPT04      32QE
+     32QF         32QGE        32QR         32SPOF       32SPOR       32UP01
+     32UP02       32UP03       32UP04       32UPT01      32UPT02      32UPT03
+     32UPT04      32VE         3P1CLS       3P2CLS       3PARC        3PH_A
+     3PH_B        3PH_C        3PH_CLR      3PH_EVE      3PLSHT       3PO
+     3POBK1       3POBK2       3POI         3POISC       3POLINE      3PRCIP
+     3PRI         3PSHOT0      3PSHOT1      3PSHOT2      3PSHOT3      3PSHOT4
+     3PT          50FA1        50FA2        50FB1        50FB2        50FC1
+     50FC2        50FOA1       50FOA2       50FOB1       50FOB2       50FOC1
+     50FOC2       50GF         50GR         50LCA1       50LCA2       50LCB1
+     50LCB2       50LCC1       50LCC2       50QF         50QR         50R1
+     50R2         51S1R        51S1TC       51S2R        51S2TC       51S3R
+     51S3TC       51S4R        51S4TC       51S5R        51S5TC       51S6R
+     51S6TC       521CLSM      521_ALM      522CLSM      522_ALM      523CLSM
+     523RACK      523TEST      523_ALM      52AA1        52AA2        52AAL1
+     52AAL2       52AB1        52AB2        52AC1        52AC2        52ACL1
+     52ACL2       59TC1        59TC2        59TC3        59TC4        59TC5
+     59TC6        59VDIF1      59VDIF2      59VP         59VP1        59VP2
+     59VS1        59VS2        67QG2S       79CY3        79STRT       81D1
+     81D1OVR      81D1T        81D1UDR      81D2         81D2OVR      81D2T
+     81D2UDR      81D3         81D3OVR      81D3T        81D3UDR      81D4
+     81D4OVR      81D4T        81D4UDR      81D5         81D5OVR      81D5T
+     81D5UDR      81D6         81D6OVR      81D6T        81D6UDR
+
+    -- Fast Operate (FOP)  (128)
+     FOP1_01      FOP1_02      FOP1_03      FOP1_04      FOP1_05      FOP1_06
+     FOP1_07      FOP1_08      FOP1_09      FOP1_10      FOP1_11      FOP1_12
+     FOP1_13      FOP1_14      FOP1_15      FOP1_16      FOP1_17      FOP1_18
+     FOP1_19      FOP1_20      FOP1_21      FOP1_22      FOP1_23      FOP1_24
+     FOP1_25      FOP1_26      FOP1_27      FOP1_28      FOP1_29      FOP1_30
+     FOP1_31      FOP1_32      FOP2_01      FOP2_02      FOP2_03      FOP2_04
+     FOP2_05      FOP2_06      FOP2_07      FOP2_08      FOP2_09      FOP2_10
+     FOP2_11      FOP2_12      FOP2_13      FOP2_14      FOP2_15      FOP2_16
+     FOP2_17      FOP2_18      FOP2_19      FOP2_20      FOP2_21      FOP2_22
+     FOP2_23      FOP2_24      FOP2_25      FOP2_26      FOP2_27      FOP2_28
+     FOP2_29      FOP2_30      FOP2_31      FOP2_32      FOP3_01      FOP3_02
+     FOP3_03      FOP3_04      FOP3_05      FOP3_06      FOP3_07      FOP3_08
+     FOP3_09      FOP3_10      FOP3_11      FOP3_12      FOP3_13      FOP3_14
+     FOP3_15      FOP3_16      FOP3_17      FOP3_18      FOP3_19      FOP3_20
+     FOP3_21      FOP3_22      FOP3_23      FOP3_24      FOP3_25      FOP3_26
+     FOP3_27      FOP3_28      FOP3_29      FOP3_30      FOP3_31      FOP3_32
+     FOPF_01      FOPF_02      FOPF_03      FOPF_04      FOPF_05      FOPF_06
+     FOPF_07      FOPF_08      FOPF_09      FOPF_10      FOPF_11      FOPF_12
+     FOPF_13      FOPF_14      FOPF_15      FOPF_16      FOPF_17      FOPF_18
+     FOPF_19      FOPF_20      FOPF_21      FOPF_22      FOPF_23      FOPF_24
+     FOPF_25      FOPF_26      FOPF_27      FOPF_28      FOPF_29      FOPF_30
+     FOPF_31      FOPF_32
+
+    -- latch bits (LB_)  (128)
+     LB_DP01      LB_DP02      LB_DP03      LB_DP04      LB_DP05      LB_DP06
+     LB_DP07      LB_DP08      LB_DP09      LB_DP10      LB_DP11      LB_DP12
+     LB_DP13      LB_DP14      LB_DP15      LB_DP16      LB_DP17      LB_DP18
+     LB_DP19      LB_DP20      LB_DP21      LB_DP22      LB_DP23      LB_DP24
+     LB_DP25      LB_DP26      LB_DP27      LB_DP28      LB_DP29      LB_DP30
+     LB_DP31      LB_DP32      LB_DP33      LB_DP34      LB_DP35      LB_DP36
+     LB_DP37      LB_DP38      LB_DP39      LB_DP40      LB_DP41      LB_DP42
+     LB_DP43      LB_DP44      LB_DP45      LB_DP46      LB_DP47      LB_DP48
+     LB_DP49      LB_DP50      LB_DP51      LB_DP52      LB_DP53      LB_DP54
+     LB_DP55      LB_DP56      LB_DP57      LB_DP58      LB_DP59      LB_DP60
+     LB_DP61      LB_DP62      LB_DP63      LB_DP64      LB_SP01      LB_SP02
+     LB_SP03      LB_SP04      LB_SP05      LB_SP06      LB_SP07      LB_SP08
+     LB_SP09      LB_SP10      LB_SP11      LB_SP12      LB_SP13      LB_SP14
+     LB_SP15      LB_SP16      LB_SP17      LB_SP18      LB_SP19      LB_SP20
+     LB_SP21      LB_SP22      LB_SP23      LB_SP24      LB_SP25      LB_SP26
+     LB_SP27      LB_SP28      LB_SP29      LB_SP30      LB_SP31      LB_SP32
+     LB_SP33      LB_SP34      LB_SP35      LB_SP36      LB_SP37      LB_SP38
+     LB_SP39      LB_SP40      LB_SP41      LB_SP42      LB_SP43      LB_SP44
+     LB_SP45      LB_SP46      LB_SP47      LB_SP48      LB_SP49      LB_SP50
+     LB_SP51      LB_SP52      LB_SP53      LB_SP54      LB_SP55      LB_SP56
+     LB_SP57      LB_SP58      LB_SP59      LB_SP60      LB_SP61      LB_SP62
+     LB_SP63      LB_SP64
+
+    -- botoeiras (PB)  (26)
+     PB1          PB10         PB10PUL      PB11         PB11PUL      PB12
+     PB12PUL      PB1_PUL      PB2          PB2_PUL      PB3          PB3_PUL
+     PB4          PB4_PUL      PB5          PB5_PUL      PB6          PB6_PUL
+     PB7          PB7_PUL      PB8          PB8_PUL      PB9          PB9_PUL
+     PB_CLSE      PB_TRIP
+
+    -- contadores/temporizadores SELOGIC 7xx  (4)
+     SC850BM      SC850LS      SC850SM      SC850TM
+
+    -- RTD  (3)
+     RTDCOMF      RTDFL        RTDIN
+
+
+==========================================================================
+SEL-487E   --   1986 de 3384 bits sem endereco 61850 (58.7%)
+==========================================================================
+  Relay Word :  3384 bits   fonte: cache GLV SEL-487E-3-R323-V0-Z116105-D20250214
+               fast_read=target_region
+               outras capturas: SEL-487E-3-R323-V1-Z116105-D20250919
+  SCD        :  3071 bits   IEDs: QPC1_TR1_UPC1, QPC1_TR1_UPC2, QPC1_TR2_UPC1, QPC1_TR2_UPC2
+               configVersion: ICD-487E-R407-V0-Z323010-D20250214
+  ICD        :  2947 bits   grupos: 487E/010, 487E/011
+
+  COBERTO    :  1398 (41.3%)
+  FALTANDO   :  1986 (58.7%)
+
+  COBERTURA POR FAMILIA
+    familia                                       RW  61850     %
+    outros                                      1815   1100   61%
+    seccionadora (89*)                           382     40   10%
+    saidas de bloco SELOGIC (sufixo Q/R)         336      0    0%
+    elemento ANSI                                540    209   39%
+    Fast Operate (FOP)                           128      0    0%
+    latch bits (LB_)                              80      0    0%
+    RTD                                           38     12   32%
+    botoeiras (PB)                                36     12   33%
+    contadores/temporizadores SELOGIC 7xx          4      0    0%
+    alvos de LED                                  25     25  100%
+
+  BITS FALTANDO, POR FAMILIA
+    -- outros  (715)
+     ABFITS       ABFITT       ABFITU       ABFITW       ABFITX       ACCESSP
+     AFRTEXA      AFRTEXP      ALT33        ALT34        ALT35        ALT36
+     ALT37        ALT38        ALT39        ALT40        ALT41        ALT42
+     ALT43        ALT44        ALT45        ALT46        ALT47        ALT48
+     ALT49        ALT50        ALT51        ALT52        ALT53        ALT54
+     ALT55        ALT56        ALT57        ALT58        ALT59        ALT60
+     ALT61        ALT62        ALT63        ALT64        ALTPS1       ALTPS2
+     ALTPT1       ALTPT2       ALTPU1       ALTPW1       ALTPX1       ALTPY1
+     ALTSS        ALTST        ALTSU        ALTSW        ALTSX        ALTSY
+     ALTVS        ALTVT        ALTVU        ALTVW        ALTVX        ALTVY
+     AMB_F        ATBFIS       ATBFIT       ATBFIU       ATBFIW       ATBFIX
+     ATBFTS       ATBFTT       ATBFTU       ATBFTW       ATBFTX       AUNRLBL
+     BFISPTS      BFISPTT      BFISPTU      BFISPTW      BFISPTX      BFITS
+     BFITT        BFITU        BFITW        BFITX        BLKLPTS      BNCSYNC
+     BNC_BNP      BNC_OK       BNC_RST      BNC_SET      BNC_TIM      BSBITAL
+     BSKAIAL      BSMRTAL      BSYNBKS      BSYNBKT      BSYNBKU      BSYNBKW
+     BSYNBKX      BSYNBKY      BTBITAL      BTKAIAL      BTMRTAL      BUBITAL
+     BUKAIAL      BUMRTAL      BWBITAL      BWKAIAL      BWMRTAL      BXBITAL
+     BXKAIAL      BXMRTAL      CLS          CLSS         CLST         CLSU
+     CLSW         CLSX         CLSY         CLT          CLU          CLW
+     CLX          CLY          CON          CONA         CONB         CONC
+     CSALRM       CSCM         CSCM_1       CSCM_2       CSCM_3       CSE
+     CSE_1        CSE_2        CSE_3        CTUA         CTUB         CTUC
+     DIRBLKS      DIRBLKT      DIRBLKU      DIRBLKW      DIRBLKX      DMP01
+     DMP02        DMP03        DMP04        DMP05        DMP06        DMP07
+     DMP08        DMP09        DMP10        DST          DSTP         E2AC
+     E32OP01      E32OP02      E32OP03      E32OP04      E32OP05      E32OP06
+     E32OP07      E32OP08      E32OP09      E32OP10      E32UP01      E32UP02
+     E32UP03      E32UP04      E32UP05      E32UP06      E32UP07      E32UP08
+     E32UP09      E32UP10      E87TS        E87TT        E87TU        E87TW
+     E87TX        E87TY        EACC         EAFSRC       EBFITS       EBFITT
+     EBFITU       EBFITW       EBFITX       EBSMON       EBTMON       EBUMON
+     EBWMON       EBXMON       EDM01        EDM02        EDM03        EDM04
+     EDM05        EDM06        EDM07        EDM08        EDM09        EDM10
+     EFDTA        EFDTB        EFDTC        ENINBFS      ENINBFT      ENINBFU
+     ENINBFW      ENINBFX      ER           ETHRFLT      EVELOCK      EXBFS
+     EXBFT        EXBFU        EXBFW        EXBFX        FAA1         FAA1_1
+     FAA1_2       FAA2         FAA2_1       FAA2_2       FAA3_1       FAA3_2
+     FASTS        FASTT        FASTU        FASTW        FASTX        FASTY
+     FAULT        FIDEN_S      FIDEN_T      FIDEN_U      FIDEN_W      FIDEN_X
+     FIDEN_Y      FREQFZ       FREQOK       FROKPM       FSA_S        FSA_T
+     FSA_U        FSA_W        FSA_X        FSA_Y        FSB_S        FSB_T
+     FSB_U        FSB_W        FSB_X        FSB_Y        FSC_S        FSC_T
+     FSC_U        FSC_W        FSC_X        FSC_Y        FSERP1       FSERP2
+     FSERP3       FSERP5       FSERPF       GFLTA        GFLTB        GFLTC
+     GROUNDS      GROUNDT      GROUNDU      GROUNDW      GROUNDX      GROUNDY
+     HALARMA      HALARML      HALARMP      HS1          HS1_1        HS1_2
+     HS2          HS2_1        HS2_2        HS3_1        HS3_2        IASBF
+     IATBF        IAUBF        IAWBF        IAXBF        IBSBF        IBTBF
+     IBUBF        IBWBF        IBXBF        ICSBF        ICTBF        ICUBF
+     ICWBF        ICXBF        IFLTA        IFLTB        IFLTC        ILOPV
+     ILOPZ        INSBF        INTBF        INUBF        INWBF        INXBF
+     IO300OK      IO400OK      IO500OK      LD3PFST      LD3PFTU      LD3PFUW
+     LD3PFWX      LDAPFST      LDAPFTU      LDAPFUW      LDAPFWX      LDBPFST
+     LDBPFTU      LDBPFUW      LDBPFWX      LDCPFST      LDCPFTU      LDCPFUW
+     LDCPFWX      LD_3PFS      LD_3PFT      LD_3PFU      LD_3PFW      LD_3PFX
+     LD_3PFY      LD_APFS      LD_APFT      LD_APFU      LD_APFW      LD_APFX
+     LD_APFY      LD_BPFS      LD_BPFT      LD_BPFU      LD_BPFW      LD_BPFX
+     LD_BPFY      LD_CPFS      LD_CPFT      LD_CPFU      LD_CPFW      LD_CPFX
+     LD_CPFY      LG3PFST      LG3PFTU      LG3PFUW      LG3PFWX      LGAPFST
+     LGAPFTU      LGAPFUW      LGAPFWX      LGBPFST      LGBPFTU      LGBPFUW
+     LGBPFWX      LGCPFST      LGCPFTU      LGCPFUW      LGCPFWX      LG_3PFS
+     LG_3PFT      LG_3PFU      LG_3PFW      LG_3PFX      LG_3PFY      LG_APFS
+     LG_APFT      LG_APFU      LG_APFW      LG_APFX      LG_APFY      LG_BPFS
+     LG_BPFT      LG_BPFU      LG_BPFW      LG_BPFX      LG_BPFY      LG_CPFS
+     LG_CPFT      LG_CPFU      LG_CPFW      LG_CPFX      LG_CPFY      LPSEC
+     LPSECP       MAMB_OK      MATHERR      MTO1_OK      MTO2_OK      MTO3_OK
+     NDREF1       NDREF2       NDREF3       OPHAS        OPHAT        OPHAU
+     OPHAW        OPHAX        OPHAY        OPHBS        OPHBT        OPHBU
+     OPHBW        OPHBX        OPHBY        OPHCS        OPHCT        OPHCU
+     OPHCW        OPHCX        OPHCY        OPHS         OPHT         OPHU
+     OPHW         OPHX         OPHY         P5ABSW       PFRTEX       PHA_S
+     PHA_T        PHA_U        PHA_W        PHA_X        PHA_Y        PHB_S
+     PHB_T        PHB_U        PHB_W        PHB_X        PHB_Y        PHC_S
+     PHC_T        PHC_U        PHC_W        PHC_X        PHC_Y        PMDOK
+     PMTEST       PMTRIG       PTPSYNC      PTP_BNP      PTP_OK       PTP_RST
+     PTP_SET      PTP_TIM      PUNRLBL      REF          REF51R1      REF51R2
+     REF51R3      REFBLK1      REFBLK2      REFBLK3      REFOCT1      REFOCT2
+     REFOCT3      RF51TC1      RF51TC2      RF51TC3      RLL          RLL_1
+     RLL_2        RLL_3        RSTDNPE      RSTTRGT      RST_79C      RST_BAT
+     RST_BKS      RST_BKT      RST_BKU      RST_BKW      RST_BKX      RST_BKY
+     RST_DEM      RST_ENE      RST_HAL      RST_PDM      RTCCFGA      RTCCFGB
+     RTCDLYA      RTCDLYB      RTCENA       RTCENB       RTCROK       RTCROKA
+     RTCROKB      RTCSEQA      RTCSEQB      S32QE        S32QGE       S32VE
+     S50GF        S50GR        S50QF        S50QR        SERSYNC      SER_BNP
+     SER_OK       SER_RST      SER_SET      SER_TIM      SF32G        SF32P
+     SF32Q        SF32QG       SF32V        SFBKS        SFBKT        SFBKU
+     SFBKW        SFBKX        SFBKY        SFZBKS       SFZBKT       SFZBKU
+     SFZBKW       SFZBKX       SFZBKY       SLOWS        SLOWT        SLOWU
+     SLOWW        SLOWX        SLOWY        SPCER1       SPCER2       SPCER3
+     SPCERF       SPEN         SR32G        SR32P        SR32Q        SR32QG
+     SR32V        T1CS2        T1CS3        T1OIL_F      T2CS2        T2CS3
+     T2OIL_F      T32QE        T32QGE       T32VE        T3CS2        T3CS3
+     T3OIL_F      T50GF        T50GR        T50QF        T50QR        TBNC
+     TCREF1       TCREF2       TCREF3       TESTDB       TESTDB2      TESTFM
+     TESTPUL      TF32G        TF32P        TF32Q        TF32QG       TF32V
+     TFLTALA      TFLTALB      TFLTALC      TGLOBAL      TH5AD        TH5AP
+     TIRIG        TLL          TLL_1        TLL_2        TLL_3        TLOCAL
+     TO1          TO1_1        TO1_2        TO2          TO2_1        TO2_2
+     TO3_1        TO3_2        TPLLEXT      TPTP         TQUAL1       TQUAL2
+     TQUAL4       TQUAL8       TR32G        TR32P        TR32Q        TR32QG
+     TR32V        TRDE         TREA1        TREA2        TREA3        TREA4
+     TRGTR        TRS          TRT          TRU          TRW          TRX
+     TRXFMR       TRY          TSER         TSNTPB       TSNTPP       TSOK
+     TSSW         TSYNC        TSYNCA       TUPDH        TUTC1        TUTC2
+     TUTC4        TUTC8        TUTCH        TUTCS        U32QE        U32QGE
+     U32VE        U50GF        U50GR        U50QF        U50QR        UF32G
+     UF32P        UF32Q        UF32QG       UF32V        ULCLS        ULCLT
+     ULCLU        ULCLW        ULCLX        ULCLY        ULTRS        ULTRT
+     ULTRU        ULTRW        ULTRX        ULTRY        ULTXFMR      UPD_BLK
+     UPD_EN       UR32G        UR32P        UR32Q        UR32QG       UR32V
+     VALARMV      VALARMZ      VPOLV        VPOLZ        W32QE        W32QGE
+     W32VE        W50GF        W50GR        W50QF        W50QR        WF32G
+     WF32P        WF32Q        WF32QG       WF32V        WFLTA        WFLTB
+     WFLTC        WR32G        WR32P        WR32Q        WR32QG       WR32V
+     X32QE        X32QGE       X32VE        X50GF        X50GR        X50QF
+     X50QR        XF32G        XF32P        XF32Q        XF32QG       XF32V
+     XR32G        XR32P        XR32Q        XR32QG       XR32V        YEAR1
+     YEAR10       YEAR2        YEAR20       YEAR4        YEAR40       YEAR8
+     YEAR80
+
+    -- seccionadora (89*)  (342)
+     89AL         89AL01       89AL02       89AL03       89AL04       89AL05
+     89AL06       89AL07       89AL08       89AL09       89AL10       89AL11
+     89AL12       89AL13       89AL14       89AL15       89AL16       89AL17
+     89AL18       89AL19       89AL20       89AM01       89AM02       89AM03
+     89AM04       89AM05       89AM06       89AM07       89AM08       89AM09
+     89AM10       89AM11       89AM12       89AM13       89AM14       89AM15
+     89AM16       89AM17       89AM18       89AM19       89AM20       89BM01
+     89BM02       89BM03       89BM04       89BM05       89BM06       89BM07
+     89BM08       89BM09       89BM10       89BM11       89BM12       89BM13
+     89BM14       89BM15       89BM16       89BM17       89BM18       89BM19
+     89BM20       89CC01       89CC02       89CC03       89CC04       89CC05
+     89CC06       89CC07       89CC08       89CC09       89CC10       89CC11
+     89CC12       89CC13       89CC14       89CC15       89CC16       89CC17
+     89CC18       89CC19       89CC20       89CCM01      89CCM02      89CCM03
+     89CCM04      89CCM05      89CCM06      89CCM07      89CCM08      89CCM09
+     89CCM10      89CCM11      89CCM12      89CCM13      89CCM14      89CCM15
+     89CCM16      89CCM17      89CCM18      89CCM19      89CCM20      89CCN01
+     89CCN02      89CCN03      89CCN04      89CCN05      89CCN06      89CCN07
+     89CCN08      89CCN09      89CCN10      89CCN11      89CCN12      89CCN13
+     89CCN14      89CCN15      89CCN16      89CCN17      89CCN18      89CCN19
+     89CCN20      89CL01       89CL02       89CL03       89CL04       89CL05
+     89CL06       89CL07       89CL08       89CL09       89CL10       89CL11
+     89CL12       89CL13       89CL14       89CL15       89CL16       89CL17
+     89CL18       89CL19       89CL20       89CLB01      89CLB02      89CLB03
+     89CLB04      89CLB05      89CLB06      89CLB07      89CLB08      89CLB09
+     89CLB10      89CLB11      89CLB12      89CLB13      89CLB14      89CLB15
+     89CLB16      89CLB17      89CLB18      89CLB19      89CLB20      89CRS01
+     89CRS02      89CRS03      89CRS04      89CRS05      89CRS06      89CRS07
+     89CRS08      89CRS09      89CRS10      89CRS11      89CRS12      89CRS13
+     89CRS14      89CRS15      89CRS16      89CRS17      89CRS18      89CRS19
+     89CRS20      89CTL01      89CTL02      89CTL03      89CTL04      89CTL05
+     89CTL06      89CTL07      89CTL08      89CTL09      89CTL10      89CTL11
+     89CTL12      89CTL13      89CTL14      89CTL15      89CTL16      89CTL17
+     89CTL18      89CTL19      89CTL20      89OBL01      89OBL02      89OBL03
+     89OBL04      89OBL05      89OBL06      89OBL07      89OBL08      89OBL09
+     89OBL10      89OBL11      89OBL12      89OBL13      89OBL14      89OBL15
+     89OBL16      89OBL17      89OBL18      89OBL19      89OBL20      89OC01
+     89OC02       89OC03       89OC04       89OC05       89OC06       89OC07
+     89OC08       89OC09       89OC10       89OC11       89OC12       89OC13
+     89OC14       89OC15       89OC16       89OC17       89OC18       89OC19
+     89OC20       89OCM01      89OCM02      89OCM03      89OCM04      89OCM05
+     89OCM06      89OCM07      89OCM08      89OCM09      89OCM10      89OCM11
+     89OCM12      89OCM13      89OCM14      89OCM15      89OCM16      89OCM17
+     89OCM18      89OCM19      89OCM20      89OCN01      89OCN02      89OCN03
+     89OCN04      89OCN05      89OCN06      89OCN07      89OCN08      89OCN09
+     89OCN10      89OCN11      89OCN12      89OCN13      89OCN14      89OCN15
+     89OCN16      89OCN17      89OCN18      89OCN19      89OCN20      89OIP
+     89OIP01      89OIP02      89OIP03      89OIP04      89OIP05      89OIP06
+     89OIP07      89OIP08      89OIP09      89OIP10      89OIP11      89OIP12
+     89OIP13      89OIP14      89OIP15      89OIP16      89OIP17      89OIP18
+     89OIP19      89OIP20      89OPN01      89OPN02      89OPN03      89OPN04
+     89OPN05      89OPN06      89OPN07      89OPN08      89OPN09      89OPN10
+     89OPN11      89OPN12      89OPN13      89OPN14      89OPN15      89OPN16
+     89OPN17      89OPN18      89OPN19      89OPN20      89ORS01      89ORS02
+     89ORS03      89ORS04      89ORS05      89ORS06      89ORS07      89ORS08
+     89ORS09      89ORS10      89ORS11      89ORS12      89ORS13      89ORS14
+     89ORS15      89ORS16      89ORS17      89ORS18      89ORS19      89ORS20
+
+    -- saidas de bloco SELOGIC (sufixo Q/R)  (336)
+     ACN01Q       ACN01R       ACN02Q       ACN02R       ACN03Q       ACN03R
+     ACN04Q       ACN04R       ACN05Q       ACN05R       ACN06Q       ACN06R
+     ACN07Q       ACN07R       ACN08Q       ACN08R       ACN09Q       ACN09R
+     ACN10Q       ACN10R       ACN11Q       ACN11R       ACN12Q       ACN12R
+     ACN13Q       ACN13R       ACN14Q       ACN14R       ACN15Q       ACN15R
+     ACN16Q       ACN16R       ACN17Q       ACN17R       ACN18Q       ACN18R
+     ACN19Q       ACN19R       ACN20Q       ACN20R       ACN21Q       ACN21R
+     ACN22Q       ACN22R       ACN23Q       ACN23R       ACN24Q       ACN24R
+     ACN25Q       ACN25R       ACN26Q       ACN26R       ACN27Q       ACN27R
+     ACN28Q       ACN28R       ACN29Q       ACN29R       ACN30Q       ACN30R
+     ACN31Q       ACN31R       ACN32Q       ACN32R       ACT01Q       ACT02Q
+     ACT03Q       ACT04Q       ACT05Q       ACT06Q       ACT07Q       ACT08Q
+     ACT09Q       ACT10Q       ACT11Q       ACT12Q       ACT13Q       ACT14Q
+     ACT15Q       ACT16Q       ACT17Q       ACT18Q       ACT19Q       ACT20Q
+     ACT21Q       ACT22Q       ACT23Q       ACT24Q       ACT25Q       ACT26Q
+     ACT27Q       ACT28Q       ACT29Q       ACT30Q       ACT31Q       ACT32Q
+     ACT33Q       ACT34Q       ACT35Q       ACT36Q       ACT37Q       ACT38Q
+     ACT39Q       ACT40Q       ACT41Q       ACT42Q       ACT43Q       ACT44Q
+     ACT45Q       ACT46Q       ACT47Q       ACT48Q       AST01Q       AST01R
+     AST02Q       AST02R       AST03Q       AST03R       AST04Q       AST04R
+     AST05Q       AST05R       AST06Q       AST06R       AST07Q       AST07R
+     AST08Q       AST08R       AST09Q       AST09R       AST10Q       AST10R
+     AST11Q       AST11R       AST12Q       AST12R       AST13Q       AST13R
+     AST14Q       AST14R       AST15Q       AST15R       AST16Q       AST16R
+     AST17Q       AST17R       AST18Q       AST18R       AST19Q       AST19R
+     AST20Q       AST20R       AST21Q       AST21R       AST22Q       AST22R
+     AST23Q       AST23R       AST24Q       AST24R       AST25Q       AST25R
+     AST26Q       AST26R       AST27Q       AST27R       AST28Q       AST28R
+     AST29Q       AST29R       AST30Q       AST30R       AST31Q       AST31R
+     AST32Q       AST32R       PCN01Q       PCN01R       PCN02Q       PCN02R
+     PCN03Q       PCN03R       PCN04Q       PCN04R       PCN05Q       PCN05R
+     PCN06Q       PCN06R       PCN07Q       PCN07R       PCN08Q       PCN08R
+     PCN09Q       PCN09R       PCN10Q       PCN10R       PCN11Q       PCN11R
+     PCN12Q       PCN12R       PCN13Q       PCN13R       PCN14Q       PCN14R
+     PCN15Q       PCN15R       PCN16Q       PCN16R       PCN17Q       PCN17R
+     PCN18Q       PCN18R       PCN19Q       PCN19R       PCN20Q       PCN20R
+     PCN21Q       PCN21R       PCN22Q       PCN22R       PCN23Q       PCN23R
+     PCN24Q       PCN24R       PCN25Q       PCN25R       PCN26Q       PCN26R
+     PCN27Q       PCN27R       PCN28Q       PCN28R       PCN29Q       PCN29R
+     PCN30Q       PCN30R       PCN31Q       PCN31R       PCN32Q       PCN32R
+     PCT01Q       PCT02Q       PCT03Q       PCT04Q       PCT05Q       PCT06Q
+     PCT07Q       PCT08Q       PCT09Q       PCT10Q       PCT11Q       PCT12Q
+     PCT13Q       PCT14Q       PCT15Q       PCT16Q       PCT17Q       PCT18Q
+     PCT19Q       PCT20Q       PCT21Q       PCT22Q       PCT23Q       PCT24Q
+     PCT25Q       PCT26Q       PCT27Q       PCT28Q       PCT29Q       PCT30Q
+     PCT31Q       PCT32Q       PST01Q       PST01R       PST02Q       PST02R
+     PST03Q       PST03R       PST04Q       PST04R       PST05Q       PST05R
+     PST06Q       PST06R       PST07Q       PST07R       PST08Q       PST08R
+     PST09Q       PST09R       PST10Q       PST10R       PST11Q       PST11R
+     PST12Q       PST12R       PST13Q       PST13R       PST14Q       PST14R
+     PST15Q       PST15R       PST16Q       PST16R       PST17Q       PST17R
+     PST18Q       PST18R       PST19Q       PST19R       PST20Q       PST20R
+     PST21Q       PST21R       PST22Q       PST22R       PST23Q       PST23R
+     PST24Q       PST24R       PST25Q       PST25R       PST26Q       PST26R
+     PST27Q       PST27R       PST28Q       PST28R       PST29Q       PST29R
+     PST30Q       PST30R       PST31Q       PST31R       PST32Q       PST32R
+
+    -- elemento ANSI  (331)
+     132QE        132QGE       132VE        150GF        150GR        150QF
+     150QR        1F32G        1F32QG       1F32V        1R32G        1R32QG
+     1R32V        232QE        232QGE       232VE        24D2R        24TC
+     24U1R        24U1TC       24U2R        24U2TC       250GF        250GR
+     250QF        250QR        25C1S        25C1T        25C1U        25C1W
+     25C1X        25C1Y        25C2S        25C2T        25C2U        25C2W
+     25C2X        25C2Y        25ENBKS      25ENBKT      25ENBKU      25ENBKW
+     25ENBKX      25ENBKY      25WC1S       25WC1T       25WC1U       25WC1W
+     25WC1X       25WC1Y       25WC2S       25WC2T       25WC2U       25WC2W
+     25WC2X       25WC2Y       27B81        27TC1        27TC2        27TC3
+     27TC4        27TC5        2F32G        2F32QG       2F32V        2R32G
+     2R32QG       2R32V        32OP01       32OP02       32OP03       32OP04
+     32OP05       32OP06       32OP07       32OP08       32OP09       32OP10
+     32OPT01      32OPT02      32OPT03      32OPT04      32OPT05      32OPT06
+     32OPT07      32OPT08      32OPT09      32OPT10      32UP01       32UP02
+     32UP03       32UP04       32UP05       32UP06       32UP07       32UP08
+     32UP09       32UP10       32UPT01      32UPT02      32UPT03      32UPT04
+     32UPT05      32UPT06      32UPT07      32UPT08      32UPT09      32UPT10
+     46SP         46ST         46TP         46TT         46UP         46UT
+     46WP         46WT         46XP         46XT         46YP         46YT
+     50FS         50FT         50FU         50FW         50FX         51MM01
+     51MM02       51MM03       51MM04       51MM05       51MM06       51MM07
+     51MM08       51MM09       51MM10       51R01        51R02        51R03
+     51R04        51R05        51R06        51R07        51R08        51R09
+     51R10        51TC01       51TC02       51TC03       51TC04       51TC05
+     51TC06       51TC07       51TC08       51TC09       51TC10       51TM01
+     51TM02       51TM03       51TM04       51TM05       51TM06       51TM07
+     51TM08       51TM09       51TM10       52ALS        52ALT        52ALU
+     52ALW        52ALX        52ALY        52CLS        52CLT        52CLU
+     52CLW        52CLX        52CLY        52SRACK      52STEST      52TRACK
+     52TTEST      52URACK      52UTEST      52WRACK      52WTEST      52XRACK
+     52XTEST      52YRACK      52YTEST      59TC1        59TC2        59TC3
+     59TC4        59TC5        59VDIFS      59VDIFT      59VDIFU      59VDIFW
+     59VDIFX      59VDIFY      59VSS        59VST        59VSU        59VSW
+     59VSX        59VSY        67SG1TC      67SG2TC      67SG3TC      67SP1TC
+     67SP2TC      67SP3TC      67SQ1TC      67SQ2TC      67SQ3TC      67TG1TC
+     67TG2TC      67TG3TC      67TP1TC      67TP2TC      67TP3TC      67TQ1TC
+     67TQ2TC      67TQ3TC      67UG1TC      67UG2TC      67UG3TC      67UP1TC
+     67UP2TC      67UP3TC      67UQ1TC      67UQ2TC      67UQ3TC      67WG1TC
+     67WG2TC      67WG3TC      67WP1TC      67WP2TC      67WP3TC      67WQ1TC
+     67WQ2TC      67WQ3TC      67XG1TC      67XG2TC      67XG3TC      67XP1TC
+     67XP2TC      67XP3TC      67XQ1TC      67XQ2TC      67XQ3TC      81D1
+     81D1OVR      81D1T        81D1UDR      81D2         81D2OVR      81D2T
+     81D2UDR      81D3         81D3OVR      81D3T        81D3UDR      81D4
+     81D4OVR      81D4T        81D4UDR      81D5         81D5OVR      81D5T
+     81D5UDR      81D6         81D6OVR      81D6T        81D6UDR      87AHB
+     87AHR        87BHB        87BHR        87BPH        87BPHA       87BPHB
+     87BPHC       87BPL        87BPLA       87BPLB       87BPLC       87CHB
+     87CHR        87HBPA       87HBPB       87HBPC       87HRPA       87HRPB
+     87HRPC       87QB         87T_B1A      87T_B1B      87T_B1C      87T_B2A
+     87T_B2B      87T_B2C      87T_BP1      87T_BP2      87T_M        87T_MA
+     87T_MB       87T_MC       87T_S        87T_SA       87T_SB       87T_SC
+     87T_SF       87T_SFA      87T_SFB      87T_SFC      87UFA        87UFB
+     87UFC        87UNBL       87UNBLA      87UNBLB      87UNBLC      87URA
+     87URB        87URC        87WB         87WBA        87WBB        87WBC
+     87WS
+
+    -- Fast Operate (FOP)  (128)
+     FOP1_01      FOP1_02      FOP1_03      FOP1_04      FOP1_05      FOP1_06
+     FOP1_07      FOP1_08      FOP1_09      FOP1_10      FOP1_11      FOP1_12
+     FOP1_13      FOP1_14      FOP1_15      FOP1_16      FOP1_17      FOP1_18
+     FOP1_19      FOP1_20      FOP1_21      FOP1_22      FOP1_23      FOP1_24
+     FOP1_25      FOP1_26      FOP1_27      FOP1_28      FOP1_29      FOP1_30
+     FOP1_31      FOP1_32      FOP2_01      FOP2_02      FOP2_03      FOP2_04
+     FOP2_05      FOP2_06      FOP2_07      FOP2_08      FOP2_09      FOP2_10
+     FOP2_11      FOP2_12      FOP2_13      FOP2_14      FOP2_15      FOP2_16
+     FOP2_17      FOP2_18      FOP2_19      FOP2_20      FOP2_21      FOP2_22
+     FOP2_23      FOP2_24      FOP2_25      FOP2_26      FOP2_27      FOP2_28
+     FOP2_29      FOP2_30      FOP2_31      FOP2_32      FOP3_01      FOP3_02
+     FOP3_03      FOP3_04      FOP3_05      FOP3_06      FOP3_07      FOP3_08
+     FOP3_09      FOP3_10      FOP3_11      FOP3_12      FOP3_13      FOP3_14
+     FOP3_15      FOP3_16      FOP3_17      FOP3_18      FOP3_19      FOP3_20
+     FOP3_21      FOP3_22      FOP3_23      FOP3_24      FOP3_25      FOP3_26
+     FOP3_27      FOP3_28      FOP3_29      FOP3_30      FOP3_31      FOP3_32
+     FOPF_01      FOPF_02      FOPF_03      FOPF_04      FOPF_05      FOPF_06
+     FOPF_07      FOPF_08      FOPF_09      FOPF_10      FOPF_11      FOPF_12
+     FOPF_13      FOPF_14      FOPF_15      FOPF_16      FOPF_17      FOPF_18
+     FOPF_19      FOPF_20      FOPF_21      FOPF_22      FOPF_23      FOPF_24
+     FOPF_25      FOPF_26      FOPF_27      FOPF_28      FOPF_29      FOPF_30
+     FOPF_31      FOPF_32
+
+    -- latch bits (LB_)  (80)
+     LB_DP01      LB_DP02      LB_DP03      LB_DP04      LB_DP05      LB_DP06
+     LB_DP07      LB_DP08      LB_DP09      LB_DP10      LB_DP11      LB_DP12
+     LB_DP13      LB_DP14      LB_DP15      LB_DP16      LB_DP17      LB_DP18
+     LB_DP19      LB_DP20      LB_DP21      LB_DP22      LB_DP23      LB_DP24
+     LB_DP25      LB_DP26      LB_DP27      LB_DP28      LB_DP29      LB_DP30
+     LB_DP31      LB_DP32      LB_SP01      LB_SP02      LB_SP03      LB_SP04
+     LB_SP05      LB_SP06      LB_SP07      LB_SP08      LB_SP09      LB_SP10
+     LB_SP11      LB_SP12      LB_SP13      LB_SP14      LB_SP15      LB_SP16
+     LB_SP17      LB_SP18      LB_SP19      LB_SP20      LB_SP21      LB_SP22
+     LB_SP23      LB_SP24      LB_SP25      LB_SP26      LB_SP27      LB_SP28
+     LB_SP29      LB_SP30      LB_SP31      LB_SP32      LB_SP33      LB_SP34
+     LB_SP35      LB_SP36      LB_SP37      LB_SP38      LB_SP39      LB_SP40
+     LB_SP41      LB_SP42      LB_SP43      LB_SP44      LB_SP45      LB_SP46
+     LB_SP47      LB_SP48
+
+    -- RTD  (26)
+     RTD01OC      RTD01SC      RTD02OC      RTD02SC      RTD03OC      RTD03SC
+     RTD04OC      RTD04SC      RTD05OC      RTD05SC      RTD06OC      RTD06SC
+     RTD07OC      RTD07SC      RTD08OC      RTD08SC      RTD09OC      RTD09SC
+     RTD10OC      RTD10SC      RTD11OC      RTD11SC      RTD12OC      RTD12SC
+     RTDCOMF      RTDFL
+
+    -- botoeiras (PB)  (24)
+     PB1          PB10         PB10PUL      PB11         PB11PUL      PB12
+     PB12PUL      PB1_PUL      PB2          PB2_PUL      PB3          PB3_PUL
+     PB4          PB4_PUL      PB5          PB5_PUL      PB6          PB6_PUL
+     PB7          PB7_PUL      PB8          PB8_PUL      PB9          PB9_PUL
+
+    -- contadores/temporizadores SELOGIC 7xx  (4)
+     SC850BM      SC850LS      SC850SM      SC850TM
+
+
+==========================================================================
+SEL-751   --   414 de 1118 bits sem endereco 61850 (37.0%)
+==========================================================================
+  Relay Word :  1118 bits   fonte: data/wordbits/SEL-751.json
+               fast_read=fast_meter_digitals
+  SCD        :  1931 bits   IEDs: QPC2_TR1_UPC1, QPC2_TR1_UPC2, QPC2_TR1_UPC3, QPC2_TR1_UPC4, QPC2_TR1_UPC5, QPC2_TR1_UPC6, QPC2_TR2_UPC1, QPC2_TR2_UPC2, QPC2_TR2_UPC3, QPC2_TR2_UPC4, QPC2_TR2_UPC5, QPC2_TR2_UPC6, QPC4_TR1_UPC1, QPC4_TR1_UPC2
+               configVersion: ICD-751-R402-V0-Z402010-D20241231
+  ICD        :  1903 bits   grupos: 751/010, 751/011
+
+  NOTA: a base tem MENOS bits que o mapa 61850, e nisso esta certa.
+  Um 7xx le os digitais do bloco DNA do Fast Meter, que carrega
+  menos nomes que o sAddr do SCL. Nao e' captura parcial: o que o
+  mapa tem a mais o telnet nao alcanca (os 256 VB, entre outros),
+  entao aqui o MMS ve MAIS que o telnet, nao menos.
+
+  COBERTO    :   704 (63.0%)
+  FALTANDO   :   414 (37.0%)
+
+  COBERTURA POR FAMILIA
+    familia                                       RW  61850     %
+    outros                                       569    387   68%
+    contadores/temporizadores SELOGIC 7xx        128     64   50%
+    seccionadora (89*)                           119     57   48%
+    elemento ANSI                                227    170   75%
+    RTD                                           28      1    4%
+    botoeiras (PB)                                33     17   52%
+    alvos de LED                                  14      8   57%
+
+  BITS FALTANDO, POR FAMILIA
+    -- outros  (182)
+     AMBALRM      BCW          BCWA         BCWB         BCWC         BFRT
+     BFTRIP       BKJMP        BKMON        BRGALRM      CFGFLT       CL
+     COMMIDLE     DDNA         DDNB         DDNC         DIA_DIS      DIB_DIS
+     DIC_DIS      DIRIE        DIRNE        DIRNF        DIRNR        DIRQE
+     DIRQGE       DIRVE        DI_A         DI_B         DI_C         DL2CLRA
+     DL2CLRB      DL2CLRC      DLDB         DLLB         DNAUX1       DNAUX10
+     DNAUX11      DNAUX2       DNAUX3       DNAUX4       DNAUX5       DNAUX6
+     DNAUX7       DNAUX8       DNAUX9       DSABLSET     DSTP         DUPA
+     DUPB         DUPC         DVA_DIS      DVB_DIS      DVC_DIS      ENLRC
+     ER           FDIRI        FDIRNI       FDIRP        FDIRQ        FDIRQG
+     FDIRV        FIDEN        FRZCLRA      FRZCLRB      FRZCLRC      FSA
+     FSB          FSC          G1DIR        G2DIR        G3DIR        G4DIR
+     GFLT         HBL2AT       HBL2BT       HBL2CT       HBL5AT       HBL5BT
+     HBL5CT       HIA1_A       HIA1_B       HIA1_C       HIA2_A       HIA2_B
+     HIA2_C       HIFER        HIFFRZ       HIFITUNE     HIFMODE      HIFREC
+     INI_HIF      ITUNE_A      ITUNE_B      ITUNE_C      LLDB         LPSEC
+     LPSECP       LR3          LRA          LRB          LRC          MPH_EVE
+     MTR          MTRIP        N1DIR        N2DIR        N3DIR        N4DIR
+     NSA          NSB          NSC          NTUNE_A      NTUNE_B      NTUNE_C
+     ORED50T      ORED51T      ORED81RT     ORED81T      OTHALRM      P1DIR
+     P2DIR        P3DIR        P4DIR        PFLEAD       PHASE_A      PHASE_B
+     PHASE_C      PMDOK        PMTRIG       PTPA         PTPB         PTPSYNC
+     PTP_OK       PTP_TIM      Q1DIR        Q2DIR        Q3DIR        Q4DIR
+     RDIRI        RDIRNI       RDIRP        RDIRQ        RDIRQG       RDIRV
+     RSTDEM       RSTENRGY     RSTMXMN      RSTPKDEM     RSTTH1       RSTTH2
+     RSTTH3       RSTTRGT      STFAIL       STSET        TESTDB       THST1
+     THST2        THST3        TQUAL1       TQUAL2       TQUAL4       TQUAL8
+     TR           TREA1        TREA2        TREA3        TREA4        TRGTR
+     TSNTPB       TSNTPP       TUTC1        TUTC2        TUTC4        TUTC8
+     TUTCH        TUTCS        ULCL         ULMTRIP      VPOLV        WDGALRM
+     ZLIN         ZLOUT
+
+    -- contadores/temporizadores SELOGIC 7xx  (64)
+     SC01QD       SC01QU       SC02QD       SC02QU       SC03QD       SC03QU
+     SC04QD       SC04QU       SC05QD       SC05QU       SC06QD       SC06QU
+     SC07QD       SC07QU       SC08QD       SC08QU       SC09QD       SC09QU
+     SC10QD       SC10QU       SC11QD       SC11QU       SC12QD       SC12QU
+     SC13QD       SC13QU       SC14QD       SC14QU       SC15QD       SC15QU
+     SC16QD       SC16QU       SC17QD       SC17QU       SC18QD       SC18QU
+     SC19QD       SC19QU       SC20QD       SC20QU       SC21QD       SC21QU
+     SC22QD       SC22QU       SC23QD       SC23QU       SC24QD       SC24QU
+     SC25QD       SC25QU       SC26QD       SC26QU       SC27QD       SC27QU
+     SC28QD       SC28QU       SC29QD       SC29QU       SC30QD       SC30QU
+     SC31QD       SC31QU       SC32QD       SC32QU
+
+    -- seccionadora (89*)  (62)
+     89CC2P1      89CC2P2      89CC2P3      89CC2P4      89CC2P5      89CI2P1
+     89CI2P2      89CI2P3      89CI2P4      89CI2P5      89CI2P6      89CI2P7
+     89CI2P8      89CM2P1      89CM2P2      89CM2P3      89CM2P4      89CM2P5
+     89CS2P1      89CS2P2      89CS2P3      89CS2P4      89CS2P5      89CS2P6
+     89CS2P7      89CS2P8      89OC2P1      89OC2P2      89OC2P3      89OC2P4
+     89OC2P5      89OI2P1      89OI2P2      89OI2P3      89OI2P4      89OI2P5
+     89OI2P6      89OI2P7      89OI2P8      89OM2P1      89OM2P2      89OM2P3
+     89OM2P4      89OM2P5      89OS2P1      89OS2P2      89OS2P3      89OS2P4
+     89OS2P5      89OS2P6      89OS2P7      89OS2P8      89RC2P1      89RC2P2
+     89RC2P3      89RC2P4      89RC2P5      89RO2P1      89RO2P2      89RO2P3
+     89RO2P4      89RO2P5
+
+    -- elemento ANSI  (57)
+     27I1RS       27I2RS       27N1         27N1T        27N2         27N2T
+     3PH_A        3PH_B        3PH_C        3PH_CLR      3PH_EVE      3V0
+     50A1P        50A2P        50B1P        50B2P        50BF         50BFG
+     50C1P        50C2P        50IALCA      50IALCB      50IALCC      50IALCN
+     50INCA       50INCB       50INCC       50INCN       50INCTA      50INCTB
+     50INCTC      50INCTN      50ITRCA      50ITRCB      50ITRCC      50ITRCN
+     50PDIR       51AR         51BR         51CR         51G1R        51G2R
+     51N1R        51N2R        51P1R        51P2R        51QR         52A
+     59I1RS       59I2RS       59I3RS       59I4RS       59N1         59N1T
+     59N2         59N2T        59VDIF
+
+    -- RTD  (27)
+     RTD10A       RTD10T       RTD11A       RTD11T       RTD12A       RTD12T
+     RTD1A        RTD1T        RTD2A        RTD2T        RTD3A        RTD3T
+     RTD4A        RTD4T        RTD5A        RTD5T        RTD6A        RTD6T
+     RTD7A        RTD7T        RTD8A        RTD8T        RTD9A        RTD9T
+     RTDA         RTDIN        RTDT
+
+    -- botoeiras (PB)  (16)
+     PB01         PB01_PUL     PB02         PB02_PUL     PB03         PB03_PUL
+     PB04         PB04_PUL     PB05         PB05_PUL     PB06         PB06_PUL
+     PB07         PB07_PUL     PB08         PB08_PUL
+
+    -- alvos de LED  (6)
+     T01_LED      T02_LED      T03_LED      T04_LED      T05_LED      T06_LED
+
+

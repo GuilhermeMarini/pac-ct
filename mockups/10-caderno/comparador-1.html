@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comparador · relés — Caderno de Campo</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../../sellib/web/static/fonts/fonts.css">
+<link rel="stylesheet" href="theme.css">
+<style>
+.steps{display:flex;gap:2px;margin-bottom:var(--s4)}
+.step{flex:1;padding:8px 12px;background:var(--card-2);border:1px solid var(--rule);
+  font:700 10px var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--pencil);
+  text-align:center;text-decoration:none}
+.step.on{color:var(--ink);border-color:var(--ink);background:var(--card);box-shadow:inset 0 -3px 0 var(--ink)}
+.step.done{color:var(--ok);border-color:#b7d6c3}
+</style>
+<style>.two{display:grid;grid-template-columns:1.6fr 1fr;gap:var(--s3)}
+@media (max-width:900px){.two{grid-template-columns:1fr}}</style>
+</head><body><div class="page">
+<div class="head">
+  <div><h1>Comissionamento SEL</h1><div class="sub">Ferramenta 02 · Comparador de Ajustes</div></div>
+  <div class="meta">passo 1 de 3</div>
+  <a class="lnk" href="../index.html">← propostas</a>
+</div>
+<nav class="tabs">
+  <a class="tab" href="index.html"><span class="n">00</span> Menu</a>
+  <a class="tab" href="glv-landing.html"><span class="n">01</span> Lógica ao vivo</a>
+  <a class="tab on" href="comparador-1.html"><span class="n">02</span> Comparador</a>
+  <a class="tab" href="vb-updater.html"><span class="n">03</span> VB Updater</a>
+  <a class="tab" href="vlan-mapper.html"><span class="n">04</span> VLAN Mapper</a>
+  <a class="tab" href="exportador.html"><span class="n">05</span> Exportador</a>
+  <span class="tab off"><span class="n">06</span> RDB ↔ SCD</span>
+</nav>
+<div class="sheet-body">
+  <div class="steps">
+    <span class="step on">1 · RDBs e relés</span>
+    <a class="step" href="comparador-2.html">2 · Grupos</a>
+    <a class="step" href="comparador-3.html">3 · Comparação</a>
+  </div>
+
+  <h2>Fonte dos dados</h2>
+  <div class="two" style="margin-bottom:var(--s5)">
+    <div class="wrap" style="overflow:visible">
+      <div class="chk" style="background:#f2f6f0"><input type="checkbox" checked>
+        <span class="nm">SE EXEMPLO III_17-08-26.rdb</span><span class="meta">25 relés · 39 MB</span></div>
+      <div class="chk"><input type="checkbox">
+        <span class="nm">SE EXEMPLO III_03-08-26.rdb</span><span class="meta">25 relés · 273 MB</span></div>
+      <div class="chk" style="border-bottom:0"><input type="checkbox">
+        <span class="nm">248958 - CONCESSIONARIA_B_R4.rdb</span><span class="meta">11 relés · 48 MB</span></div>
+    </div>
+    <label class="drop"><span class="ic">↥</span><b>Carregar novo RDB</b>
+      <small>arraste aqui ou clique · limite 500 MB</small></label>
+  </div>
+
+  <h2>Relés — selecione de 2 a 7 da mesma família</h2>
+  <div class="bar">
+    <input type="search" placeholder="Filtrar relé, modelo ou IP…">
+    <span class="count">7/7 selecionados · família 7xx · 11 ocultos</span>
+    <span class="spacer"></span>
+    <a class="btn pri" href="comparador-2.html">Continuar para grupos →</a>
+  </div>
+  <div class="wrap" style="max-height:420px">
+    <table>
+      <thead><tr><th style="width:36px"></th><th>Relé</th><th>Modelo</th><th>IP</th><th>Família</th><th>Situação</th></tr></thead>
+      <tbody>
+        <tr><td><input type="checkbox" checked></td><td class="var">QPC2_TR1_UPC1</td><td class="val">751</td><td class="val">203.0.113.41</td><td class="val">7xx</td><td><span class="stamp s-ok">Elegível</span></td></tr>
+        <tr><td><input type="checkbox" checked></td><td class="var">QPC2_TR1_UPC2</td><td class="val">751</td><td class="val">203.0.113.42</td><td class="val">7xx</td><td><span class="stamp s-ok">Elegível</span></td></tr>
+        <tr><td><input type="checkbox" checked></td><td class="var">QPC2_TR1_UPC3</td><td class="val">751</td><td class="val">203.0.113.43</td><td class="val">7xx</td><td><span class="stamp s-ok">Elegível</span></td></tr>
+        <tr><td><input type="checkbox" checked></td><td class="var">QPC2_TR1_UPC4</td><td class="val">751</td><td class="val">203.0.113.44</td><td class="val">7xx</td><td><span class="stamp s-ok">Elegível</span></td></tr>
+        <tr><td><input type="checkbox" checked></td><td class="var">QPC2_TR1_UPC5</td><td class="val">751</td><td class="val">203.0.113.45</td><td class="val">7xx</td><td><span class="stamp s-ok">Elegível</span></td></tr>
+        <tr><td><input type="checkbox" checked></td><td class="var">QPC2_TR1_UPC6</td><td class="val">751</td><td class="val">203.0.113.46</td><td class="val">7xx</td><td><span class="stamp s-ok">Elegível</span></td></tr>
+        <tr><td><input type="checkbox" checked></td><td class="var">QPC2_TR2_UPC1</td><td class="val">751</td><td class="val">203.0.113.47</td><td class="val">7xx</td><td><span class="stamp s-ok">Elegível</span></td></tr>
+        <tr style="opacity:.5"><td><input type="checkbox" disabled></td><td class="var">QPC1_LT1_UPC1</td><td class="val">411L-A</td><td class="val">203.0.113.22</td><td class="val">4xx</td><td><span class="stamp s-none">Outra família</span></td></tr>
+        <tr style="opacity:.5"><td><input type="checkbox" disabled></td><td class="var">QPC1_LT1_UPC2</td><td class="val">311C-1</td><td class="val">203.0.113.23</td><td class="val">3xx</td><td><span class="stamp s-none">Outra família</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="hand">A comparação só faz sentido dentro da mesma família — os outros ficam travados.</div>
+</div>
+</div></body></html>

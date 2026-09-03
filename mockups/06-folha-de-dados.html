@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06 · Folha de Dados — SEL Toolkit</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../sellib/web/static/fonts/fonts.css">
+<style>
+/* ===========================================================================
+   DIRECAO 06 — FOLHA DE DADOS
+   Referencia: o manual de instrucoes do rele — a unica peca de design que o
+   comissionador le' o dia inteiro. Papel claro, filetes de 1 px, zero raio de
+   canto, densidade alta. A assinatura e' a COLUNA DE MARGEM: notas numeradas
+   que ancoram em linhas da tabela, como nota de rodape de norma tecnica.
+   =========================================================================== */
+:root{
+  --paper:#fbfaf7; --paper-2:#f2f0ea; --ink:#14161a; --ink-2:#4b5058;
+  --rule:#d8d5cd; --rule-strong:#9a978e;
+  --slate:#2b4a6f; --ok:#1f7a45; --warn:#a86a00; --err:#b3261e; --vb:#6b3fa0;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#e6e4de;color:var(--ink);font:14px/1.6 var(--sans)}
+.page{max-width:1180px;margin:16px auto;background:var(--paper);
+  box-shadow:0 1px 0 var(--rule-strong),0 10px 30px rgba(0,0,0,.14)}
+.masthead{display:flex;align-items:baseline;gap:14px;padding:18px 26px 12px;
+  border-bottom:3px double var(--ink)}
+.masthead h1{margin:0;font:600 21px/1 var(--sans);letter-spacing:-.015em}
+.masthead .doc{margin-left:auto;font:500 11px var(--mono);color:var(--ink-2);letter-spacing:.04em}
+.masthead .sub{font-size:12.5px;color:var(--ink-2)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 232px;gap:0}
+.col-main{padding:18px 22px 26px 26px;min-width:0}
+/* --- ASSINATURA: coluna de margem ---------------------------------------- */
+.col-notes{border-left:1px solid var(--rule);padding:18px 22px 26px;background:var(--paper-2)}
+.col-notes .cap{font:600 9.5px var(--sans);letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ink-2);margin-bottom:12px}
+.note{font-size:12px;line-height:1.55;color:var(--ink-2);padding-left:20px;position:relative;margin-bottom:14px}
+.note .n{position:absolute;left:0;top:0;font:600 10px var(--mono);color:var(--slate)}
+.note b{color:var(--ink);font-weight:600}
+
+h2{font:600 10px var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-2);
+  margin:0 0 8px;padding-bottom:5px;border-bottom:1px solid var(--rule-strong)}
+h2+.lead{margin:0 0 14px;font-size:13px;color:var(--ink-2);max-width:62ch}
+
+/* tabela 1: indice de ferramentas */
+table{width:100%;border-collapse:collapse;font-size:13px}
+.index th{text-align:left;font:600 9.5px var(--sans);letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ink-2);padding:6px 10px 6px 0;border-bottom:1px solid var(--rule-strong)}
+.index td{padding:9px 10px 9px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+.index td.ref{font:600 12px var(--mono);color:var(--slate);width:44px}
+.index td.nm{font-weight:500;width:230px}
+.index td.ds{color:var(--ink-2);font-size:12.5px}
+.index td.st{width:88px;text-align:right;font:500 11px var(--mono)}
+.index tr:hover td{background:#f4f2ec}
+.st .live{color:var(--ok)}.st .soon{color:var(--ink-2)}
+
+/* tabela 2: diff */
+.data{margin-top:8px;font-family:var(--mono);font-size:12px}
+.data th{background:var(--paper-2);text-align:left;padding:7px 10px;font:600 9.5px var(--sans);
+  letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);
+  border-top:1px solid var(--rule-strong);border-bottom:1px solid var(--rule-strong);white-space:nowrap}
+.data td{padding:6px 10px;border-bottom:1px solid var(--rule);white-space:nowrap}
+.data td.var{font-weight:600}
+.data td.val{color:#3f444b}
+.data tr:hover td{background:#f4f2ec}
+sup.ref{font:600 9px var(--sans);color:var(--slate);margin-left:4px;vertical-align:super}
+.j{font:600 10px var(--sans);letter-spacing:.1em;text-transform:uppercase}
+.j-ok{color:var(--ok)}.j-dif{color:var(--err)}.j-vb{color:var(--vb)}.j-falta{color:var(--ink-2)}
+.totals{display:flex;gap:26px;flex-wrap:wrap;margin-top:12px;padding-top:10px;
+  border-top:1px solid var(--rule-strong);font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
+.totals b{color:var(--ink);font-variant-numeric:tabular-nums}
+.tokens{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:24px;padding-top:14px;border-top:1px solid var(--rule)}
+.sw{width:72px}.sw i{display:block;height:28px;border:1px solid var(--rule-strong)}
+.sw span{font:600 9px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2);display:block;margin-top:4px}
+.badge{position:fixed;right:14px;bottom:14px;padding:6px 11px;font:600 10px var(--sans);letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink);background:var(--paper);border:1px solid var(--rule-strong);text-decoration:none}
+.badge:hover{color:var(--slate)}
+@media (max-width:860px){.grid{grid-template-columns:1fr}.col-notes{border-left:0;border-top:1px solid var(--rule)}}
+</style></head>
+<body>
+
+<div class="page">
+  <div class="masthead">
+    <div>
+      <h1>Comissionamento SEL</h1>
+      <div class="sub">SE Exemploópolis III · base RDB de 17-08-26</div>
+    </div>
+    <span class="doc">DOC. CM-311 · REV. 05 · pág. 1 de 1</span>
+  </div>
+
+  <div class="grid">
+    <div class="col-main">
+      <h2>1. Ferramentas</h2>
+      <p class="lead">Cinco ferramentas disponíveis nesta instalação. Todas leem o mesmo RDB da sessão;
+      só o Visualizador de Lógica conversa com o relé.</p>
+      <table class="index">
+        <thead><tr><th>Ref.</th><th>Ferramenta</th><th>Função</th><th>Estado</th></tr></thead>
+        <tbody>
+          <tr><td class="ref">1.1</td><td class="nm">Visualizador de Lógica</td><td class="ds">Estado do relé ao vivo sobre o diagrama GLE.<sup class="ref">1</sup></td><td class="st"><span class="live">disponível</span></td></tr>
+          <tr><td class="ref">1.2</td><td class="nm">Comparador de Ajustes</td><td class="ds">Até 7 relés da mesma família, lado a lado.</td><td class="st"><span class="live">disponível</span></td></tr>
+          <tr><td class="ref">1.3</td><td class="nm">VB Updater</td><td class="ds">Descrições de Virtual Bits entre GLE e SCD.</td><td class="st"><span class="live">disponível</span></td></tr>
+          <tr><td class="ref">1.4</td><td class="nm">VLAN Mapper</td><td class="ds">Mapa de VLANs GOOSE por porta de switch.</td><td class="st"><span class="live">disponível</span></td></tr>
+          <tr><td class="ref">1.5</td><td class="nm">Exportador de Comentários</td><td class="ds">Comentários de porta em Excel, ida e volta.</td><td class="st"><span class="live">disponível</span></td></tr>
+          <tr><td class="ref">1.6</td><td class="nm">Comparador RDB ↔ SCD</td><td class="ds">Cruza ajustes do RDB com IEDs do SCD.</td><td class="st"><span class="soon">em breve</span></td></tr>
+        </tbody>
+      </table>
+
+      <h2 style="margin-top:26px">2. Comparação · grupo Lógica 1</h2>
+      <table class="data">
+        <thead><tr><th>Variável</th><th>Campo</th><th>QPC2_TR1_UPC1</th><th>QPC2_TR1_UPC2</th><th>QPC2_TR1_UPC3</th><th>Situação</th></tr></thead>
+        <tbody>
+          <tr><td class="var">51G2TC</td><td class="val">value</td><td class="val">0.40</td><td class="val">0.40</td><td class="val">0.40</td><td class="j j-ok">Igual</td></tr>
+          <tr><td class="var">52A</td><td class="val">set</td><td class="val">NOT IN101 AND IN102</td><td class="val">NOT IN101 AND IN102</td><td class="val">NOT IN101 AND IN102</td><td class="j j-ok">Igual</td></tr>
+          <tr><td class="var">LT14<sup class="ref">2</sup></td><td class="val">set</td><td class="val">VB102 OR VB103</td><td class="val">VB101 OR VB102</td><td class="val">VB101 OR VB102</td><td class="j j-vb">Difere VB</td></tr>
+          <tr><td class="var">LT17<sup class="ref">3</sup></td><td class="val">set</td><td class="val">SV02 AND LT03</td><td class="val">SV02 AND LT03</td><td class="val">SV02 AND LT04</td><td class="j j-dif">Diferente</td></tr>
+          <tr><td class="var">27I1CFA</td><td class="val">value</td><td class="val">1.00</td><td class="val">1.00</td><td class="val">—</td><td class="j j-falta">Faltante</td></tr>
+          <tr><td class="var">50P1P</td><td class="val">value</td><td class="val">5.00</td><td class="val">5.00</td><td class="val">5.00</td><td class="j j-ok">Igual</td></tr>
+        </tbody>
+      </table>
+      <div class="totals"><span>variáveis <b>659</b></span><span>iguais <b>654</b></span><span>diferentes <b>5</b></span><span>difere VB <b>16</b></span><span>faltantes <b>0</b></span></div>
+
+      <div class="tokens">
+        <div class="sw"><i style="background:#fbfaf7"></i><span>papel</span></div>
+        <div class="sw"><i style="background:#f2f0ea"></i><span>margem</span></div>
+        <div class="sw"><i style="background:#14161a"></i><span>tinta</span></div>
+        <div class="sw"><i style="background:#2b4a6f"></i><span>referência</span></div>
+        <div class="sw"><i style="background:#1f7a45"></i><span>igual</span></div>
+        <div class="sw"><i style="background:#b3261e"></i><span>diferente</span></div>
+        <div class="sw"><i style="background:#6b3fa0"></i><span>vb</span></div>
+        <div style="flex:1;min-width:250px;font-size:12px;color:var(--ink-2)">
+          <b style="color:var(--ink)">IBM Plex Sans</b> + <b style="color:var(--ink)">IBM Plex Mono</b>,
+          uma família só. Filete de 1 px, canto vivo, sem sombra: a página se comporta como impressa.
+        </div>
+      </div>
+    </div>
+
+    <aside class="col-notes">
+      <div class="cap">Notas</div>
+      <div class="note"><span class="n">1</span>Exige telnet liberado até o relé. O banner de login é
+      drenado antes da sessão Fast Message — relés 3xx anunciam quatro linhas.</div>
+      <div class="note"><span class="n">2</span><b>LT14</b> difere apenas no número do Virtual Bit
+      (VB102/VB103 contra VB101/VB102). A lógica é equivalente; verificar o mapeamento GOOSE antes de igualar.</div>
+      <div class="note"><span class="n">3</span><b>LT17</b> usa <b>LT04</b> no UPC3 onde os demais usam
+      <b>LT03</b>. Divergência real de lógica — reter para análise.</div>
+      <div class="note"><span class="n">4</span>Comparação feita sobre o RDB, não sobre o relé.
+      Confirme que o arquivo é o mesmo que foi baixado no equipamento.</div>
+    </aside>
+  </div>
+</div>
+
+<a class="badge" href="index.html">06 · Folha de dados</a>
+</body></html>

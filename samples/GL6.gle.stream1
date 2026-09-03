@@ -1,0 +1,2842 @@
+<?xml version="1.0" encoding="utf-8"?>
+<editor>
+  <version major="0" minor="7" />
+  <preferences>
+    <diagram_style>BlackAndWhite</diagram_style>
+    <element_style>IEC</element_style>
+    <crossing_style>Connection</crossing_style>
+    <name_display_style>Alias</name_display_style>
+    <snap_to_grid>True</snap_to_grid>
+    <show_grid>True</show_grid>
+  </preferences>
+  <page_settings orientation="portrait">
+    <paper_size name="A4" width="827" height="1169" />
+    <paper_source name="unknown" />
+    <page_size width="850" height="1100" />
+    <margins left="25" right="25" top="25" bottom="25" />
+  </page_settings>
+  <pages>
+    <page name="Untitled" description="" revisiondate="19/05/2026" page_extra_area_space_x="850" page_extra_area_space_y="1100" page_zoom="0.8333333" page_h_scroll="592" page_v_scroll="953">
+      <elements>
+        <element id="0" type="SYMBOL" left="54" top="54" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB001" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="1" type="SYMBOL" left="54" top="66" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB002" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="6" type="SYMBOL" left="54" top="126" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB007" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="2" type="SYMBOL" left="54" top="78" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB003" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="3" type="SYMBOL" left="54" top="90" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB004" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="7" type="SYMBOL" left="54" top="138" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB008" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="8" type="SYMBOL" left="54" top="150" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB009" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="5" type="SYMBOL" left="54" top="114" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB006" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="9" type="SYMBOL" left="54" top="162" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB010" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="4" type="SYMBOL" left="54" top="102" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB005" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="10" type="SYMBOL" left="54" top="186" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB011" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="11" type="SYMBOL" left="54" top="198" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB012" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="16" type="SYMBOL" left="54" top="258" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB017" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="12" type="SYMBOL" left="54" top="210" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB013" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="13" type="SYMBOL" left="54" top="222" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB014" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="17" type="SYMBOL" left="54" top="270" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB018" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="18" type="SYMBOL" left="54" top="282" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB019" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="15" type="SYMBOL" left="54" top="246" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB016" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="19" type="SYMBOL" left="54" top="294" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB020" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="14" type="SYMBOL" left="54" top="234" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB015" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="20" type="SYMBOL" left="54" top="318" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB031" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="21" type="SYMBOL" left="54" top="330" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB032" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="26" type="SYMBOL" left="54" top="390" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="22" type="SYMBOL" left="54" top="342" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB033" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="23" type="SYMBOL" left="54" top="354" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB034" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="27" type="SYMBOL" left="54" top="402" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="28" type="SYMBOL" left="54" top="414" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="25" type="SYMBOL" left="54" top="378" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB036" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="29" type="SYMBOL" left="54" top="426" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="24" type="SYMBOL" left="54" top="366" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB035" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="30" type="SYMBOL" left="54" top="450" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB041" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="31" type="SYMBOL" left="54" top="462" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB042" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="36" type="SYMBOL" left="54" top="522" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="32" type="SYMBOL" left="54" top="474" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB043" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="33" type="SYMBOL" left="54" top="486" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB044" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="37" type="SYMBOL" left="54" top="534" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="38" type="SYMBOL" left="54" top="546" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="35" type="SYMBOL" left="54" top="510" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB036" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="39" type="SYMBOL" left="54" top="558" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="34" type="SYMBOL" left="54" top="498" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB035" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="40" type="SYMBOL" left="54" top="582" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB041" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="41" type="SYMBOL" left="54" top="594" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB042" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="46" type="SYMBOL" left="54" top="654" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="42" type="SYMBOL" left="54" top="606" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB043" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="43" type="SYMBOL" left="54" top="618" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB044" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="47" type="SYMBOL" left="54" top="666" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="48" type="SYMBOL" left="54" top="678" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="45" type="SYMBOL" left="54" top="642" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB036" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="49" type="SYMBOL" left="54" top="690" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="44" type="SYMBOL" left="54" top="630" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB035" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="50" type="SYMBOL" left="54" top="714" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB041" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="51" type="SYMBOL" left="54" top="726" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB042" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="56" type="SYMBOL" left="54" top="786" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="52" type="SYMBOL" left="54" top="738" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB043" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="53" type="SYMBOL" left="54" top="750" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB044" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="57" type="SYMBOL" left="54" top="798" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="58" type="SYMBOL" left="54" top="810" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="55" type="SYMBOL" left="54" top="774" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB036" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="59" type="SYMBOL" left="54" top="822" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="54" type="SYMBOL" left="54" top="762" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB035" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="64" type="SYMBOL" left="234" top="54" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB001" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="65" type="SYMBOL" left="234" top="66" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB002" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="70" type="SYMBOL" left="234" top="126" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB007" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="66" type="SYMBOL" left="234" top="78" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB003" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="67" type="SYMBOL" left="234" top="90" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB004" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="71" type="SYMBOL" left="234" top="138" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB008" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="72" type="SYMBOL" left="234" top="150" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB009" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="69" type="SYMBOL" left="234" top="114" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB006" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="73" type="SYMBOL" left="234" top="162" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB010" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="68" type="SYMBOL" left="234" top="102" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB005" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="74" type="SYMBOL" left="234" top="186" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB011" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="75" type="SYMBOL" left="234" top="198" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB012" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="80" type="SYMBOL" left="234" top="258" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB017" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="76" type="SYMBOL" left="234" top="210" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB013" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="77" type="SYMBOL" left="234" top="222" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB014" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="81" type="SYMBOL" left="234" top="270" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB018" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="82" type="SYMBOL" left="234" top="282" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB019" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="79" type="SYMBOL" left="234" top="246" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB016" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="83" type="SYMBOL" left="234" top="294" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB020" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="78" type="SYMBOL" left="234" top="234" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB015" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="84" type="SYMBOL" left="234" top="318" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB031" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="85" type="SYMBOL" left="234" top="330" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB032" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="90" type="SYMBOL" left="234" top="390" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="86" type="SYMBOL" left="234" top="342" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB033" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="87" type="SYMBOL" left="234" top="354" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB034" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="91" type="SYMBOL" left="234" top="402" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="92" type="SYMBOL" left="234" top="414" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="89" type="SYMBOL" left="234" top="378" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB036" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="93" type="SYMBOL" left="234" top="426" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="88" type="SYMBOL" left="234" top="366" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB035" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="94" type="SYMBOL" left="234" top="450" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB041" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="95" type="SYMBOL" left="234" top="462" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB042" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="100" type="SYMBOL" left="234" top="522" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="96" type="SYMBOL" left="234" top="474" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB043" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="97" type="SYMBOL" left="234" top="486" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB044" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="101" type="SYMBOL" left="234" top="534" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="102" type="SYMBOL" left="234" top="546" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="99" type="SYMBOL" left="234" top="510" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB036" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="103" type="SYMBOL" left="234" top="558" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="98" type="SYMBOL" left="234" top="498" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB035" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="104" type="SYMBOL" left="234" top="582" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB041" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="105" type="SYMBOL" left="234" top="594" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB042" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="110" type="SYMBOL" left="234" top="654" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="106" type="SYMBOL" left="234" top="606" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB043" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="107" type="SYMBOL" left="234" top="618" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB044" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="111" type="SYMBOL" left="234" top="666" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="112" type="SYMBOL" left="234" top="678" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="109" type="SYMBOL" left="234" top="642" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB036" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="113" type="SYMBOL" left="234" top="690" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="108" type="SYMBOL" left="234" top="630" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB035" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="114" type="SYMBOL" left="234" top="714" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB041" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="115" type="SYMBOL" left="234" top="726" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB042" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="120" type="SYMBOL" left="234" top="786" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="116" type="SYMBOL" left="234" top="738" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB043" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="117" type="SYMBOL" left="234" top="750" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB044" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="121" type="SYMBOL" left="234" top="798" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="122" type="SYMBOL" left="234" top="810" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="119" type="SYMBOL" left="234" top="774" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB036" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="123" type="SYMBOL" left="234" top="822" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="118" type="SYMBOL" left="234" top="762" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB035" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="128" type="SYMBOL" left="408" top="54" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB001" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="129" type="SYMBOL" left="408" top="66" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB002" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="134" type="SYMBOL" left="408" top="126" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB007" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="130" type="SYMBOL" left="408" top="78" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB003" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="131" type="SYMBOL" left="408" top="90" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB004" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="135" type="SYMBOL" left="408" top="138" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB008" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="136" type="SYMBOL" left="408" top="150" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB009" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="133" type="SYMBOL" left="408" top="114" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB006" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="137" type="SYMBOL" left="408" top="162" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB010" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="132" type="SYMBOL" left="408" top="102" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB005" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="138" type="SYMBOL" left="408" top="186" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB011" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="139" type="SYMBOL" left="408" top="198" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB012" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="144" type="SYMBOL" left="408" top="258" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB017" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="140" type="SYMBOL" left="408" top="210" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB013" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="141" type="SYMBOL" left="408" top="222" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB014" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="145" type="SYMBOL" left="408" top="270" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB018" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="146" type="SYMBOL" left="408" top="282" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB019" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="143" type="SYMBOL" left="408" top="246" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB016" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="147" type="SYMBOL" left="408" top="294" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB020" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="142" type="SYMBOL" left="408" top="234" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB015" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="148" type="SYMBOL" left="408" top="318" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB031" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="149" type="SYMBOL" left="408" top="330" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB032" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="154" type="SYMBOL" left="408" top="390" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="150" type="SYMBOL" left="408" top="342" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB033" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="151" type="SYMBOL" left="408" top="354" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB034" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="155" type="SYMBOL" left="408" top="402" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="156" type="SYMBOL" left="408" top="414" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="153" type="SYMBOL" left="408" top="378" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB036" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="157" type="SYMBOL" left="408" top="426" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="152" type="SYMBOL" left="408" top="366" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB035" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="158" type="SYMBOL" left="408" top="450" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB041" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="159" type="SYMBOL" left="408" top="462" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB042" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="164" type="SYMBOL" left="408" top="522" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="160" type="SYMBOL" left="408" top="474" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB043" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="161" type="SYMBOL" left="408" top="486" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB044" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="165" type="SYMBOL" left="408" top="534" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="166" type="SYMBOL" left="408" top="546" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="163" type="SYMBOL" left="408" top="510" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB036" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="167" type="SYMBOL" left="408" top="558" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="162" type="SYMBOL" left="408" top="498" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB035" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="168" type="SYMBOL" left="408" top="582" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB041" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="169" type="SYMBOL" left="408" top="594" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB042" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="174" type="SYMBOL" left="408" top="654" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="170" type="SYMBOL" left="408" top="606" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB043" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="171" type="SYMBOL" left="408" top="618" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB044" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="175" type="SYMBOL" left="408" top="666" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="176" type="SYMBOL" left="408" top="678" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="173" type="SYMBOL" left="408" top="642" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB036" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="177" type="SYMBOL" left="408" top="690" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="172" type="SYMBOL" left="408" top="630" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB035" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="178" type="SYMBOL" left="408" top="714" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB041" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="179" type="SYMBOL" left="408" top="726" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB042" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="184" type="SYMBOL" left="408" top="786" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="180" type="SYMBOL" left="408" top="738" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB043" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="181" type="SYMBOL" left="408" top="750" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB044" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="185" type="SYMBOL" left="408" top="798" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="186" type="SYMBOL" left="408" top="810" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="183" type="SYMBOL" left="408" top="774" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB036" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="187" type="SYMBOL" left="408" top="822" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="182" type="SYMBOL" left="408" top="762" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB035" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="192" type="SYMBOL" left="588" top="54" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB001" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="193" type="SYMBOL" left="588" top="66" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB002" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="198" type="SYMBOL" left="588" top="126" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB007" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="194" type="SYMBOL" left="588" top="78" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB003" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="195" type="SYMBOL" left="588" top="90" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB004" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="199" type="SYMBOL" left="588" top="138" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB008" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="200" type="SYMBOL" left="588" top="150" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB009" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="197" type="SYMBOL" left="588" top="114" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB006" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="201" type="SYMBOL" left="588" top="162" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB010" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="196" type="SYMBOL" left="588" top="102" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB005" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="202" type="SYMBOL" left="588" top="186" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB011" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="203" type="SYMBOL" left="588" top="198" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB012" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="208" type="SYMBOL" left="588" top="258" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB017" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="204" type="SYMBOL" left="588" top="210" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB013" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="205" type="SYMBOL" left="588" top="222" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB014" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="209" type="SYMBOL" left="588" top="270" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB018" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="210" type="SYMBOL" left="588" top="282" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB019" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="207" type="SYMBOL" left="588" top="246" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB016" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="211" type="SYMBOL" left="588" top="294" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB020" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="206" type="SYMBOL" left="588" top="234" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB015" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="212" type="SYMBOL" left="588" top="318" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB031" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="213" type="SYMBOL" left="588" top="330" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB032" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="218" type="SYMBOL" left="588" top="390" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="214" type="SYMBOL" left="588" top="342" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB033" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="215" type="SYMBOL" left="588" top="354" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB034" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="219" type="SYMBOL" left="588" top="402" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="220" type="SYMBOL" left="588" top="414" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="217" type="SYMBOL" left="588" top="378" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB036" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="221" type="SYMBOL" left="588" top="426" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="216" type="SYMBOL" left="588" top="366" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB035" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="222" type="SYMBOL" left="588" top="450" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB041" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="223" type="SYMBOL" left="588" top="462" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB042" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="228" type="SYMBOL" left="588" top="522" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="224" type="SYMBOL" left="588" top="474" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB043" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="225" type="SYMBOL" left="588" top="486" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB044" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="229" type="SYMBOL" left="588" top="534" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="230" type="SYMBOL" left="588" top="546" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="227" type="SYMBOL" left="588" top="510" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB036" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="231" type="SYMBOL" left="588" top="558" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="226" type="SYMBOL" left="588" top="498" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB035" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="232" type="SYMBOL" left="588" top="582" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB041" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="233" type="SYMBOL" left="588" top="594" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB042" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="238" type="SYMBOL" left="588" top="654" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="234" type="SYMBOL" left="588" top="606" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB043" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="235" type="SYMBOL" left="588" top="618" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB044" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="239" type="SYMBOL" left="588" top="666" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="240" type="SYMBOL" left="588" top="678" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="237" type="SYMBOL" left="588" top="642" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB036" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="241" type="SYMBOL" left="588" top="690" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="236" type="SYMBOL" left="588" top="630" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB035" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="242" type="SYMBOL" left="588" top="714" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB041" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="243" type="SYMBOL" left="588" top="726" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB042" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="248" type="SYMBOL" left="588" top="786" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="244" type="SYMBOL" left="588" top="738" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB043" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="245" type="SYMBOL" left="588" top="750" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB044" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="249" type="SYMBOL" left="588" top="798" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="250" type="SYMBOL" left="588" top="810" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="247" type="SYMBOL" left="588" top="774" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB036" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="251" type="SYMBOL" left="588" top="822" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="246" type="SYMBOL" left="588" top="762" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB035" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 TRANSF. - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="60" type="SYMBOL" left="54" top="846" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="61" type="SYMBOL" left="54" top="858" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="62" type="SYMBOL" left="54" top="870" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="63" type="SYMBOL" left="54" top="882" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="124" type="SYMBOL" left="234" top="846" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="125" type="SYMBOL" left="234" top="858" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="126" type="SYMBOL" left="234" top="870" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="127" type="SYMBOL" left="234" top="882" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="188" type="SYMBOL" left="408" top="846" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="189" type="SYMBOL" left="408" top="858" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="190" type="SYMBOL" left="408" top="870" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="191" type="SYMBOL" left="408" top="882" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="252" type="SYMBOL" left="588" top="846" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB037" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>50/62BF P/ ATUACAO 86 - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="253" type="SYMBOL" left="588" top="858" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB038" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>86TR - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="254" type="SYMBOL" left="588" top="870" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB039" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 NORMAL - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+        <element id="255" type="SYMBOL" left="588" top="882" locked="False" image_stream_length="0" image_stream="">
+          <logic_element type="SYMBOL" physical_instance_number="0" physical_instance_name="VB030" alias="">
+            <comment />
+            <ports />
+            <ports>
+              <port index="0">
+                <comment>43 ET - TR1 UPC2</comment>
+              </port>
+            </ports>
+          </logic_element>
+        </element>
+      </elements>
+      <connections />
+    </page>
+  </pages>
+  <continuation_connections />
+</editor>

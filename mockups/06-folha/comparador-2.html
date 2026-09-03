@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comparador · grupos — Folha de Dados</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../../sellib/web/static/fonts/fonts.css">
+<link rel="stylesheet" href="theme.css">
+<style>
+.gg{display:grid;grid-template-columns:repeat(auto-fill,minmax(198px,1fr));gap:0;
+  border-top:1px solid var(--rule-strong);border-left:1px solid var(--rule)}
+.g{display:flex;align-items:center;gap:9px;padding:9px 11px;border-right:1px solid var(--rule);
+  border-bottom:1px solid var(--rule);cursor:pointer}
+.g:hover{background:var(--paper-2)}
+.g.sel{background:var(--card)}
+.g .k{font:600 10.5px var(--mono);color:var(--slate);width:24px;flex:none}
+.g .n{font-size:12.5px}
+.g .n small{display:block;color:var(--ink-2);font-size:11px;font-family:var(--mono)}
+.g.part{box-shadow:inset 3px 0 0 var(--warn)}
+</style>
+</head><body><div class="page">
+  <div class="masthead">
+    <div><h1>Comissionamento SEL</h1><div class="sub">Ferramenta 2 · Comparador de Ajustes</div></div>
+    <span class="spacer"></span>
+    <span class="doc">passo 2 de 3 · 7 relés 7xx</span>
+    <a class="lnk" href="../index.html">← propostas</a>
+  </div>
+<nav class="toc">
+  <a class="" href="index.html"><span class="n">0</span>Menu</a>
+  <a class="" href="glv-landing.html"><span class="n">1</span>Lógica ao vivo</a>
+  <a class="on" href="comparador-1.html"><span class="n">2</span>Comparador de ajustes</a>
+  <a class="" href="vb-updater.html"><span class="n">3</span>VB Updater</a>
+  <a class="" href="vlan-mapper.html"><span class="n">4</span>VLAN Mapper</a>
+  <a class="" href="exportador.html"><span class="n">5</span>Exportador de comentários</a>
+  <span class="off"><span class="n">6</span>Comparador RDB ↔ SCD</span>
+</nav>
+  <div class="grid">
+    <div class="col-main">
+      <div class="steps">
+        <a class="step done" href="comparador-1.html">1 · RDBs e relés ✓</a>
+        <span class="step on">2 · Grupos</span>
+        <a class="step" href="comparador-3.html">3 · Comparação</a>
+      </div>
+
+      <section>
+        <h2><span class="num">3.</span>Grupos de ajustes</h2>
+        <p class="lead">Cada grupo marcado vira uma aba na comparação. Os marcados com a tarja lateral
+        existem em apenas parte dos relés.<sup class="ref">1</sup></p>
+        <div class="bar">
+          <button class="btn">Selecionar todos</button>
+          <button class="btn">Limpar</button>
+          <button class="btn">Apenas lógica</button>
+          <span class="count">25 de 25 marcados</span>
+          <span class="spacer"></span>
+          <a class="btn" href="comparador-1.html">← trocar relés</a>
+          <a class="btn pri" href="comparador-3.html">Comparar →</a>
+        </div>
+        <div class="gg">
+          <label class="g sel"><input type="checkbox" checked><span class="k">1</span><span class="n">Grupo 1<small>proteção</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">2</span><span class="n">Grupo 2<small>proteção</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">3</span><span class="n">Grupo 3<small>proteção</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">4</span><span class="n">Grupo 4<small>proteção</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">L1</span><span class="n">Lógica 1<small>SELOGIC</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">L2</span><span class="n">Lógica 2<small>SELOGIC</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">L3</span><span class="n">Lógica 3<small>SELOGIC</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">L4</span><span class="n">Lógica 4<small>SELOGIC</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">G</span><span class="n">Global<small>gerais</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">M</span><span class="n">Modbus<small>registros</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">R</span><span class="n">Relatórios<small>osc. e SER</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">F</span><span class="n">Front Panel<small>display</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">I</span><span class="n">Info<small>identificação</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">P1</span><span class="n">Porta 1<small>serial</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">P2</span><span class="n">Porta 2<small>serial</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">P3</span><span class="n">Porta 3<small>serial</small></span></label>
+          <label class="g sel part"><input type="checkbox" checked><span class="k">P4</span><span class="n">Porta 4<small>em 6 de 7</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">PF</span><span class="n">Painel Frontal<small>pushbuttons</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">HMI</span><span class="n">HMI<small>telas</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">D1</span><span class="n">DNP 1<small>mapa</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">D2</span><span class="n">DNP 2<small>mapa</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">D3</span><span class="n">DNP 3<small>mapa</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">E1</span><span class="n">Ethernet 1<small>rede</small></span></label>
+          <label class="g sel"><input type="checkbox" checked><span class="k">E2</span><span class="n">Ethernet 2<small>rede</small></span></label>
+          <label class="g sel part"><input type="checkbox" checked><span class="k">E3</span><span class="n">Ethernet 3<small>em 4 de 7</small></span></label>
+        </div>
+      </section>
+    </div>
+
+    <aside class="col-notes">
+      <div class="cap">Notas</div>
+      <div class="note"><span class="n">1</span>Grupo ausente num relé não é erro: firmwares diferentes
+      expõem conjuntos diferentes. A variável aparece como <b>faltante</b> na coluna dele.</div>
+      <div class="note"><span class="n">2</span>“Apenas lógica” deixa marcados só L1–L4 — é o atalho para
+      revisar SELOGIC entre relés gêmeos.</div>
+    </aside>
+  </div>
+</div></body></html>

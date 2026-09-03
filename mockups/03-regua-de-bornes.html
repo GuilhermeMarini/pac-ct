@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>03 · Régua de Bornes — SEL Toolkit</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../sellib/web/static/fonts/fonts.css">
+<style>
+/* ===========================================================================
+   DIRECAO 03 — REGUA DE BORNES
+   Referencia: a regua de bornes do painel. A navegacao e' a regua: cada
+   ferramenta e' um borne numerado com parafuso, e um fio colorido sai do
+   borne ativo ate o conteudo. Cores = cores de fio (azul, vermelho, verde).
+   =========================================================================== */
+:root{
+  --bake:#1b1a18; --bake-2:#232220; --borne:#d9d2c3; --borne-dark:#b8b0a0;
+  --brass:#c9a227; --wire-blue:#2f6fed; --wire-red:#d9433f; --wire-green:#2f9e58;
+  --text:#eae7e0; --muted:#8d8880; --edge:#33312d;
+  --sans:'Roboto',system-ui,sans-serif;
+  --cond:'Roboto Condensed','Arial Narrow',system-ui,sans-serif;
+  --mono:ui-monospace,'SFMono-Regular',Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bake);color:var(--text);font:14px/1.55 var(--sans)}
+.top{display:flex;align-items:baseline;gap:14px;padding:16px 26px;border-bottom:2px solid var(--edge);
+  background:linear-gradient(180deg,#242220,#1b1a18)}
+.top h1{margin:0;font:700 19px/1 var(--cond);text-transform:uppercase;letter-spacing:.1em}
+.top .sub{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.top .rid{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--brass)}
+
+.shell{display:grid;grid-template-columns:232px minmax(0,1fr);gap:0;align-items:start}
+
+/* --- ASSINATURA: a regua de bornes --------------------------------------- */
+.strip{background:var(--bake-2);border-right:2px solid var(--edge);padding:14px 0 40px;position:sticky;top:0}
+.strip .cap{font:700 10px var(--cond);letter-spacing:.2em;color:var(--muted);
+  text-transform:uppercase;padding:0 14px 10px}
+.borne{display:flex;align-items:stretch;gap:0;text-decoration:none;color:inherit;position:relative}
+.borne .num{width:32px;flex:none;background:var(--borne);color:#26241f;font:700 12px/1 var(--mono);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  border-bottom:1px solid #a8a091;box-shadow:inset -2px 0 3px rgba(0,0,0,.25)}
+/* parafuso do borne, fenda inclusa */
+.borne .num::after{content:"";width:12px;height:12px;border-radius:50%;
+  background:linear-gradient(90deg,transparent 44%,#6f695e 44% 56%,transparent 56%),
+             radial-gradient(circle at 35% 30%,#f5f0e6,#8f887a 72%);
+  box-shadow:inset 0 0 0 1px #6f695e}
+.borne .lbl{flex:1;padding:11px 12px 11px 14px;border-bottom:1px solid #2b2926;font-size:13.5px}
+.borne .lbl small{display:block;color:var(--muted);font-size:11px;margin-top:1px}
+.borne:hover .lbl{background:#2b2926}
+.borne:focus-visible{outline:2px solid var(--brass);outline-offset:-2px}
+.borne.on .lbl{background:#2b2926;box-shadow:inset 3px 0 0 var(--wire-blue)}
+.borne.on .num{background:#fff}
+.borne.off{opacity:.42}
+/* fio que sai do borne ativo */
+.borne.on::after{content:"";position:absolute;right:-2px;top:50%;width:2px;height:2px;
+  box-shadow:0 0 0 2px var(--wire-blue)}
+
+main{padding:20px 26px 80px;min-width:0}
+h2{font:700 11px var(--cond);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
+  margin:6px 0 12px;padding-left:12px;border-left:3px solid var(--wire-blue)}
+h2.g{border-left-color:var(--wire-green)}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-bottom:26px}
+.card{background:var(--bake-2);border:1px solid var(--edge);border-top:3px solid var(--wire-blue);
+  padding:13px 15px}
+.card:nth-child(2){border-top-color:var(--wire-green)}
+.card:nth-child(3){border-top-color:var(--wire-red)}
+.card h3{margin:0 0 4px;font:500 15px/1.2 var(--sans)}
+.card p{margin:0;font-size:12.5px;color:var(--muted)}
+
+.wrap{border:1px solid var(--edge);background:var(--bake-2);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:#26241f;text-align:left;padding:9px 12px;font:700 10px var(--cond);
+  letter-spacing:.16em;text-transform:uppercase;color:#b9b2a5;border-bottom:2px solid var(--edge)}
+td{padding:8px 12px;border-bottom:1px solid #2b2926;font-family:var(--mono);font-size:12px;white-space:nowrap}
+td.var{font-weight:600;color:var(--text)}
+td.val{color:#b3ada3}
+tr:hover td{background:#282622}
+.term{display:inline-flex;align-items:center;gap:6px;font:700 10px var(--cond);letter-spacing:.12em;
+  text-transform:uppercase}
+.term::before{content:"";width:9px;height:9px;border-radius:2px;background:currentColor}
+.t-ok{color:var(--wire-green)}.t-dif{color:var(--wire-red)}
+.t-vb{color:var(--wire-blue)}.t-falta{color:var(--muted)}
+.rail{display:flex;gap:20px;flex-wrap:wrap;padding:11px 14px;margin-top:10px;background:var(--bake-2);
+  border:1px solid var(--edge);font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.rail b{color:var(--text)}
+.tokens{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:26px;padding:14px;
+  background:var(--bake-2);border:1px solid var(--edge)}
+.sw{width:74px}.sw i{display:block;height:32px;border:1px solid var(--edge)}
+.sw span{font:700 9px var(--cond);letter-spacing:.1em;color:var(--muted);display:block;margin-top:5px;text-transform:uppercase}
+.badge{position:fixed;right:14px;bottom:14px;padding:6px 11px;font:700 10px var(--cond);letter-spacing:.16em;
+  text-transform:uppercase;color:var(--text);background:var(--bake-2);border:1px solid var(--edge);text-decoration:none}
+.badge:hover{color:var(--brass)}
+@media (max-width:820px){.shell{grid-template-columns:1fr}.strip{position:static;border-right:0;border-bottom:2px solid var(--edge)}}
+</style></head>
+<body>
+
+<div class="top">
+  <h1>Comissionamento SEL</h1>
+  <span class="sub">SE Exemploópolis III</span>
+  <span class="rid">RDB 17-08-26 · 25 IEDs</span>
+</div>
+
+<div class="shell">
+  <nav class="strip">
+    <div class="cap">Régua X1 — ferramentas</div>
+    <a class="borne" href="#"><span class="num">1</span><span class="lbl">Visualizador de Lógica<small>estado ao vivo no GLE</small></span></a>
+    <a class="borne on" href="#"><span class="num">2</span><span class="lbl">Comparador de Ajustes<small>até 7 relés lado a lado</small></span></a>
+    <a class="borne" href="#"><span class="num">3</span><span class="lbl">VB Updater<small>virtual bits GLE ↔ SCD</small></span></a>
+    <a class="borne" href="#"><span class="num">4</span><span class="lbl">VLAN Mapper<small>GOOSE por porta</small></span></a>
+    <a class="borne" href="#"><span class="num">5</span><span class="lbl">Exportador de Comentários<small>Excel ida e volta</small></span></a>
+    <span class="borne off"><span class="num">6</span><span class="lbl">Comparador RDB ↔ SCD<small>em breve</small></span></span>
+  </nav>
+
+  <main>
+    <h2>Borne 2 · Comparador de ajustes</h2>
+    <div class="cards">
+      <div class="card"><h3>7 relés selecionados</h3><p>Família 7xx · QPC2_TR1_UPC1 até UPC6 e QPC2_TR2_UPC1.</p></div>
+      <div class="card"><h3>25 grupos comparados</h3><p>Ajustes, lógica, portas, DNP e Ethernet.</p></div>
+      <div class="card"><h3>5 divergências</h3><p>Todas em Lógica 1; nenhuma em ajustes de proteção.</p></div>
+    </div>
+
+    <h2 class="g">Lógica 1</h2>
+    <div class="wrap">
+      <table>
+        <thead><tr><th>Variável</th><th>Campo</th><th>QPC2_TR1_UPC1</th><th>QPC2_TR1_UPC2</th><th>QPC2_TR1_UPC3</th><th>Situação</th></tr></thead>
+        <tbody>
+          <tr><td class="var">51G2TC</td><td class="val">value</td><td class="val">0.40</td><td class="val">0.40</td><td class="val">0.40</td><td><span class="term t-ok">Igual</span></td></tr>
+          <tr><td class="var">52A</td><td class="val">set</td><td class="val">NOT IN101 AND IN102</td><td class="val">NOT IN101 AND IN102</td><td class="val">NOT IN101 AND IN102</td><td><span class="term t-ok">Igual</span></td></tr>
+          <tr><td class="var">LT14</td><td class="val">set</td><td class="val">VB102 OR VB103</td><td class="val">VB101 OR VB102</td><td class="val">VB101 OR VB102</td><td><span class="term t-vb">Difere VB</span></td></tr>
+          <tr><td class="var">LT17</td><td class="val">set</td><td class="val">SV02 AND LT03</td><td class="val">SV02 AND LT03</td><td class="val">SV02 AND LT04</td><td><span class="term t-dif">Diferente</span></td></tr>
+          <tr><td class="var">27I1CFA</td><td class="val">value</td><td class="val">1.00</td><td class="val">1.00</td><td class="val">—</td><td><span class="term t-falta">Faltante</span></td></tr>
+          <tr><td class="var">50P1P</td><td class="val">value</td><td class="val">5.00</td><td class="val">5.00</td><td class="val">5.00</td><td><span class="term t-ok">Igual</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="rail"><span><b>659</b> variáveis</span><span><b>654</b> iguais</span><span><b>5</b> diferentes</span><span><b>16</b> difere VB</span></div>
+
+    <div class="tokens">
+      <div class="sw"><i style="background:#1b1a18"></i><span>baquelite</span></div>
+      <div class="sw"><i style="background:#d9d2c3"></i><span>borne</span></div>
+      <div class="sw"><i style="background:#c9a227"></i><span>latão</span></div>
+      <div class="sw"><i style="background:#2f6fed"></i><span>fio azul</span></div>
+      <div class="sw"><i style="background:#2f9e58"></i><span>fio verde</span></div>
+      <div class="sw"><i style="background:#d9433f"></i><span>fio vermelho</span></div>
+      <div style="flex:1;min-width:270px;font-size:12px;color:var(--muted)">
+        <b style="color:var(--text)">Roboto Condensed</b> em rótulos de painel ·
+        <b style="color:var(--text)">Roboto</b> no texto · mono nos valores.
+        A cor não é decoração: é a cor do fio daquele tipo de sinal.
+      </div>
+    </div>
+  </main>
+</div>
+
+<a class="badge" href="index.html">03 · Régua de bornes</a>
+</body></html>

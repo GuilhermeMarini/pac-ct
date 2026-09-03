@@ -1,0 +1,187 @@
+; =============================================================================
+;  Arquivo de configuracao para o exemplo SELProtoPy -- MODELO
+;
+;  Este e' o modelo versionado. O arquivo que a app le e' `config/config.ini`,
+;  que NAO vai pro git (esta no .gitignore) justamente porque e' nele que voce
+;  digita as senhas reais da subestacao.
+;
+;  Copie e edite:   cp config/config.ini.example config/config.ini
+;  (na primeira execucao a app faz essa copia sozinha, se o arquivo faltar)
+; =============================================================================
+
+[connection]
+; Tipo de conexao com o rele: "tcp" (Ethernet) ou "serial" (RS-232 / USB)
+type = tcp
+
+[tcp]
+; Endereco IP do rele e porta TCP (porta padrao SEL = 23).
+; O valor abaixo e' um PLACEHOLDER (192.0.2.0/24, a faixa de documentacao da
+; RFC 5737) -- troque pelo IP do rele de bancada ou da subestacao.
+; Vale so para o modo CLI (`python3 app.py` sem --web) e para o diagrama que
+; `--gle` semeia: no GLV cada diagrama carrega o IP do proprio rele, lido do
+; IPADDR (SET_P5.TXT) do RDB escolhido em Arquivos do Projeto.
+ip_address = 192.0.2.10
+port = 23
+
+[serial]
+; Porta serial (Linux: /dev/ttyUSB0  |  Windows: COM3)
+port = /dev/ttyUSB0
+baudrate = 9600
+
+[relay]
+; Nome amigavel do rele, usado apenas para logs e relatorios
+name = QPC1_LT1_UPC1
+; Descricao opcional
+description = Rele de protecao da entrada de 13.8 kV
+
+[gle]
+; Arquivo GLE (diagrama de logica) usado pelo dashboard web.
+; Caminho relativo eh resolvido por `pacct.paths.resolve_gle_path`:
+;   1) absoluto -> usa direto
+;   2) relativo a PROJECT_ROOT -> se existir, usa
+;   3) relativo a samples/ -> default
+file = TR1_UPC1_R1f.xml
+
+[auth]
+; Senhas de acesso ao rele.
+; ATENCAO: os valores abaixo sao os PADROES DE FABRICA da SEL (OTTER e TAIL).
+; Servem so para bancada -- num rele de verdade eles foram (ou deveriam ter
+; sido) trocados no comissionamento, entao substitua pelos da obra.
+; Faca isso em `config/config.ini`, nunca aqui: este arquivo vai pro git e o
+; outro nao. Senha de subestacao commitada fica no historico pra sempre.
+acc_password = OTTER
+ac2_password = TAIL
+; Nivel minimo de acesso para fazer polling (0, 1 ou 2)
+;   0 = sem login    1 = ACC    2 = 2AC (necessario para Fast Operate)
+min_access_level = 1
+
+[polling]
+; Quantas leituras de Fast Meter serao feitas
+iterations = 5
+; Intervalo entre leituras (segundos)
+interval_seconds = 0.5
+
+[signals]
+; Lista de sinais a exibir/registrar a cada leitura.
+; - Separados por virgula (espacos sao ignorados).
+; - Deixe vazio para mostrar TODOS os sinais disponiveis do rele.
+; - Nomes sao case-insensitive.
+; - Sinais nao encontrados na resposta sao listados como [NAO ENCONTRADO].
+;
+; Analogicos disponiveis no SEL-411L (exemplo):
+;   IA1, IB1, IC1, IA2, IB2, IC2, IA3, IB3, IC3
+;   VA, VB, VC, FREQ, AMV001, AMV002, AMV003, AMV004
+analogs = VA, VB, VC, IA1, IB1, IC1, FREQ
+;
+; Digitais da Relay Word do rele (ex: Z1T, 50P1, TRIP, EN, TRIPLED, TLED_1, ...)
+; Use a string especial "*" para mostrar TODOS os digitais.
+; Use "*ON" para mostrar apenas os digitais que estao ativos (= 1).
+digitals = *
+;
+; Fonte de leitura dos digitais (relevante so para reles SEL-400 series):
+;   ascii      -> ASCII MAP/VIEW/TAR na regiao TARGET do banco Fast Message
+;                 (RECOMENDADO -- funciona em SEL-411L e similares)
+;   binary     -> Tentativa via SEL Fast Message binario A546h
+;                 (NAO IMPLEMENTADO -- formato do frame nao e publico)
+;   fastmeter  -> Bloco DNA do Fast Meter (legacy, vazio em SEL-411L)
+digitals_source = ascii
+;
+; Cache persistente da descoberta de bits (linha+posicao de cada nome).
+; A primeira execucao leva ~10s por bit para descobrir; com cache, runs
+; subsequentes pulam essa fase. O cache e invalidado se o FID do rele mudar
+; (ex: upgrade de firmware).
+cache_enabled = true
+; Forca redescoberta mesmo com cache valido (util para debug ou apos
+; mudanca de configuracao do rele):
+force_rediscovery = false
+;
+; --- Otimizacoes de latencia ---
+; Pipeline: envia "\xa5\xd1" (Fast Meter) e "VIEW 1:TARGET" em sequencia
+; sem esperar a primeira resposta, depois processa as duas do mesmo stream.
+; Economiza ~50-80ms por iteracao. RECOMENDADO -- e o caminho mais rapido
+; em todos os casos (1 round-trip para FM + 500 bytes da Relay Word).
+pipeline = true
+;
+; tar_threshold: SO usado quando pipeline = false. Para len(digitais) <= N,
+; envia "TAR <bit>" (~100ms/bit) em vez de "VIEW 1:TARGET" (~220ms).
+tar_threshold = 1
+;
+; Formato de saida dos analogicos:
+;   raw       -> valor bruto (numero real ou complexo Python)
+;   phasor    -> magnitude e angulo em graus (para canais com 2 amostras)
+;   both      -> bruto + fasor (default)
+analog_format = both
+
+[fast_operate]
+; ATENCAO! Comandos de Fast Operate atuam no equipamento real (trip/close).
+; Mantenha "enabled = false" para apenas demonstrar polling.
+enabled = false
+; Tipo do ponto: "remote_bit" ou "breaker_bit"
+control_type = remote_bit
+; Ponto de controle (ex.: RB1, RB2, BR1, BR2)
+control_point = RB1
+; Comando a enviar:
+;   remote_bit  -> SET | CLEAR | PULSE | OPEN | CLOSE
+;   breaker_bit -> TRIP | CLOSE
+command = PULSE
+
+[web]
+; Tema padrao da interface para quem ainda nao escolheu um (visitante sem o
+; cookie `seltheme`). Vale para todas as ferramentas; cada visitante troca no
+; seletor do cabecalho e a escolha dele sobrevive a fechar o navegador.
+;   folha    -> Folha de Dados   (claro, denso; imprime como relatorio)
+;   regua    -> Regua de Bornes  (escuro, industrial; cor = cor de fio)
+;   caderno  -> Caderno de Campo (papel quadriculado; carimbos de veredito) PADRAO
+; Valor ausente ou invalido cai em "caderno".
+theme = caderno
+
+; Sessoes por usuario do toolkit web. Cada visitante recebe um cookie e ganha
+; estado + diretorio de upload proprios em cache/sessions/<id>/. Passado esse
+; tempo de ociosidade, a sessao expira e o diretorio dela e' apagado.
+session_ttl_hours = 8
+
+; Cache de extracao de RDB (`cache/rdb/<sha256>/`). Os RDB nao ficam mais no
+; diretorio da sessao: dois arquivos iguais sao o mesmo arquivo, entao a
+; extracao e' unica e vale entre usuarios e entre reinicios.
+; Diferente das sessoes, ele NAO e' apagado no boot -- sobreviver ao restart e'
+; o motivo dele existir. E' varrido junto com as sessoes (a cada 15 min): sai o
+; que esta ocioso ha mais que `rdb_cache_max_age_days` e, se ainda passar de
+; `rdb_cache_max_gb`, sai o menos usado. Nunca sai o que foi tocado ha menos
+; que `session_ttl_hours`: uma sessao viva ainda pode precisar dele.
+rdb_cache_max_gb = 8.0
+rdb_cache_max_age_days = 30
+
+; Graphical Logic Viewer. Cada visitante abre ate `glv_max_diagrams` diagramas;
+; a conexao com o rele e' do processo e contada por referencia, entao dois
+; diagramas no mesmo ip:porta dividem UMA sessao telnet e so `glv_max_links`
+; reles diferentes ficam conectados ao mesmo tempo. O teto existe porque N
+; diagramas conectados sao N threads de polling batendo na rede da subestacao.
+glv_max_diagrams = 10
+glv_max_links = 10
+; Teto do setup da conexao (telnet + login + autoconfig), em segundos. NAO
+; cobre a descoberta de bits, que num FID sem cache leva minutos de propria
+; vontade. Sem ele, um IP que aceita a conexao e nunca responde (port forward
+; morto, switch) deixaria o diagrama em "conectando" pra sempre.
+glv_setup_timeout = 60
+
+; Modo de varredura que vem marcado na tela de selecao de diagramas do GLV:
+; `telnet` (SEL Fast Message na porta 23, o de sempre) ou `mms`
+; (IEC 61850 na porta 102). E' so' o PADRAO -- o modo e' por diagrama, e o
+; usuario troca no radio; uma subestacao ja padronizada em 61850 poe `mms`
+; aqui pra nao trocar o radio a cada diagrama.
+glv_scan_mode = telnet
+
+; Periodo inicial do polling por MMS, em milissegundos. O usuario muda na
+; propria tela do diagrama. Nao ha piso: 0 quer dizer "tao rapido quanto o
+; rele responder" -- o laco le em lote e nunca manda a proxima leitura antes
+; da resposta da anterior, entao um pedido em voo de cada vez, sempre.
+; O telnet continua usando [polling] interval_seconds.
+glv_mms_interval_ms = 100
+
+[options]
+; Imprime mensagens detalhadas durante a comunicacao
+verbose = true
+; Modo debug (imprime bytes crus enviados/recebidos)
+debug = false
+; Arquivo de log (deixe vazio para nao gerar log em arquivo)
+log_file = selprotopy_example.log

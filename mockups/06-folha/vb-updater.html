@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VB Updater — Folha de Dados</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../../sellib/web/static/fonts/fonts.css">
+<link rel="stylesheet" href="theme.css">
+<style>.two{display:grid;grid-template-columns:1fr 1fr;gap:var(--s3)}
+@media (max-width:760px){.two{grid-template-columns:1fr}}</style>
+</head><body><div class="page">
+  <div class="masthead">
+    <div><h1>Comissionamento SEL</h1><div class="sub">Ferramenta 3 · VB Updater</div></div>
+    <span class="spacer"></span>
+    <span class="doc">DOC. CM-311 · REV. 05 · pág. 1 de 1</span>
+    <a class="lnk" href="../index.html">← propostas</a>
+  </div>
+<nav class="toc">
+  <a class="" href="index.html"><span class="n">0</span>Menu</a>
+  <a class="" href="glv-landing.html"><span class="n">1</span>Lógica ao vivo</a>
+  <a class="" href="comparador-1.html"><span class="n">2</span>Comparador de ajustes</a>
+  <a class="on" href="vb-updater.html"><span class="n">3</span>VB Updater</a>
+  <a class="" href="vlan-mapper.html"><span class="n">4</span>VLAN Mapper</a>
+  <a class="" href="exportador.html"><span class="n">5</span>Exportador de comentários</a>
+  <span class="off"><span class="n">6</span>Comparador RDB ↔ SCD</span>
+</nav>
+  <div class="grid">
+    <div class="col-main">
+      <section>
+        <h2><span class="num">1.</span>Arquivos</h2>
+        <div class="two">
+          <div class="filebar"><span>SE EXEMPLO III_17-08-26.rdb</span>
+            <span class="spacer"></span><span class="j j-ok">25 relés</span></div>
+          <div class="filebar"><span>SE_EXEMPLO_III.scd</span>
+            <span class="spacer"></span><span class="j j-ok">25 IEDs</span></div>
+        </div>
+      </section>
+
+      <section>
+        <h2><span class="num">2.</span>Relés casados</h2>
+        <p class="lead">Cruzamento por IP e RID.<sup class="ref">1</sup> A ferramenta lê a descrição do
+        Virtual Bit dos dois lados — comentário da porta no GLE e <code>desc</code> do ExtRef no SCD —
+        e mostra onde discordam.</p>
+        <div class="bar">
+          <button class="btn pri">Aplicar SCD → GLE</button>
+          <button class="btn">Exportar Excel</button>
+          <button class="btn">Importar Excel</button>
+          <span class="count">3 de 22 selecionados</span>
+          <span class="spacer"></span>
+          <button class="btn">Baixar RDB atualizado</button>
+        </div>
+        <div class="wrap">
+          <table>
+            <thead><tr><th style="width:34px"><input type="checkbox"></th><th>Relé (RDB)</th><th>IED (SCD)</th>
+              <th>IP</th><th>GLE</th><th>VBs</th><th>Situação</th></tr></thead>
+            <tbody>
+              <tr><td><input type="checkbox" checked></td><td class="var">QPC2_TR1_UPC1</td><td class="val">TR1UPC1</td>
+                <td class="val">203.0.113.41</td><td class="val">TR1_UPC1_751.gle</td><td class="val">32</td>
+                <td><span class="j j-dif">7 divergem</span></td></tr>
+              <tr><td><input type="checkbox" checked></td><td class="var">QPC2_TR1_UPC2</td><td class="val">TR1UPC2</td>
+                <td class="val">203.0.113.42</td><td class="val">TR1_UPC2_751.gle</td><td class="val">32</td>
+                <td><span class="j j-dif">4 divergem</span></td></tr>
+              <tr><td><input type="checkbox" checked></td><td class="var">QPC2_TR1_UPC3</td><td class="val">TR1UPC3</td>
+                <td class="val">203.0.113.43</td><td class="val">TR1_UPC3_751.gle</td><td class="val">32</td>
+                <td><span class="j j-warn">2 sem desc<sup class="ref">2</sup></span></td></tr>
+              <tr><td><input type="checkbox"></td><td class="var">QPC1_LT1_UPC1</td><td class="val">LT1UPC1</td>
+                <td class="val">203.0.113.22</td><td class="val">LT1_UPC1.gle</td><td class="val">48</td>
+                <td><span class="j j-ok">Tudo igual</span></td></tr>
+              <tr><td><input type="checkbox"></td><td class="var">QPC1_TR1_UPC1</td><td class="val">TR1UPC1_487</td>
+                <td class="val">203.0.113.31</td><td class="val">TR1_UPC1.gle</td><td class="val">64</td>
+                <td><span class="j j-ok">Tudo igual</span></td></tr>
+              <tr><td><input type="checkbox"></td><td class="var">QPC2_TFE1_UPC1</td><td class="val">TFE1UPC1</td>
+                <td class="val">203.0.113.62</td><td class="val">TFE1.gle</td><td class="val">16</td>
+                <td><span class="j j-ok">Tudo igual</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="totals"><span>casados <b>22</b></span><span>só no RDB <b>2</b></span>
+          <span>só no SCD <b>1</b></span><span>descrições divergentes <b>13</b></span></div>
+      </section>
+
+      <section>
+        <h2><span class="num">3.</span>Não casados</h2>
+        <div class="wrap">
+          <table>
+            <thead><tr><th>Origem</th><th>Nome</th><th>IP</th><th>Motivo</th></tr></thead>
+            <tbody>
+              <tr><td class="val">RDB</td><td class="var">QPC4_TR1_UPC2</td><td class="val">203.0.113.72</td>
+                <td class="txt">Nenhum IED do SCD com este IP ou RID.</td></tr>
+              <tr><td class="val">RDB</td><td class="var">QPC1_LT2_UPC2</td><td class="val">203.0.113.25</td>
+                <td class="txt">Nenhum IED do SCD com este IP ou RID.</td></tr>
+              <tr><td class="val">SCD</td><td class="var">SV_MERGING_01</td><td class="val">203.0.113.90</td>
+                <td class="txt">IED existe no SCD mas não há relé correspondente no RDB.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <aside class="col-notes">
+      <div class="cap">Notas</div>
+      <div class="note"><span class="n">1</span>O IP tem prioridade sobre o RID: em projeto revisado o
+      nome do IED muda com mais frequência que o endereço.</div>
+      <div class="note"><span class="n">2</span>“Sem desc” é ExtRef sem descrição no SCD — não há o que
+      copiar para o GLE. Corrigir no projeto, não aqui.</div>
+      <div class="note"><span class="n">3</span>Aplicar escreve no GLE dentro do RDB extraído; o arquivo
+      original em <code>rdbs/</code> não é tocado até você baixar o RDB novo.</div>
+    </aside>
+  </div>
+</div></body></html>

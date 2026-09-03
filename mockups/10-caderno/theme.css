@@ -1,0 +1,135 @@
+/* ===========================================================================
+   DIRECAO 10 — CADERNO DE CAMPO · arquivo unico de tokens + casca
+   Papel quadriculado de 5 mm, fichas presas por cima, carimbo de veredito.
+   As nove telas do app importam so este arquivo.
+   =========================================================================== */
+:root{
+  /* papel */
+  --paper:#f4f6f2; --grid:#dfe8dc; --grid-5:#c7d8c3; --card:#fff; --card-2:#f7f9f5;
+  /* tinta */
+  --ink:#1b2a3a; --pencil:#6b7280; --faint:#9aa3ad; --rule:#c9d2c7; --rule-2:#e2e8e0;
+  /* carimbos */
+  --ok:#2f7d4f; --bad:#c2352d; --vb:#6d4bb5; --warn:#b8791b; --info:#1f5f8b;
+  --clip:#8a939b;
+  /* escala 4 / 8 / 12 / 20 / 30 */
+  --s1:4px; --s2:8px; --s3:12px; --s4:20px; --s5:30px;
+  --sans:'Public Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'Courier Prime',ui-monospace,'Courier New',monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink);font:14.5px/1.6 var(--sans);background:var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px),
+    linear-gradient(var(--grid-5) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-5) 1px,transparent 1px);
+  background-size:5mm 5mm,5mm 5mm,25mm 25mm,25mm 25mm}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.page{max-width:1240px;margin:0 auto;padding:0 var(--s4) 70px}
+
+/* --- cabecalho da folha --------------------------------------------------- */
+.head{display:flex;align-items:flex-end;gap:var(--s3);padding:var(--s4) 0 10px;
+  border-bottom:2px solid var(--ink);flex-wrap:wrap}
+.head h1{margin:0;font:700 25px/1 var(--sans);letter-spacing:-.02em}
+.head .sub{color:var(--pencil);font-size:13px;margin-top:3px}
+.head .meta{margin-left:auto;font:400 12px var(--mono);color:var(--pencil);text-align:right;line-height:1.5}
+.head .lnk{font:700 11px var(--sans);color:var(--ink);text-decoration:none;
+  border:1px solid var(--rule);background:var(--card);padding:5px 11px;box-shadow:1px 2px 0 rgba(27,42,58,.1)}
+.head .lnk:hover{border-color:var(--ink)}
+
+/* --- ASSINATURA: divisorias de caderno como navegacao --------------------- */
+.tabs{display:flex;gap:3px;flex-wrap:wrap;margin:var(--s4) 0 0;position:relative;z-index:2}
+.tab{display:inline-flex;align-items:center;gap:8px;background:var(--card-2);
+  border:1px solid var(--rule);border-bottom:0;padding:8px 14px;text-decoration:none;color:var(--pencil);
+  font:700 12px var(--sans);box-shadow:1px -1px 0 rgba(27,42,58,.06)}
+.tab .n{font-family:var(--mono);font-size:11px;color:var(--faint)}
+.tab:hover{color:var(--ink);background:var(--card)}
+.tab.on{background:var(--card);color:var(--ink);border-color:var(--ink);border-bottom:2px solid var(--card);
+  margin-bottom:-2px;box-shadow:1px -2px 0 rgba(27,42,58,.12)}
+.tab.off{color:var(--faint);border-style:dashed;pointer-events:none}
+.sheet-body{background:var(--card);border:1px solid var(--rule);border-top:2px solid var(--ink);
+  padding:var(--s4);box-shadow:1px 3px 0 rgba(27,42,58,.10)}
+
+h2{font:700 11px var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--pencil);
+  margin:0 0 var(--s3)}
+h2+.lead{margin:-6px 0 var(--s4);color:var(--pencil);font-size:13.5px;max-width:72ch}
+.stack>*+*{margin-top:var(--s5)}
+
+/* --- fichas --------------------------------------------------------------- */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(244px,1fr));gap:var(--s4) var(--s3)}
+.card{background:var(--card);border:1px solid var(--rule);padding:15px 16px 14px;position:relative;
+  box-shadow:1px 2px 0 rgba(27,42,58,.10);text-decoration:none;color:inherit;display:block}
+.card::before{content:"";position:absolute;top:-7px;left:50%;transform:translateX(-50%);
+  width:44px;height:12px;background:var(--clip);opacity:.32;border-radius:2px}
+.card:hover{box-shadow:2px 4px 0 rgba(27,42,58,.16)}
+.card h3{margin:6px 0 4px;font:700 15.5px/1.25 var(--sans)}
+.card p{margin:0;color:var(--pencil);font-size:12.5px}
+.card .tag{font:700 10px var(--mono);letter-spacing:.1em;color:var(--ok)}
+.card.off{opacity:.62}.card.off .tag{color:var(--pencil)}
+
+/* --- ASSINATURA: carimbos -------------------------------------------------- */
+.stamp{display:inline-block;font:700 11.5px var(--mono);letter-spacing:.13em;text-transform:uppercase;
+  border:2.5px solid currentColor;border-radius:3px;padding:2px 8px;transform:rotate(-4deg);opacity:.88;
+  white-space:nowrap}
+.s-ok{color:var(--ok)}.s-bad{color:var(--bad)}.s-vb{color:var(--vb)}
+.s-warn{color:var(--warn)}.s-info{color:var(--info)}
+.s-none{color:var(--pencil);border-style:dashed}
+
+/* --- upload / arquivo ------------------------------------------------------ */
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s1);
+  min-height:128px;padding:var(--s4);text-align:center;background:var(--card-2);
+  border:2px dashed var(--rule);cursor:pointer}
+.drop:hover{border-color:var(--ink);background:var(--card)}
+.drop .ic{font:700 18px var(--mono);color:var(--pencil)}
+.drop b{font-weight:700}
+.drop small{color:var(--pencil);font-size:12px}
+.filebar{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;padding:11px var(--s3);
+  background:var(--card);border:1px solid var(--rule);border-left:4px solid var(--ok);
+  font-family:var(--mono);font-size:12.5px;box-shadow:1px 2px 0 rgba(27,42,58,.08)}
+.filebar .spacer{flex:1}
+.filebar .hash{color:var(--faint);font-size:11.5px}
+
+/* --- controles ------------------------------------------------------------- */
+.btn{background:var(--card);color:var(--ink);border:1px solid var(--rule);
+  font:700 12px var(--sans);padding:7px 14px;cursor:pointer;box-shadow:1px 2px 0 rgba(27,42,58,.10)}
+.btn:hover{border-color:var(--ink)}
+.btn:active{transform:translate(1px,1px);box-shadow:none}
+.btn.pri{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn.pri:hover{background:#0f1c29}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.bar{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s3)}
+.bar .spacer{flex:1}
+.bar input[type=search]{background:var(--card);border:1px solid var(--rule);color:var(--ink);
+  font:inherit;font-size:13px;padding:7px 11px;min-width:210px}
+.count{font-family:var(--mono);font-size:12px;color:var(--pencil)}
+
+/* --- tabelas --------------------------------------------------------------- */
+.wrap{border:1px solid var(--rule);background:var(--card);overflow:auto;
+  box-shadow:1px 2px 0 rgba(27,42,58,.08)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--card);text-align:left;padding:10px var(--s3);font:700 10px var(--sans);
+  letter-spacing:.16em;text-transform:uppercase;color:var(--pencil);border-bottom:2px solid var(--ink);
+  position:sticky;top:0;z-index:2;white-space:nowrap}
+td{padding:9px var(--s3);border-bottom:1px solid var(--rule-2);font-family:var(--mono);
+  font-size:12.5px;white-space:nowrap;vertical-align:top}
+td.txt{font-family:var(--sans);font-size:13px;white-space:normal}
+td.var{font-weight:700}
+td.val{color:#3d4a58}
+tr:hover td{background:#f7f9f5}
+.cmt{display:block;color:var(--pencil);font-size:11.5px;margin-top:2px}
+.src{display:block;color:var(--faint);font-size:10.5px;margin-top:2px}
+.tot{display:flex;gap:var(--s4);flex-wrap:wrap;margin-top:var(--s3);font:400 12.5px var(--mono);color:var(--pencil)}
+.tot b{color:var(--ink)}
+/* anotacao a mao, sempre depois da tabela */
+.hand{font-family:var(--mono);font-size:12.5px;color:var(--bad);padding-left:20px;position:relative;margin-top:var(--s3)}
+.hand::before{content:"↳";position:absolute;left:2px}
+
+input[type=checkbox]{accent-color:var(--ink);width:15px;height:15px}
+.chk{display:flex;align-items:center;gap:10px;padding:10px var(--s3);border-bottom:1px solid var(--rule-2);cursor:pointer}
+.chk:hover{background:var(--card-2)}
+.chk .nm{font-family:var(--mono);font-size:12.5px}
+.chk .meta{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--pencil)}
+
+@media (max-width:760px){.page{padding:0 var(--s3) 50px}.sheet-body{padding:var(--s3)}}
+@media (prefers-reduced-motion:reduce){.btn:active{transform:none}}

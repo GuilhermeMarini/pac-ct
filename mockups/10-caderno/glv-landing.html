@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lógica ao vivo · escolher GLE — Caderno de Campo</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../../sellib/web/static/fonts/fonts.css">
+<link rel="stylesheet" href="theme.css">
+<style>
+.toggle{display:flex;gap:12px;align-items:flex-start;padding:13px 15px;background:var(--card-2);
+  border:1px solid var(--rule);border-left:4px solid var(--warn);cursor:pointer}
+.toggle .lbl{font-weight:700;font-size:13.5px}
+.toggle .desc{color:var(--pencil);font-size:12.5px;margin-top:2px}
+.fam{font:700 10px var(--mono);letter-spacing:.1em;border:1px solid var(--rule);padding:2px 7px;color:var(--pencil)}
+</style>
+</head><body><div class="page">
+<div class="head">
+  <div>
+    <h1>Comissionamento SEL</h1>
+    <div class="sub">Ferramenta 01 · Lógica ao vivo</div>
+  </div>
+  <div class="meta">relé de destino<br>203.0.113.41</div>
+  <a class="lnk" href="../index.html">← propostas</a>
+</div>
+<nav class="tabs">
+  <a class="tab" href="index.html"><span class="n">00</span> Menu</a>
+  <a class="tab on" href="glv-landing.html"><span class="n">01</span> Lógica ao vivo</a>
+  <a class="tab" href="comparador-1.html"><span class="n">02</span> Comparador</a>
+  <a class="tab" href="vb-updater.html"><span class="n">03</span> VB Updater</a>
+  <a class="tab" href="vlan-mapper.html"><span class="n">04</span> VLAN Mapper</a>
+  <a class="tab" href="exportador.html"><span class="n">05</span> Exportador</a>
+  <span class="tab off"><span class="n">06</span> RDB ↔ SCD</span>
+</nav>
+<div class="sheet-body stack">
+  <section>
+    <h2>1 · Arquivo RDB</h2>
+    <div class="filebar">
+      <span>SE EXEMPLO III_17-08-26.rdb</span>
+      <span class="stamp s-ok">Extraído</span>
+      <span class="hash">sha1 4f2a…c19b · 39 MB</span>
+      <span class="spacer"></span>
+      <button class="btn">Outro arquivo</button>
+    </div>
+    <label class="drop" style="margin-top:12px">
+      <span class="ic">↥</span><b>Clique para selecionar</b> ou arraste outro .rdb aqui
+      <small>extraído em cache/sessions/a3f21c/rdbs/</small>
+    </label>
+  </section>
+
+  <section>
+    <h2>2 · Modo de leitura</h2>
+    <label class="toggle"><input type="checkbox" checked>
+      <span><span class="lbl">Modo visualização (sem conectar ao relé)</span>
+      <span class="desc">Renderiza o GLE estático; todos os bits ficam indeterminados. Use quando o relé
+      do config.ini não estiver acessível da bancada.</span></span></label>
+  </section>
+
+  <section>
+    <h2>3 · Relé e diagrama</h2>
+    <p class="lead">25 relés no RDB. Escolha de quem é a lógica que vai para a tela.</p>
+    <div class="wrap">
+      <table>
+        <thead><tr><th>Relé</th><th>Modelo</th><th>IP</th><th>Família</th><th>GLE</th><th>Páginas</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="var">QPC1_LT1_UPC1</td><td class="val">411L-A</td><td class="val">203.0.113.22</td>
+            <td><span class="fam">4xx</span></td><td class="val">LT1_UPC1.gle</td><td class="val">31</td><td><button class="btn">Abrir</button></td></tr>
+          <tr><td class="var">QPC1_LT1_UPC2</td><td class="val">311C-1</td><td class="val">203.0.113.23</td>
+            <td><span class="fam">3xx</span></td><td class="val">LT1_UPC2.gle</td><td class="val">12</td><td><button class="btn">Abrir</button></td></tr>
+          <tr><td class="var">QPC1_TR1_UPC1</td><td class="val">487E-3</td><td class="val">203.0.113.31</td>
+            <td><span class="fam">4xx</span></td><td class="val">TR1_UPC1.gle</td><td class="val">27</td><td><button class="btn">Abrir</button></td></tr>
+          <tr style="background:#f2f6f0"><td class="var">QPC2_TR1_UPC1</td><td class="val">751</td><td class="val">203.0.113.41</td>
+            <td><span class="fam">7xx</span></td><td class="val">TR1_UPC1_751.gle</td><td class="val">45</td>
+            <td><a class="btn pri" href="glv.html">Abrir</a></td></tr>
+          <tr><td class="var">QPC2_TR1_UPC2</td><td class="val">751</td><td class="val">203.0.113.42</td>
+            <td><span class="fam">7xx</span></td><td class="val">TR1_UPC2_751.gle</td><td class="val">45</td><td><button class="btn">Abrir</button></td></tr>
+          <tr><td class="var">QPC2_TFE1_UPC1</td><td class="val">451-5</td><td class="val">203.0.113.62</td>
+            <td><span class="fam">4xx</span></td><td class="val">TFE1.gle</td><td class="val">19</td><td><button class="btn">Abrir</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tot"><span><b>25</b> relés</span><span><b>3</b> famílias</span><span>o GLV fala com <b>um</b> relé por vez</span></div>
+  </section>
+</div>
+</div></body></html>

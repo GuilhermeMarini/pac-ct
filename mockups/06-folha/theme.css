@@ -1,0 +1,131 @@
+/* ===========================================================================
+   DIRECAO 06 — FOLHA DE DADOS · arquivo unico de tokens + casca
+   O manual do rele como linguagem: papel claro, filete de 1 px, canto vivo,
+   densidade alta e uma coluna de margem com notas numeradas ancoradas no
+   conteudo. As nove telas do app importam so este arquivo.
+   =========================================================================== */
+:root{
+  /* papel e tinta */
+  --paper:#fbfaf7; --paper-2:#f2f0ea; --paper-3:#e9e6de; --card:#fff;
+  --ink:#14161a; --ink-2:#4b5058; --ink-3:#767b83;
+  --rule:#d8d5cd; --rule-strong:#9a978e; --rule-hair:#e6e3db;
+  /* significado */
+  --slate:#2b4a6f; --ok:#1f7a45; --warn:#a86a00; --err:#b3261e; --vb:#6b3fa0; --info:#20627f;
+  /* escala 4 / 8 / 14 / 22 / 34 */
+  --s1:4px; --s2:8px; --s3:14px; --s4:22px; --s5:34px;
+  --sans:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#e6e4de;color:var(--ink);font:14px/1.6 var(--sans)}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--slate);outline-offset:2px}
+.page{max-width:1280px;margin:14px auto;background:var(--paper);
+  box-shadow:0 1px 0 var(--rule-strong),0 10px 30px rgba(0,0,0,.13)}
+
+/* --- cabecalho de documento ------------------------------------------------ */
+.masthead{display:flex;align-items:baseline;gap:var(--s3);flex-wrap:wrap;
+  padding:16px var(--s4) 10px;border-bottom:3px double var(--ink)}
+.masthead h1{margin:0;font:600 20px/1 var(--sans);letter-spacing:-.015em}
+.masthead .sub{font-size:12.5px;color:var(--ink-2);margin-top:3px}
+.masthead .spacer{flex:1}
+.masthead .doc{font:500 11px var(--mono);color:var(--ink-2);letter-spacing:.04em;text-align:right}
+.masthead .lnk{font:600 11px var(--sans);text-decoration:none;color:var(--ink);
+  border:1px solid var(--rule-strong);padding:4px 10px}
+.masthead .lnk:hover{background:var(--paper-2)}
+
+/* --- ASSINATURA 1: sumario numerado como navegacao ------------------------- */
+.toc{display:flex;flex-wrap:wrap;gap:0;border-bottom:1px solid var(--rule-strong);
+  background:var(--paper-2)}
+.toc a,.toc span{display:inline-flex;align-items:baseline;gap:7px;padding:7px 14px;
+  text-decoration:none;color:var(--ink-2);font-size:12.5px;border-right:1px solid var(--rule)}
+.toc .n{font:500 10.5px var(--mono);color:var(--ink-3)}
+.toc a:hover{background:var(--card);color:var(--ink)}
+.toc a.on{background:var(--card);color:var(--ink);font-weight:600;
+  box-shadow:inset 0 -3px 0 var(--slate)}
+.toc span.off{color:var(--ink-3);opacity:.6}
+
+/* --- corpo: coluna principal + margem ------------------------------------- */
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 244px}
+.col-main{padding:var(--s4) var(--s4) var(--s5);min-width:0}
+.col-notes{border-left:1px solid var(--rule);background:var(--paper-2);
+  padding:var(--s4) 18px var(--s5)}
+.col-notes .cap{font:600 9.5px var(--sans);letter-spacing:.2em;text-transform:uppercase;
+  color:var(--ink-2);margin-bottom:var(--s3)}
+.note{font-size:12px;line-height:1.55;color:var(--ink-2);padding-left:20px;position:relative;
+  margin-bottom:var(--s3)}
+.note .n{position:absolute;left:0;top:0;font:600 10px var(--mono);color:var(--slate)}
+.note b{color:var(--ink);font-weight:600}
+.full{padding:var(--s4) var(--s4) var(--s5)}
+
+h2{font:600 10px var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--ink-2);
+  margin:0 0 var(--s2);padding-bottom:5px;border-bottom:1px solid var(--rule-strong)}
+h2 .num{color:var(--slate);margin-right:8px}
+h2+.lead{margin:0 0 var(--s3);font-size:13px;color:var(--ink-2);max-width:66ch}
+section+section{margin-top:var(--s5)}
+sup.ref{font:600 9px var(--sans);color:var(--slate);margin-left:3px;vertical-align:super}
+
+/* --- tabelas: sem zebra, so' filete --------------------------------------- */
+.wrap{overflow:auto;border-bottom:1px solid var(--rule-strong)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:var(--paper-2);text-align:left;padding:7px 10px;font:600 9.5px var(--sans);
+  letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);
+  border-top:1px solid var(--rule-strong);border-bottom:1px solid var(--rule-strong);
+  white-space:nowrap;position:sticky;top:0;z-index:2}
+td{padding:6px 10px;border-bottom:1px solid var(--rule-hair);font-family:var(--mono);
+  font-size:12px;white-space:nowrap;vertical-align:top}
+td.txt{font-family:var(--sans);font-size:12.5px;white-space:normal}
+td.var{font-weight:600}
+td.val{color:#3f444b}
+tr:hover td{background:var(--paper-2)}
+.cmt{display:block;color:var(--ink-2);font-size:11px;margin-top:2px}
+.src{display:block;color:var(--ink-3);font-size:10px;margin-top:2px}
+.totals{display:flex;gap:var(--s4);flex-wrap:wrap;margin-top:10px;padding-top:8px;
+  border-top:1px solid var(--rule-strong);font:400 11.5px var(--mono);color:var(--ink-2)}
+.totals b{color:var(--ink);font-variant-numeric:tabular-nums}
+
+/* --- veredito: rotulo tipografico, sem pastilha --------------------------- */
+.j{font:600 10px var(--sans);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.j-ok{color:var(--ok)}.j-dif{color:var(--err)}.j-vb{color:var(--vb)}
+.j-warn{color:var(--warn)}.j-info{color:var(--info)}.j-falta{color:var(--ink-3)}
+
+/* --- controles ------------------------------------------------------------- */
+.btn{background:var(--card);color:var(--ink);border:1px solid var(--rule-strong);
+  font:600 11.5px var(--sans);padding:6px 13px;cursor:pointer}
+.btn:hover{background:var(--paper-2)}
+.btn.pri{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn.pri:hover{background:#2b2f36}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.bar{display:flex;align-items:center;gap:var(--s2);flex-wrap:wrap;margin-bottom:var(--s3)}
+.bar .spacer{flex:1}
+.bar input[type=search]{background:var(--card);border:1px solid var(--rule-strong);color:var(--ink);
+  font:inherit;font-size:12.5px;padding:6px 10px;min-width:200px}
+.count{font:400 11.5px var(--mono);color:var(--ink-2)}
+input[type=checkbox]{accent-color:var(--slate);width:14px;height:14px}
+
+/* --- upload / arquivo ------------------------------------------------------ */
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s1);
+  min-height:120px;padding:var(--s3);text-align:center;background:var(--paper-2);
+  border:1px dashed var(--rule-strong);cursor:pointer}
+.drop:hover{background:var(--card);border-color:var(--slate)}
+.drop .ic{font:400 17px var(--mono);color:var(--ink-2)}
+.drop b{font-weight:600;font-size:13px}
+.drop small{color:var(--ink-2);font-size:11.5px}
+.filebar{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;padding:9px 12px;
+  background:var(--card);border:1px solid var(--rule);border-left:3px solid var(--ok);
+  font:400 12px var(--mono)}
+.filebar .spacer{flex:1}
+.filebar .hash{color:var(--ink-3);font-size:11px}
+.steps{display:flex;gap:0;margin-bottom:var(--s3);border:1px solid var(--rule-strong)}
+.step{flex:1;padding:7px 12px;font:600 10px var(--sans);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-2);text-align:center;text-decoration:none;border-right:1px solid var(--rule)}
+.step:last-child{border-right:0}
+.step.on{background:var(--ink);color:var(--paper)}
+.step.done{color:var(--ok);background:var(--paper-2)}
+.chk{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--rule-hair);cursor:pointer}
+.chk:hover{background:var(--paper-2)}
+.chk .nm{font:400 12.5px var(--mono)}
+.chk .meta{margin-left:auto;font:400 11.5px var(--mono);color:var(--ink-2)}
+
+@media (max-width:900px){.grid{grid-template-columns:1fr}
+  .col-notes{border-left:0;border-top:1px solid var(--rule-strong)}}

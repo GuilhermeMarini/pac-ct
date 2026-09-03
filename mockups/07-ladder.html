@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>07 · Ladder — SEL Toolkit</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../sellib/web/static/fonts/fonts.css">
+<style>
+/* ===========================================================================
+   DIRECAO 07 — LADDER
+   Referencia: o diagrama ladder / SELOGIC que o usuario ja' le' o dia inteiro.
+   Dois trilhos verticais seguram a pagina; cada secao e' um degrau (rung).
+   A navegacao NAO e' uma lista: e' um degrau com contatos --| |-- e a
+   ferramenta ativa e' a bobina --( )-- energizada.
+   =========================================================================== */
+:root{
+  --bg:#101215; --rail:#e7ebf0; --wire:#5b636d; --live:#46d17a; --coil:#ffc14d;
+  --panel:#171a1f; --edge:#252a31; --text:#e7ebf0; --muted:#89929d;
+  --err:#ff6a5e; --vb:#7ab8ff;
+  --sans:'Space Grotesk',system-ui,sans-serif;
+  --mono:'Space Mono',ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 var(--sans)}
+.frame{max-width:1200px;margin:0 auto;padding:0 46px;position:relative}
+/* trilhos */
+.frame::before,.frame::after{content:"";position:absolute;top:0;bottom:0;width:3px;background:var(--rail);opacity:.85}
+.frame::before{left:22px}.frame::after{right:22px}
+
+header{display:flex;align-items:center;gap:16px;padding:20px 0 16px}
+header h1{margin:0;font:700 21px/1 var(--sans);letter-spacing:-.02em}
+header .sub{font:400 11.5px var(--mono);color:var(--muted)}
+header .en{margin-left:auto;font:700 10px var(--sans);letter-spacing:.16em;text-transform:uppercase;
+  color:var(--live);border:1px solid var(--live);padding:4px 10px;border-radius:99px}
+
+/* --- ASSINATURA: o degrau de navegacao ----------------------------------- */
+.rung{display:flex;align-items:stretch;gap:0;margin:0 0 10px;position:relative}
+.rung::before{content:"";position:absolute;left:-24px;right:-24px;top:50%;height:2px;background:var(--wire)}
+.rung.energized::before{background:var(--live);box-shadow:0 0 10px rgba(70,209,122,.5)}
+.contact{position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;gap:2px;
+  background:var(--bg);padding:10px 14px;text-decoration:none;color:inherit;min-width:0;flex:1}
+.contact .bars{display:flex;align-items:center;gap:4px;margin-bottom:5px}
+.contact .bars i{width:3px;height:20px;background:var(--rail);display:block}
+.contact .bars b{font:700 9.5px var(--mono);color:var(--muted);letter-spacing:.08em}
+.contact.on .bars i{background:var(--live)}
+.contact h3{margin:0;font:500 14px/1.2 var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.contact small{color:var(--muted);font-size:11.5px}
+.contact:hover h3{color:var(--live)}
+.contact:focus-visible{outline:2px solid var(--live);outline-offset:2px}
+/* nada de opacity aqui: o fundo solido da celula e' o que esconde o fio
+   que passa por tras — com opacity o fio reaparece cortando o texto */
+.contact.off h3{color:#5c646e}.contact.off small{color:#4a525b}
+.contact.off .bars i{background:#3a424b}.contact.off .bars b{color:#4a525b}
+.coil{position:relative;z-index:1;background:var(--bg);padding:10px 16px;display:flex;align-items:center;gap:8px;
+  font:700 11px var(--mono);color:var(--coil);letter-spacing:.08em}
+.coil span{border:2px solid currentColor;border-radius:99px;padding:3px 11px;box-shadow:0 0 12px rgba(255,193,77,.25)}
+.coil[style] span{box-shadow:none}
+
+h2{font:700 10px var(--sans);letter-spacing:.22em;text-transform:uppercase;color:var(--muted);
+  margin:26px 0 10px;display:flex;align-items:center;gap:10px}
+h2::after{content:"";flex:1;height:1px;background:var(--edge)}
+
+.wrap{background:var(--panel);border:1px solid var(--edge);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:#1c2026;text-align:left;padding:8px 12px;font:700 9.5px var(--sans);letter-spacing:.18em;
+  text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--edge)}
+td{padding:7px 12px;border-bottom:1px solid #1f242a;font-family:var(--mono);font-size:12px;white-space:nowrap}
+td.var{font-weight:700;color:var(--text);position:relative;padding-left:26px}
+/* contato antes de cada variavel: fechado quando igual, aberto quando difere */
+td.var::before{content:"";position:absolute;left:8px;top:12px;width:9px;height:2px;background:var(--live)}
+tr.dif td.var::before,tr.falta td.var::before{background:var(--err);transform:rotate(-24deg)}
+tr.vb td.var::before{background:var(--vb)}
+td.val{color:#aeb6bf}
+tr:hover td{background:#1b1f25}
+.j{font:700 10px var(--sans);letter-spacing:.12em;text-transform:uppercase}
+tr.ok .j{color:var(--live)}tr.dif .j{color:var(--err)}tr.vb .j{color:var(--vb)}tr.falta .j{color:var(--muted)}
+.sum{display:flex;gap:20px;flex-wrap:wrap;padding:11px 14px;margin-top:8px;background:var(--panel);
+  border:1px solid var(--edge);font:400 11.5px var(--mono);color:var(--muted)}
+.sum b{color:var(--text)}
+.tokens{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:24px 0 40px;padding:14px;
+  background:var(--panel);border:1px solid var(--edge)}
+.sw{width:74px}.sw i{display:block;height:30px;border:1px solid var(--edge)}
+.sw span{font:700 9px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-top:5px}
+.badge{position:fixed;right:14px;bottom:14px;padding:6px 11px;font:700 10px var(--sans);letter-spacing:.16em;
+  text-transform:uppercase;color:var(--text);background:var(--panel);border:1px solid var(--edge);text-decoration:none}
+.badge:hover{color:var(--live)}
+@media (max-width:900px){.frame{padding:0 20px}.frame::before,.frame::after{display:none}
+  .rung{flex-wrap:wrap}.rung::before{display:none}.contact{flex-basis:100%}}
+</style></head>
+<body>
+
+<div class="frame">
+  <header>
+    <div>
+      <h1>Comissionamento SEL</h1>
+      <div class="sub">SE EXEMPLO III · 25 IED · RDB 17-08-26</div>
+    </div>
+    <span class="en">Sessão energizada</span>
+  </header>
+
+  <h2>Ferramentas</h2>
+  <div class="rung energized">
+    <a class="contact on" href="#"><span class="bars"><i></i><b>IN</b><i></i></span><h3>Lógica ao vivo</h3><small>GLE + Fast Meter</small></a>
+    <a class="contact on" href="#"><span class="bars"><i></i><b>IN</b><i></i></span><h3>Comparador</h3><small>7 relés lado a lado</small></a>
+    <a class="contact on" href="#"><span class="bars"><i></i><b>IN</b><i></i></span><h3>VB Updater</h3><small>GLE ↔ SCD</small></a>
+    <div class="coil"><span>CMP</span></div>
+  </div>
+  <div class="rung">
+    <a class="contact" href="#"><span class="bars"><i></i><b>IN</b><i></i></span><h3>VLAN Mapper</h3><small>GOOSE por porta</small></a>
+    <a class="contact" href="#"><span class="bars"><i></i><b>IN</b><i></i></span><h3>Exportador GLE</h3><small>comentários em Excel</small></a>
+    <span class="contact off"><span class="bars"><i></i><b>--</b><i></i></span><h3>RDB ↔ SCD</h3><small>em breve</small></span>
+    <div class="coil" style="color:#4a525b"><span>—</span></div>
+  </div>
+
+  <h2>Comparador · Lógica 1</h2>
+  <div class="wrap">
+    <table>
+      <thead><tr><th>Variável</th><th>Campo</th><th>QPC2_TR1_UPC1</th><th>QPC2_TR1_UPC2</th><th>QPC2_TR1_UPC3</th><th>Situação</th></tr></thead>
+      <tbody>
+        <tr class="ok"><td class="var">51G2TC</td><td class="val">value</td><td class="val">0.40</td><td class="val">0.40</td><td class="val">0.40</td><td class="j">Igual</td></tr>
+        <tr class="ok"><td class="var">52A</td><td class="val">set</td><td class="val">NOT IN101 AND IN102</td><td class="val">NOT IN101 AND IN102</td><td class="val">NOT IN101 AND IN102</td><td class="j">Igual</td></tr>
+        <tr class="vb"><td class="var">LT14</td><td class="val">set</td><td class="val">VB102 OR VB103</td><td class="val">VB101 OR VB102</td><td class="val">VB101 OR VB102</td><td class="j">Difere VB</td></tr>
+        <tr class="dif"><td class="var">LT17</td><td class="val">set</td><td class="val">SV02 AND LT03</td><td class="val">SV02 AND LT03</td><td class="val">SV02 AND LT04</td><td class="j">Diferente</td></tr>
+        <tr class="falta"><td class="var">27I1CFA</td><td class="val">value</td><td class="val">1.00</td><td class="val">1.00</td><td class="val">—</td><td class="j">Faltante</td></tr>
+        <tr class="ok"><td class="var">50P1P</td><td class="val">value</td><td class="val">5.00</td><td class="val">5.00</td><td class="val">5.00</td><td class="j">Igual</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="sum"><span><b>659</b> variáveis</span><span><b>654</b> iguais</span><span><b>5</b> diferentes</span><span><b>16</b> difere VB</span></div>
+
+  <div class="tokens">
+    <div class="sw"><i style="background:#101215"></i><span>fundo</span></div>
+    <div class="sw"><i style="background:#171a1f"></i><span>painel</span></div>
+    <div class="sw"><i style="background:#e7ebf0"></i><span>trilho</span></div>
+    <div class="sw"><i style="background:#46d17a"></i><span>energizado</span></div>
+    <div class="sw"><i style="background:#ffc14d"></i><span>bobina</span></div>
+    <div class="sw"><i style="background:#ff6a5e"></i><span>aberto</span></div>
+    <div style="flex:1;min-width:260px;font-size:12px;color:var(--muted)">
+      <b style="color:var(--text)">Space Grotesk</b> + <b style="color:var(--text)">Space Mono</b>.
+      O contato antes de cada variável fecha quando os relés batem e abre quando divergem —
+      dá pra ler a coluna inteira sem ler texto nenhum.
+    </div>
+  </div>
+</div>
+
+<a class="badge" href="index.html">07 · Ladder</a>
+</body></html>

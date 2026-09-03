@@ -1,0 +1,38 @@
+# No formatter is configured on purpose (see docs/ENGINEERING-NOTES.md): ruff LINTS here, it
+# does not reformat. Line length matches what the tree already writes.
+line-length = 88
+target-version = "py310"
+src = ["src", "tests", "tools"]
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "E501",   # long lines: the measured comments in this tree are the docs
+    "B008",   # call in default arg -- not a pattern this code uses wrongly
+]
+
+# `G` (flake8-logging-format) is deliberately NOT selected, and this is the
+# reason rather than an oversight. It would flag 62 f-string log calls, 42 of
+# them in `cli/runner.py` and the rest in the relay conversation
+# (`target_region`, `poll`, `telnet`) -- multi-line messages carrying measured
+# diagnostics. Lazy `%s` formatting buys approximately nothing at INFO level in
+# a tool that logs to one console, while rewriting 62 messages in code that
+# needs a bench relay to exercise can only lose information. Revisit when the
+# relay paths get a test harness that does not need hardware.
+
+[lint.per-file-ignores]
+# A tokenizer table: `toks.append(Tok(...)); i += 1; continue` on one line is
+# what makes the 14 branches read as the table they are.
+"src/pacct/core/selogic_parser.py" = ["E702"]
+# Both put `sys.path` in order before importing what depends on it -- the
+# import cannot move to the top, that is the point of it being there.
+"src/pacct/cli/runner.py" = ["E402"]
+"src/pacct/core/settings_model.py" = ["E402"]
+"tools/**" = ["E402"]
+# The vendored library is not ours to lint.
+"selprotopy/**" = ["ALL"]
+# Tests read better with the assertion inline.
+"tests/**" = ["E402"]
+
+[lint.isort]
+known-first-party = ["pacct"]

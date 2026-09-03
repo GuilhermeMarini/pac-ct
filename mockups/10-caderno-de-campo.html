@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10 · Caderno de Campo — SEL Toolkit</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../sellib/web/static/fonts/fonts.css">
+<style>
+/* ===========================================================================
+   DIRECAO 10 — CADERNO DE CAMPO
+   Referencia: o caderno quadriculado que fica na bancada, com o carimbo de
+   CONFERE do comissionamento. Papel quadriculado de 5 mm de verdade, fichas
+   presas por cima e — a assinatura — CARIMBOS girados marcando o veredito.
+   Unica direcao clara desta serie: legivel no sol, imprimivel sem gastar tinta.
+   =========================================================================== */
+:root{
+  --paper:#f4f6f2; --grid:#dbe6d8; --grid-5:#c3d6bf; --card:#fff;
+  --ink:#1b2a3a; --pencil:#6b7280; --rule:#c9d2c7;
+  --stamp-ok:#2f7d4f; --stamp-bad:#c2352d; --stamp-vb:#6d4bb5; --clip:#8a939b;
+  --sans:'Public Sans',system-ui,sans-serif;
+  --mono:'Courier Prime',ui-monospace,'Courier New',monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink);font:14.5px/1.6 var(--sans);background:var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px),
+    linear-gradient(var(--grid-5) 1px,transparent 1px),
+    linear-gradient(90deg,var(--grid-5) 1px,transparent 1px);
+  background-size:5mm 5mm,5mm 5mm,25mm 25mm,25mm 25mm}
+main{max-width:1120px;margin:0 auto;padding:0 18px 70px}
+
+header{display:flex;align-items:flex-end;gap:16px;padding:26px 0 14px;border-bottom:2px solid var(--ink)}
+header h1{margin:0;font:700 26px/1 var(--sans);letter-spacing:-.02em}
+header .sub{color:var(--pencil);font-size:13px;margin-top:4px}
+header .meta{margin-left:auto;font:400 12px var(--mono);color:var(--pencil);text-align:right;line-height:1.5}
+
+h2{font:700 11px var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--pencil);margin:28px 0 12px}
+
+/* fichas */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--rule);padding:15px 16px 14px;position:relative;
+  box-shadow:1px 2px 0 rgba(27,42,58,.10);text-decoration:none;color:inherit;display:block}
+.card::before{content:"";position:absolute;top:-7px;left:50%;transform:translateX(-50%);
+  width:44px;height:12px;background:var(--clip);opacity:.35;border-radius:2px}
+.card:hover{box-shadow:2px 4px 0 rgba(27,42,58,.16);transform:translateY(-1px)}
+.card:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.card h3{margin:6px 0 4px;font:700 16px/1.2 var(--sans)}
+.card p{margin:0;color:var(--pencil);font-size:12.5px}
+.card .tag{font:700 10px var(--mono);letter-spacing:.1em;color:var(--stamp-ok)}
+.card.soon{opacity:.6}.card.soon .tag{color:var(--pencil)}
+
+/* --- ASSINATURA: carimbo -------------------------------------------------- */
+.stamp{display:inline-block;font:700 12px var(--mono);letter-spacing:.14em;text-transform:uppercase;
+  border:2.5px solid currentColor;border-radius:3px;padding:3px 9px;transform:rotate(-4deg);
+  opacity:.88}
+.s-ok{color:var(--stamp-ok)}.s-bad{color:var(--stamp-bad)}.s-vb{color:var(--stamp-vb)}
+.s-none{color:var(--pencil);border-style:dashed}
+
+.sheet{background:var(--card);border:1px solid var(--rule);box-shadow:1px 2px 0 rgba(27,42,58,.10);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 14px;font:700 10px var(--sans);letter-spacing:.16em;text-transform:uppercase;
+  color:var(--pencil);border-bottom:2px solid var(--ink);white-space:nowrap}
+td{padding:9px 14px;border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+td.var{font-weight:700}
+td.val{color:#3d4a58}
+tr:hover td{background:#f7f9f5}
+.tot{display:flex;gap:24px;flex-wrap:wrap;margin-top:14px;font:400 12.5px var(--mono);color:var(--pencil)}
+.tot b{color:var(--ink)}
+.hand{font-family:var(--mono);font-size:12.5px;color:var(--stamp-bad);padding-left:20px;position:relative;margin-top:12px}
+.hand::before{content:"↳";position:absolute;left:2px}
+.tokens{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:26px;padding:15px;
+  background:var(--card);border:1px solid var(--rule)}
+.sw{width:76px}.sw i{display:block;height:30px;border:1px solid var(--rule)}
+.sw span{font:700 9.5px var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--pencil);display:block;margin-top:5px}
+.badge{position:fixed;right:14px;bottom:14px;padding:7px 12px;font:700 11px var(--sans);
+  color:var(--ink);background:var(--card);border:1px solid var(--rule);text-decoration:none;
+  box-shadow:1px 2px 0 rgba(27,42,58,.12)}
+.badge:hover{color:var(--stamp-bad)}
+@media (prefers-reduced-motion:reduce){.card:hover{transform:none}}
+</style></head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>Comissionamento SEL</h1>
+      <div class="sub">SE Exemploópolis III · base RDB 17-08-26</div>
+    </div>
+    <div class="meta">FOLHA 1 · 19-08-2026<br>7 relés · 25 grupos</div>
+  </header>
+
+  <h2>Ferramentas</h2>
+  <div class="cards">
+    <a class="card" href="#"><span class="tag">EM USO</span><h3>Visualizador de Lógica</h3><p>Estado do relé ao vivo sobre o diagrama GLE.</p></a>
+    <a class="card" href="#"><span class="tag">EM USO</span><h3>Comparador de Ajustes</h3><p>Até 7 relés da mesma família, lado a lado.</p></a>
+    <a class="card" href="#"><span class="tag">EM USO</span><h3>VB Updater</h3><p>Descrições de Virtual Bits entre GLE e SCD.</p></a>
+    <a class="card" href="#"><span class="tag">EM USO</span><h3>VLAN Mapper</h3><p>Mapa de VLANs GOOSE por porta de switch.</p></a>
+    <a class="card" href="#"><span class="tag">EM USO</span><h3>Exportador de Comentários</h3><p>Comentários de porta em Excel, ida e volta.</p></a>
+    <span class="card soon"><span class="tag">EM BREVE</span><h3>Comparador RDB ↔ SCD</h3><p>Cruza ajustes do RDB com IEDs do SCD.</p></span>
+  </div>
+
+  <h2>Comparação · Lógica 1</h2>
+  <div class="sheet">
+    <table>
+      <thead><tr><th>Variável</th><th>Campo</th><th>QPC2_TR1_UPC1</th><th>QPC2_TR1_UPC2</th><th>QPC2_TR1_UPC3</th><th>Veredito</th></tr></thead>
+      <tbody>
+        <tr><td class="var">51G2TC</td><td class="val">value</td><td class="val">0.40</td><td class="val">0.40</td><td class="val">0.40</td><td><span class="stamp s-ok">Confere</span></td></tr>
+        <tr><td class="var">52A</td><td class="val">set</td><td class="val">NOT IN101 AND IN102</td><td class="val">NOT IN101 AND IN102</td><td class="val">NOT IN101 AND IN102</td><td><span class="stamp s-ok">Confere</span></td></tr>
+        <tr><td class="var">LT14</td><td class="val">set</td><td class="val">VB102 OR VB103</td><td class="val">VB101 OR VB102</td><td class="val">VB101 OR VB102</td><td><span class="stamp s-vb">Difere VB</span></td></tr>
+        <tr><td class="var">LT17</td><td class="val">set</td><td class="val">SV02 AND LT03</td><td class="val">SV02 AND LT03</td><td class="val">SV02 AND LT04</td><td><span class="stamp s-bad">Diverge</span></td></tr>
+        <tr><td class="var">27I1CFA</td><td class="val">value</td><td class="val">1.00</td><td class="val">1.00</td><td class="val">—</td><td><span class="stamp s-none">Faltante</span></td></tr>
+        <tr><td class="var">50P1P</td><td class="val">value</td><td class="val">5.00</td><td class="val">5.00</td><td class="val">5.00</td><td><span class="stamp s-ok">Confere</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="hand">LT17 no UPC3 usa LT04 — conferir com o projeto antes de igualar.</div>
+  <div class="tot"><span><b>659</b> variáveis</span><span><b>654</b> conferem</span><span><b>5</b> divergem</span><span><b>16</b> diferem só no VB</span></div>
+
+  <h2>Tokens</h2>
+  <div class="tokens">
+    <div class="sw"><i style="background:#f4f6f2"></i><span>papel</span></div>
+    <div class="sw"><i style="background:#c3d6bf"></i><span>quadrícula</span></div>
+    <div class="sw"><i style="background:#1b2a3a"></i><span>tinta</span></div>
+    <div class="sw"><i style="background:#2f7d4f"></i><span>confere</span></div>
+    <div class="sw"><i style="background:#c2352d"></i><span>diverge</span></div>
+    <div class="sw"><i style="background:#6d4bb5"></i><span>difere vb</span></div>
+    <div style="flex:1;min-width:250px;font-size:12.5px;color:var(--pencil)">
+      <b style="color:var(--ink)">Public Sans</b> no texto · <b style="color:var(--ink)">Courier Prime</b>
+      nos valores, do jeito que sai da impressora. Única direção clara da série: legível no sol e
+      imprimível como relatório de comissionamento.
+    </div>
+  </div>
+</main>
+
+<a class="badge" href="index.html">10 · Caderno de campo</a>
+</body></html>

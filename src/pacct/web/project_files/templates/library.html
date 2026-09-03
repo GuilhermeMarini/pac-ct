@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arquivos do Projeto &mdash; PAC CT</title>
+<style>
+  .files { width: 100%; border-collapse: collapse; }
+  .files th { text-align: left; }
+  .files td, .files th { padding: var(--s2) var(--s3); }
+  .files tbody tr { border-top: 1px solid var(--border); }
+  .files tr.dup { background: var(--surface-2); }
+  .files .num { text-align: right; white-space: nowrap; }
+  /* Baixar e Remover lado a lado: mesma pegada (`.btn` do tema), separados
+     so pelo espaco -- a acao destrutiva nao ganha destaque nenhum. */
+  .files .acts { white-space: nowrap; text-align: right; }
+  .files .acts .btn { text-decoration: none; }
+  /* Saida de ferramenta: some do texto, mas nao da linha. */
+  .tag-gen {
+    font-size: .85em; color: var(--text-2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 0 6px; white-space: nowrap;
+  }
+  .empty { color: var(--text-2); padding: var(--s5); text-align: center; }
+  /* Recado de estado, e NAO um veredito: `.j` e' o carimbo de veredito, que no
+     Caderno de Campo vem rotacionado (-4deg) e por isso montava por cima do
+     que estivesse ao lado. Aqui a linha e' texto corrido, como nas outras
+     ferramentas (#status.ok / #status.err). */
+  #status {
+    display: block; color: var(--text-2); font-size: .9em;
+    min-height: 1.2em; margin-top: var(--s3);
+  }
+  #status.ok { color: var(--ok); }
+  #status.err { color: var(--err); }
+  #status.warn { color: var(--equiv); }
+  /* Enquanto o lote sobe: o clique ja e' barrado pelo `busy` no JS, isto so
+     conta a mesma coisa pro olho. */
+  .drop.busy { opacity: .6; cursor: progress; }
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+  <div>
+    <h1>Arquivos do Projeto</h1>
+    <div class="sub">RDB e SCD que as ferramentas v&atilde;o usar</div>
+  </div>
+  <span class="spacer"></span>
+  <a class="lnk" href="/">&larr; Menu</a>
+</header>
+<div class="shell">
+<!--NAV:files-->
+<main class="col-main">
+  <div class="panel">
+    <label class="drop" id="drop">
+      <span class="ic">[+]</span>
+      <b>Enviar arquivo</b>
+      <small>Clique ou arraste .rdb, .scd ou .xml &mdash; pode mandar v&aacute;rios de uma vez</small>
+      <!-- Sem `accept`, de proposito. O filtro do `accept` e' quem monta a
+           lista de tipos da janela do sistema, e a janela LEMBRA o filtro da
+           vez anterior: no segundo envio ela reabria com um filtro mais
+           estreito, o .scd sumia da lista e o "Abrir" ficava cinza -- o
+           usuario via o arquivo e nao conseguia mandar. A validacao de tipo
+           nao se perde: `kindFor()` logo abaixo repete `library.kind_for` e
+           recusa na hora, antes de subir um byte, e o servidor recusa de
+           novo. Melhor uma janela que mostra tudo do que uma que esconde o
+           arquivo certo. -->
+      <input type="file" id="file" multiple style="display:none">
+    </label>
+    <div id="status"></div>
+  </div>
+
+  <div class="panel">
+    <h2>No projeto</h2>
+    <table class="files">
+      <thead>
+        <tr>
+          <th>Nome</th><th>Tipo</th><th class="num">Tamanho</th>
+          <th>Conte&uacute;do</th><th>sha256</th><th class="num">A&ccedil;&otilde;es</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty">
+      Nenhum arquivo ainda. Envie o RDB e o SCD do projeto acima &mdash;
+      as ferramentas escolhem daqui, e o que elas gerarem volta pra c&aacute;.
+    </div>
+  </div>
+</main>
+</div>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+
+function setStatus(msg, kind) {
+  const el = $('status');
+  el.textContent = msg || '';
+  el.className = kind || '';
+}
+
+function fmtSize(n) {
+  if (n >= 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
+  if (n >= 1024) return (n / 1024).toFixed(0) + ' kB';
+  return n + ' B';
+}
+
+function escHtml(s) {
+  return (s == null ? '' : String(s))
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Dentro de um atributo entre aspas, escHtml nao basta: um nome de arquivo com
+// aspas fecharia o atributo.
+function escAttr(s) { return escHtml(s).replace(/"/g, '&quot;'); }
+
+let _rows = [];
+
+function render(highlightSha) {
+  const tb = $('rows');
+  tb.innerHTML = '';
+  $('empty').style.display = _rows.length ? 'none' : '';
+  _rows.forEach((f) => {
+    const tr = document.createElement('tr');
+    if (f.sha256 === highlightSha) tr.className = 'dup';
+    tr.innerHTML =
+      '<td>' + escHtml(f.name) + '</td>' +
+      '<td>' + f.kind.toUpperCase() + '</td>' +
+      '<td class="num">' + fmtSize(f.size) + '</td>' +
+      '<td>' + escHtml(f.detail) +
+        (f.origin ? ' <span class="tag-gen">gerado no ' + escHtml(f.origin) +
+                    '</span>' : '') + '</td>' +
+      '<td class="hash">' + f.short_sha + '</td>' +
+      // Baixar e' um <a download>, e nao um fetch: e' o navegador que tem que
+      // salvar o arquivo, e um RDB de 140 MB nao passa por Blob na memoria da
+      // pagina. Href RELATIVO -- o shim de prefixo reescreve fetch/XHR, nunca
+      // um <a href>, entao "/download" absoluto quebraria sob o prefixo.
+      '<td class="acts">' +
+        '<a class="btn" href="./download?sha256=' + encodeURIComponent(f.sha256) +
+        '" download="' + escAttr(f.name) + '">Baixar</a> ' +
+        '<button class="btn" type="button">Remover</button>' +
+      '</td>';
+    tr.querySelector('button').addEventListener('click', () => remove(f));
+    tb.appendChild(tr);
+  });
+}
+
+async function load(highlightSha) {
+  const r = await fetch('/library');
+  const d = await r.json();
+  _rows = d.files || [];
+  render(highlightSha);
+}
+
+async function remove(f) {
+  if (!confirm('Remover "' + f.name + '" do projeto?')) return;
+  const r = await SelProgress.post('/remove', {sha256: f.sha256},
+                                   {label: 'Removendo'});
+  if (!r.ok) {
+    setStatus('Falha ao remover: ' + ((r.data && r.data.error) || r.status), 'err');
+    return;
+  }
+  setStatus('"' + f.name + '" removido do projeto.', 'ok');
+  load();
+}
+
+// Espelha `library.kind_for` (pacct/web/project_files/library.py): a mesma
+// tabela de extensoes, minusculas, pra recusar na hora o que o servidor
+// recusaria depois. Devolve null pro que nao e' arquivo de projeto.
+const KINDS = {rdb: 'rdb', scd: 'scd', xml: 'scd'};
+function kindFor(name) {
+  const i = String(name || '').lastIndexOf('.');
+  if (i < 0) return null;
+  return KINDS[name.slice(i + 1).toLowerCase()] || null;
+}
+
+// Um arquivo. Devolve o que aconteceu, pra quem chamou somar o resumo.
+// `prefix` numera o arquivo dentro do lote ("2/5 ").
+async function uploadOne(file, prefix) {
+  setStatus(prefix + 'Enviando ' + file.name + '...', '');
+  // SelProgress.upload, never fetch: only XMLHttpRequest.upload.onprogress
+  // can report progress, and an RDB is 40-140 MB.
+  const r = await SelProgress.upload('/upload', file, {
+    headers: {'X-Filename': encodeURIComponent(file.name)},
+    label: prefix + 'Enviando ' + file.name,
+    doneLabel: 'Arquivo carregado.',
+  });
+  const d = r.data || {};
+  const e = d.entry || {};
+  if (!r.ok) return {ok: false, name: file.name, error: (d.error || r.status)};
+  return {ok: true, name: e.name || file.name, sha256: e.sha256,
+          duplicate: !!d.duplicate};
+}
+
+// Vários arquivos, um de cada vez. Sequencial de propósito: dois RDBs de
+// 140 MB em paralelo brigam pela banda da rede da subestação e pelo mesmo
+// job da barra de progresso, e o servidor extrai um RDB por vez de qualquer
+// jeito. O laço não para no primeiro erro -- um .scd inválido no meio da
+// seleção não pode impedir os outros de entrarem no projeto.
+async function upload(files) {
+  const picked = Array.prototype.slice.call(files || []).filter(Boolean);
+  if (!picked.length) return;
+  if (busy) return;
+
+  // Sem `accept` na janela do sistema, o usuario pode escolher qualquer
+  // coisa. O que nao e' arquivo de projeto nao vira requisicao -- so entra no
+  // resumo, pra nada sumir calado.
+  const list = [], rejected = [];
+  picked.forEach((f) => (kindFor(f.name) ? list : rejected).push(f));
+  if (!list.length) {
+    setStatus('Tipo não reconhecido — envie .rdb, .scd ou .xml: ' +
+              rejected.map((f) => f.name).join('; ') + '.', 'err');
+    rearmInput();   // nada subiu, mas a escolha errada nao pode ficar presa
+    return;
+  }
+
+  busy = true;
+  drop.classList.add('busy');
+  const done = [], dup = [], failed = [];
+  try {
+    for (let i = 0; i < list.length; i++) {
+      const prefix = list.length > 1 ? (i + 1) + '/' + list.length + ' ' : '';
+      const r = await uploadOne(list[i], prefix);
+      if (!r.ok) failed.push(r.name + ' (' + r.error + ')');
+      else if (r.duplicate) dup.push(r.name);
+      else done.push(r);
+    }
+  } finally {
+    busy = false;
+    drop.classList.remove('busy');
+    rearmInput();
+  }
+
+  const parts = [];
+  if (done.length === 1) parts.push('"' + done[0].name + '" adicionado ao projeto.');
+  else if (done.length) parts.push(done.length + ' arquivos adicionados ao projeto.');
+  if (dup.length === 1) parts.push('"' + dup[0] + '" já estava no projeto.');
+  else if (dup.length) parts.push(dup.length + ' já estavam no projeto.');
+  if (failed.length) parts.push('Falhou: ' + failed.join('; ') + '.');
+  if (rejected.length) parts.push('Ignorado (não é .rdb/.scd/.xml): ' +
+                                  rejected.map((f) => f.name).join('; ') + '.');
+
+  setStatus(parts.join(' '),
+            (failed.length || rejected.length) ? 'err'
+                                               : (done.length ? 'ok' : 'warn'));
+  // Destaca a linha nova quando foi um só; num lote, destacar uma escolhida a
+  // esmo confunde mais do que ajuda.
+  load(done.length === 1 ? done[0].sha256 : undefined);
+}
+
+const drop = $('drop');
+let input = $('file');
+let busy = false;
+
+function onPick(e) { upload(e.target.files); }
+
+// Troca o <input> por um irmao vazio depois de cada envio.
+//
+// `input.value = ''` NAO resolve, e era o que estava aqui. O elemento guarda
+// a selecao anterior, e a janela do sistema reabre em cima dela: no segundo
+// envio ela voltava com o arquivo da vez passada ainda selecionado, e o
+// "Abrir" so acendia pra ESSE arquivo -- clicar noutro .scd nao trocava a
+// selecao e o botao ficava cinza. Um elemento recem-criado nao tem passado,
+// entao a janela abre limpa toda vez.
+//
+// Vem no `finally` do lote, e nao no handler de `change`: mexer no input
+// enquanto o `change` dele ainda esta na pilha e' justamente o que sujava o
+// estado. Aqui o envio ja acabou (ou falhou) e ninguem mais olha pro
+// elemento antigo.
+function rearmInput() {
+  const fresh = input.cloneNode(false);
+  fresh.value = '';
+  input.replaceWith(fresh);
+  input = fresh;
+  input.addEventListener('change', onPick);
+}
+
+['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => {
+  e.preventDefault(); e.stopPropagation(); drop.classList.add('drag');
+}));
+['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => {
+  e.preventDefault(); e.stopPropagation(); drop.classList.remove('drag');
+}));
+drop.addEventListener('drop', (e) => upload(e.dataTransfer.files));
+input.addEventListener('change', onPick);
+
+load();
+</script>
+</body>
+</html>

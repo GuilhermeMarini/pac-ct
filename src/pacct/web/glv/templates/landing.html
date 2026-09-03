@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Graphical Logic Viewer -- Selecionar GLE</title>
+<style>
+  /* Tokens e casca vem de /theme.css (pacct/web/theme.py). */
+  main { padding: var(--s4) var(--s4) var(--s5); }
+  button.primary, button.ghost {
+    font: inherit;
+    padding: var(--s2) var(--s4);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  button.primary {
+    border: 1px solid var(--accent-strong);
+    background: var(--accent-strong);
+    color: var(--accent-fg);
+  }
+  button.primary:hover { opacity: .85; }
+  button.primary:disabled { opacity: .5; cursor: not-allowed; }
+  button.ghost {
+    border: 1px solid var(--border-ctl);
+    background: transparent;
+    color: var(--text);
+  }
+  button.ghost:hover { background: var(--surface-2); }
+  #status {
+    margin-top: 16px;
+    color: var(--text-2);
+    font-size: .9em;
+    min-height: 1.2em;
+  }
+  #status.err { color: var(--err); }
+  #status.ok  { color: var(--ok); }
+  .info-bar {
+    margin-top: 20px;
+    padding: var(--s3) var(--s3);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+    font-size: .9em;
+  }
+  .info-bar .name { font-weight: 500; }
+  .info-bar .badge {
+    padding: 2px 8px;
+    border-radius: var(--radius);
+    font-size: .8em;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-2);
+  }
+  .info-bar .badge.reused { color: var(--ok); border-color: var(--ok); }
+  .info-bar .badge.fresh  { color: var(--accent); border-color: var(--accent); }
+  .info-bar code { color: var(--text-2); font-size: .85em; }
+  .info-bar .spacer { flex: 1; }
+  .relay-list {
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .relay {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .relay-head {
+    padding: var(--s3) var(--s3);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .relay-head .name { flex: 0 1 auto; }
+  .relay-head .model {
+    color: var(--text-2);
+    font-weight: 400;
+    font-size: .85em;
+    font-family: var(--mono);
+  }
+  .relay-head .ip-input {
+    font: inherit;
+    font-family: var(--mono);
+    font-size: .9em;
+    padding: var(--s1) var(--s2);
+    /* Cabe o IPv4 mais longo que existe (255.255.255.255 = 15 caracteres) e
+       sobra um. O `ch` mede a caixa do CONTEUDO, mas o `box-sizing: border-box`
+       do shell faz o `width` valer a caixa INTEIRA -- entao a conta tem que
+       somar o padding e as bordas, ou o campo come a ponta do texto. Era
+       `width: 14ch` liso: com o padding de 8px de cada lado sobravam ~11
+       caracteres visiveis, e todo IP de subestacao (203.0.113.22, 13
+       caracteres) aparecia cortado. Medido no navegador: scrollWidth 117px
+       contra clientWidth 108px, nos 25 reles do RDB de teste. */
+    width: calc(16ch + 2 * var(--s2) + 2px);
+    flex: none;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    outline: none;
+  }
+  .relay-head .ip-input:focus { border-color: var(--accent); }
+  .relay-head .ip-input.invalid { border-color: var(--err); }
+  .relay-head .ip-label {
+    color: var(--text-2);
+    font-weight: 400;
+    font-size: .85em;
+  }
+  /* O modo de leitura e' POR RELE: numa subestacao o mesmo RDB tem 311C que
+     so' falam telnet e 487E onde as paginas de GOOSE so' existem por MMS.
+     Uma escolha unica pra tela obrigava a abrir em duas levas. */
+  .relay-head .mode-sel {
+    font: inherit;
+    font-size: .9em;
+    padding: var(--s1) var(--s2);
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .relay-head .mode-sel:focus { border-color: var(--accent); outline: none; }
+  .relay-head .count {
+    color: var(--text-2);
+    font-weight: 400;
+    font-size: .9em;
+    margin-left: auto;
+  }
+  .gle-row {
+    display: flex;
+    align-items: center;
+    padding: var(--s2) var(--s3);
+    border-top: 1px solid var(--border);
+  }
+  .gle-row:first-child { border-top: none; }
+  .gle-row .pick {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    cursor: pointer;
+    user-select: none;
+  }
+  .gle-row .pick input { margin: 0; flex: none; }
+  .gle-row .gle-name {
+    flex: 1;
+    font-family: var(--mono);
+    font-size: .9em;
+    overflow-wrap: anywhere;
+  }
+  .gle-row.checked { background: var(--surface-2); }
+  .gle-row .gle-size {
+    color: var(--text-2);
+    font-size: .85em;
+    margin-right: 16px;
+  }
+  .empty {
+    margin-top: 24px;
+    text-align: center;
+    color: var(--text-2);
+    padding: var(--s5);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+  }
+  .toggle {
+    margin-top: 20px;
+    padding: var(--s3) var(--s3);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle input { margin: 0; }
+  .toggle .lbl { font-size: .9em; }
+  .toggle .desc { color: var(--text-2); font-size: .85em; margin-top: 2px; }
+  /* MMS nao e' um telnet melhor -- e' a outra metade do rele (Virtual Bits
+     e GOOSE de um lado, o resto da Relay Word do outro). O texto de cada
+     opcao existe pra deixar isso claro antes do clique. */
+  .scan-mode {
+    margin: 20px 0 0;
+    padding: var(--s3) var(--s3);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .scan-mode legend {
+    padding: 0 4px;
+    font-size: .85em;
+    color: var(--text-2);
+  }
+  .scan-mode .opt { font-size: .9em; }
+  .scan-mode label { font-size: .9em; }
+  #scd-pick {
+    margin: 2px 0 0 24px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .9em;
+  }
+  #scd-pick select {
+    font: inherit;
+    padding: var(--s1) var(--s2);
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  /* Barra do lote: fica colada no rodape da area rolavel enquanto houver
+     alguma coisa marcada. As vagas sao ditas ANTES do clique -- descobrir o
+     teto de N diagramas so depois de escolher seis e' o que se quer
+     evitar. */
+  #batch-bar {
+    position: sticky;
+    bottom: 0;
+    margin-top: 16px;
+    padding: var(--s3);
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    box-shadow: 0 -2px 14px rgba(0, 0, 0, .18);
+  }
+  #batch-bar.over { border-color: var(--err); }
+  #batch-bar .slots { color: var(--text-2); font-size: .9em; }
+  #batch-bar.over .slots { color: var(--err); }
+  #batch-bar .spacer { flex: 1; }
+  #batch-bar .clear {
+    font: inherit;
+    font-size: .9em;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text-2);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+  <div>
+    <h1>Visualizador de L&oacute;gica</h1>
+    <div class="sub">Escolha um RDB do projeto para listar os rel&eacute;s e
+      marcar os GLE. D&aacute; para abrir v&aacute;rios de uma vez, de rel&eacute;s
+      diferentes. Cada diagrama abre desconectado, numa aba pr&oacute;pria;
+      conectar &eacute; um bot&atilde;o l&aacute; dentro.</div>
+  </div>
+  <span class="spacer"></span>
+  <a class="lnk" id="back-to-diagrams" href="./" style="display:none"
+     title="Voltar para os diagramas abertos">&#x2190; Diagramas</a>
+  <a class="lnk" id="back-to-menu" href="/" title="Voltar ao menu de ferramentas">&#x2190; Menu</a>
+</header>
+<div class="shell">
+<!--NAV:glv-->
+<div class="grid">
+<main class="col-main">
+  <div id="pick-rdb"></div>
+  <div id="status"></div>
+  <div id="info" class="info-bar" style="display:none">
+    <div class="name" id="info-name"></div>
+    <div class="badge" id="info-badge"></div>
+    <code id="info-hash"></code>
+    <div class="spacer"></div>
+    <button class="ghost" id="reload-btn">Outro arquivo</button>
+  </div>
+  <div class="toggle" id="static-toggle" style="display:none">
+    <div>
+      <div class="lbl">O diagrama abre desconectado</div>
+      <div class="desc">Os valores ficam indeterminados até você clicar em
+        <strong>Conectar</strong> no cabeçalho. Vários diagramas podem ficar
+        abertos ao mesmo tempo, cada um com o seu relé; dois no mesmo IP
+        dividem uma única sessão telnet.</div>
+    </div>
+  </div>
+  <fieldset class="scan-mode">
+    <legend>Como ler o relé — escolha na linha de cada um</legend>
+    <div class="opt"><strong>Telnet (Fast Message)</strong> — lê a Relay Word
+      inteira, mas nunca vê Virtual Bits nem páginas de GOOSE.</div>
+    <div class="opt"><strong>MMS (IEC 61850)</strong> — não gasta sessão
+      telnet, mostra as páginas de GOOSE e todas as Virtual Bits, mas não
+      alcança todos os bits (a Relay Word inteira só o telnet lê).</div>
+    <div id="scd-pick" style="display:none">
+      <label for="scd-sel">SCD do projeto:</label>
+      <select id="scd-sel"></select>
+    </div>
+  </fieldset>
+  <div id="relays" class="relay-list"></div>
+  <div id="batch-bar" style="display:none">
+    <button class="primary" id="batch-open">Abrir</button>
+    <span class="slots" id="batch-slots"></span>
+    <span class="spacer"></span>
+    <button class="clear" id="batch-clear">limpar sele&ccedil;&atilde;o</button>
+  </div>
+</main>
+
+<aside class="col-notes">
+  <div class="cap">Notas</div>
+  <div class="note"><span class="n">1</span>O IP vem do pr&oacute;prio RDB quando
+    est&aacute; l&aacute;. Se n&atilde;o estiver, preencha antes de plotar &mdash; sem
+    IP n&atilde;o h&aacute; telnet, e sem telnet n&atilde;o h&aacute; estado ao vivo.</div>
+  <div class="note"><span class="n">2</span>O <b>modo visualiza&ccedil;&atilde;o</b>
+    renderiza o GLE sem conectar: todos os bits ficam indeterminados. Serve para
+    conferir a l&oacute;gica quando o rel&eacute; n&atilde;o est&aacute; acess&iacute;vel.</div>
+  <div class="note"><span class="n">3</span>O banner de login &eacute; drenado antes
+    de entregar o socket &agrave; biblioteca. Rel&eacute;s 3xx anunciam nome, data,
+    esta&ccedil;&atilde;o e modelo &mdash; quatro linhas que estouravam as cinco
+    tentativas da verifica&ccedil;&atilde;o e derrubavam a conex&atilde;o.</div>
+  <div class="note"><span class="n">4</span>Marque v&aacute;rios GLE &mdash; de rel&eacute;s
+    diferentes, se quiser &mdash; e abra todos de uma vez. O lote &eacute; conferido
+    inteiro antes de abrir: um IP faltando barra o lote todo, em vez de abrir
+    metade dele.</div>
+  <div class="note"><span class="n">5</span>Esta ferramenta &eacute; <b>compartilhada</b>:
+    fala com um rel&eacute; f&iacute;sico por vez, ent&atilde;o todos os visitantes veem
+    o mesmo diagrama. <b>Trocar GLE</b> derruba a sess&atilde;o de todo mundo.</div>
+</aside>
+</div>
+</div>
+</div>
+
+<script>
+const statusEl = document.getElementById('status');
+const infoEl = document.getElementById('info');
+const relaysEl = document.getElementById('relays');
+const barEl = document.getElementById('batch-bar');
+const barBtn = document.getElementById('batch-open');
+const barSlots = document.getElementById('batch-slots');
+const scdPick = document.getElementById('scd-pick');
+const scdSel = document.getElementById('scd-sel');
+
+// Padrao de CADA linha, vindo do `[web] glv_scan_mode` do servidor. Antes a
+// tela trazia 'telnet' marcado no HTML e sempre mandava um modo explicito no
+// POST, entao o default do config.ini nunca chegava aqui -- ele so' valia
+// como fallback pra um cliente que nao dissesse nada, e este cliente sempre
+// diz. Configurar `glv_scan_mode = mms` nao mudava nada na tela.
+let defaultMode = 'telnet';
+
+// Todos os <select> de modo na tela: a barra do lote pergunta a eles se
+// algum rele vai entrar em MMS (e' o que decide mostrar o seletor de SCD).
+function modeSelects() {
+  return Array.from(document.querySelectorAll('.mode-sel'));
+}
+
+function anyMms() {
+  return modeSelects().some(sel => sel.value === 'mms');
+}
+
+// So' pergunta qual SCD quando ha' mais de um no projeto que bate com este
+// rele -- com zero ou um, nao ha' o que escolher, e o transporte MMS cai na
+// tabela de fabrica sozinho quando nenhum SCD e' passado.
+async function refreshScds() {
+  // O SCD continua sendo do PROJETO, e nao de um rele: ele descreve a
+  // subestacao inteira. So' que agora basta UM rele em MMS pra escolha
+  // fazer sentido -- os que ficarem em telnet simplesmente o ignoram.
+  if (!anyMms()) { scdPick.style.display = 'none'; return; }
+  const r = await fetch('/library?kind=scd');
+  const files = (await r.json()).files || [];
+  scdSel.innerHTML = '';
+  files.forEach(f => {
+    const o = document.createElement('option');
+    o.value = f.sha256;
+    o.textContent = f.name;
+    scdSel.appendChild(o);
+  });
+  scdPick.style.display = files.length > 1 ? '' : 'none';
+}
+
+
+// Um item por linha de GLE na tela. A selecao mora nos proprios checkboxes --
+// uma copia paralela seria uma segunda verdade pra manter em dia.
+let picks = [];
+let openDiagrams = 0;
+let maxDiagrams = 8;
+
+function selectedPicks() {
+  return picks.filter(p => p.cb.checked);
+}
+
+function setOpenCount(n, max) {
+  openDiagrams = n;
+  if (max) maxDiagrams = max;
+  const back = document.getElementById('back-to-diagrams');
+  if (back) {
+    back.style.display = n > 0 ? '' : 'none';
+    back.textContent = '\u2190 Diagramas (' + n + ')';
+  }
+  renderBatchBar();
+}
+
+function renderBatchBar() {
+  const sel = selectedPicks();
+  if (!sel.length) { barEl.style.display = 'none'; return; }
+  const free = Math.max(0, maxDiagrams - openDiagrams);
+  const over = sel.length > free;
+  barEl.style.display = 'flex';
+  barEl.classList.toggle('over', over);
+  barBtn.disabled = over;
+  barBtn.textContent = sel.length === 1
+    ? 'Abrir 1 diagrama' : 'Abrir ' + sel.length + ' diagramas';
+  // O teto e' dito antes do clique: descobrir que so cabem duas depois de
+  // marcar seis e esperar a renderizacao seria o pior momento.
+  barSlots.textContent = over
+    ? sel.length + ' marcados e s\u00f3 ' + free + ' vaga(s) de ' + maxDiagrams
+      + ' \u2014 feche uma aba ou desmarque'
+    : sel.length + ' de ' + free + ' vaga(s) livre(s)';
+}
+
+function clearPicks() {
+  for (const p of picks) {
+    p.cb.checked = false;
+    if (p.row) p.row.classList.remove('checked');
+  }
+  renderBatchBar();
+}
+
+function setStatus(msg, kind) {
+  statusEl.textContent = msg || '';
+  statusEl.className = kind || '';
+}
+
+function adoptDefaults(data) {
+  if (data && data.scan_mode) defaultMode = data.scan_mode;
+}
+
+function renderRdbInfo(data) {
+  // Antes de montar as linhas: cada <select> nasce lendo `defaultMode`.
+  adoptDefaults(data);
+  picks = [];
+  infoEl.style.display = 'flex';
+  document.getElementById('static-toggle').style.display = 'flex';
+  document.getElementById('info-name').textContent = data.rdb_name || '';
+  const badge = document.getElementById('info-badge');
+  if (data.reused) {
+    badge.textContent = 'hash idêntico -- extração reaproveitada';
+    badge.className = 'badge reused';
+  } else {
+    badge.textContent = 'extraído agora';
+    badge.className = 'badge fresh';
+  }
+  document.getElementById('info-hash').textContent = 'sha256: ' + (data.sha256 || '').slice(0,16) + '...';
+
+  relaysEl.innerHTML = '';
+  if (!data.relays || !data.relays.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.textContent = 'Nenhum relé com arquivo GLE encontrado no RDB.';
+    relaysEl.appendChild(empty);
+    renderBatchBar();
+    return;
+  }
+  for (const r of data.relays) {
+    const card = document.createElement('div');
+    card.className = 'relay';
+
+    const head = document.createElement('div');
+    head.className = 'relay-head';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'name';
+    nameSpan.textContent = r.name;
+    head.appendChild(nameSpan);
+
+    if (r.model) {
+      const modelSpan = document.createElement('span');
+      modelSpan.className = 'model';
+      modelSpan.textContent = 'SEL-' + r.model;
+      head.appendChild(modelSpan);
+    }
+
+    const ipLabel = document.createElement('span');
+    ipLabel.className = 'ip-label';
+    ipLabel.textContent = 'IP:';
+    head.appendChild(ipLabel);
+
+    const ipInput = document.createElement('input');
+    ipInput.type = 'text';
+    ipInput.className = 'ip-input';
+    ipInput.placeholder = '0.0.0.0';
+    ipInput.value = r.ip || '';
+    ipInput.spellcheck = false;
+    ipInput.autocomplete = 'off';
+    ipInput.title = r.ip
+      ? 'IP detectado no RDB; edite se necessario'
+      : 'IP não encontrado no RDB; informe manualmente';
+    ipInput.addEventListener('input', () => {
+      ipInput.classList.toggle('invalid',
+        ipInput.value.trim() !== '' && !isValidIp(ipInput.value));
+    });
+    head.appendChild(ipInput);
+
+    // O modo e' do RELE, e nao do GLE: os varios GLE de um rele sao paginas
+    // do mesmo diagrama fisico e conversam pelo mesmo transporte.
+    const modeSel = document.createElement('select');
+    modeSel.className = 'mode-sel';
+    modeSel.title = 'Telnet lê a Relay Word inteira, mas não vê Virtual Bits '
+      + 'nem páginas de GOOSE. MMS mostra GOOSE e todas as VB, e não gasta '
+      + 'sessão telnet, mas não alcança todos os bits.';
+    for (const [value, label] of [['telnet', 'Telnet'], ['mms', 'MMS']]) {
+      const o = document.createElement('option');
+      o.value = value;
+      o.textContent = label;
+      modeSel.appendChild(o);
+    }
+    modeSel.value = defaultMode;
+    // Trocar o modo de UM rele pode fazer o seletor de SCD aparecer ou sumir.
+    modeSel.addEventListener('change', refreshScds);
+    head.appendChild(modeSel);
+
+    const countSpan = document.createElement('span');
+    countSpan.className = 'count';
+    countSpan.textContent = r.gles.length + ' GLE';
+    head.appendChild(countSpan);
+
+    card.appendChild(head);
+
+    for (const g of r.gles) {
+      const row = document.createElement('div');
+      row.className = 'gle-row';
+
+      const pick = document.createElement('label');
+      pick.className = 'pick';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      const nm = document.createElement('div');
+      nm.className = 'gle-name';
+      nm.textContent = g.filename;
+      pick.appendChild(cb);
+      pick.appendChild(nm);
+
+      // O botao avulso continua: marcar e clicar na barra pra abrir um so
+      // seria mais trabalho do que antes.
+      const btn = document.createElement('button');
+      btn.className = 'primary';
+      btn.textContent = 'Abrir';
+      btn.onclick = () => selectGle(r.name, g.name, btn, ipInput, modeSel);
+
+      row.appendChild(pick);
+      row.appendChild(btn);
+      card.appendChild(row);
+
+      picks.push({relay: r.name, gle: g.name, cb, row, ipInput, modeSel});
+      cb.addEventListener('change', () => {
+        row.classList.toggle('checked', cb.checked);
+        renderBatchBar();
+      });
+    }
+    relaysEl.appendChild(card);
+  }
+  if (typeof data.open_diagrams === 'number') {
+    setOpenCount(data.open_diagrams, data.max_diagrams);
+  } else {
+    renderBatchBar();
+  }
+}
+
+function isValidIp(s) {
+  const m = String(s).trim().match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!m) return false;
+  return m.slice(1).every(x => { const n = +x; return n >= 0 && n <= 255; });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+// O RDB entra uma vez em Arquivos do Projeto; aqui so se escolhe qual usar.
+async function selectRdb(f) {
+  setStatus('Carregando ' + f.name + '...', '');
+  const r = await SelProgress.post('/select-rdb', {sha256: f.sha256},
+                                   {label: 'Carregando ' + f.name});
+  if (!r.ok) {
+    setStatus('Erro: ' + ((r.data && r.data.error) || r.status), 'err');
+    return;
+  }
+  setStatus('Pronto. Escolha um GLE para plotar.', 'ok');
+  renderRdbInfo(r.data);
+}
+
+async function selectGle(relay, gle, btn, ipInput, modeSel) {
+  const ip = (ipInput && ipInput.value || '').trim();
+  // O IP e' obrigatorio mesmo com o diagrama abrindo desconectado: sem ele o
+  // botao Conectar nasceria morto, e e' melhor dizer agora.
+  if (!ip) {
+    setStatus('Informe o IP do relé.', 'err');
+    ipInput && ipInput.focus();
+    return;
+  }
+  if (!isValidIp(ip)) {
+    setStatus('IP inválido: ' + ip, 'err');
+    ipInput && ipInput.focus();
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Abrindo...';
+  setStatus('Renderizando as páginas do GLE...', '');
+  try {
+    const resp = await fetch('/diagrams', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({relay, gle, ip,
+                            scan_mode: modeSel ? modeSel.value : defaultMode,
+                            scd_sha: scdSel.value || null}),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      setStatus('Erro: ' + (data.error || resp.statusText), 'err');
+      btn.disabled = false;
+      btn.textContent = 'Abrir';
+      return;
+    }
+    // Volta pra casca com a aba nova ativa. Trocar DE aba nao recarrega;
+    // abrir mais uma, sim -- e' o unico momento em que isso acontece.
+    window.location.href = './?d=' + encodeURIComponent(data.id);
+  } catch (e) {
+    setStatus('Falha de rede: ' + e, 'err');
+    btn.disabled = false;
+    btn.textContent = 'Abrir';
+  }
+}
+
+async function openBatch() {
+  const sel = selectedPicks();
+  if (!sel.length) return;
+  // So os IPs dos reles com alguma coisa marcada importam: um rele sem nada
+  // marcado nao vira diagrama nenhum e nao precisa de IP.
+  for (const p of sel) {
+    const ip = (p.ipInput && p.ipInput.value || '').trim();
+    if (!ip || !isValidIp(ip)) {
+      setStatus(ip ? 'IP inválido em ' + p.relay + ': ' + ip
+                   : 'Informe o IP do relé ' + p.relay + '.', 'err');
+      if (p.ipInput) { p.ipInput.classList.add('invalid'); p.ipInput.focus(); }
+      return;
+    }
+  }
+  // Um modo POR ITEM: `/diagrams/batch` sempre leu `scan_mode` de cada item,
+  // era a tela que mandava o mesmo pra todos. Um lote pode agora misturar um
+  // 311C em telnet com um 487E em MMS, numa clicada so'.
+  const scd = scdSel.value || null;
+  const items = sel.map(p => ({relay: p.relay, gle: p.gle,
+                               ip: p.ipInput.value.trim(),
+                               scan_mode: p.modeSel ? p.modeSel.value
+                                                    : defaultMode,
+                               scd_sha: scd}));
+  barBtn.disabled = true;
+  setStatus('Renderizando ' + items.length + ' GLE...', '');
+  const r = await SelProgress.post('/diagrams/batch', {items: items},
+    {label: 'Abrindo ' + items.length + ' diagrama(s)'});
+  barBtn.disabled = false;
+  if (!r.ok) {
+    setStatus('Erro: ' + ((r.data && r.data.error) || r.status), 'err');
+    return;
+  }
+  const ids = (r.data && r.data.ids) || [];
+  const errs = (r.data && r.data.errors) || [];
+  if (errs.length) {
+    // Lote parcial: nao navega, senao a mensagem sumiria junto com a pagina.
+    setStatus(ids.length + ' diagrama(s) aberto(s). Falhou: ' + errs.join(' | '),
+              'err');
+    clearPicks();
+    setOpenCount(((r.data && r.data.diagrams) || []).length, r.data.max_diagrams);
+    return;
+  }
+  // Volta pra casca com a primeira aba do lote ativa.
+  window.location.href = './?d=' + encodeURIComponent(ids[0]);
+}
+
+barBtn.addEventListener('click', openBatch);
+document.getElementById('batch-clear').addEventListener('click', clearPicks);
+
+const rdbPicker = SelLibrary.picker('pick-rdb', {
+  kind: 'rdb', label: 'RDB do projeto',
+  onPick: (f) => selectRdb(f),
+});
+
+document.getElementById('reload-btn').addEventListener('click', () => {
+  infoEl.style.display = 'none';
+  document.getElementById('static-toggle').style.display = 'none';
+  relaysEl.innerHTML = '';
+  picks = [];
+  renderBatchBar();
+  setStatus('', '');
+  // O acervo pode ter mudado noutra aba enquanto este RDB estava escolhido.
+  rdbPicker.refresh();
+});
+
+// Restaura estado se ja temos um RDB carregado (ex: recarga da pagina)
+fetch('/landing-state').then(r => r.json()).then(data => {
+  adoptDefaults(data);
+  setOpenCount((data && data.open_diagrams) || 0, data && data.max_diagrams);
+  if (data && data.has_rdb) renderRdbInfo(data);
+});
+
+</script>
+</body>
+</html>

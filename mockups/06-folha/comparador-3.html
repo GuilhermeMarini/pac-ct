@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comparador · comparação — Folha de Dados</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../../sellib/web/static/fonts/fonts.css">
+<link rel="stylesheet" href="theme.css">
+<style>
+/* filtros de veredito: rotulo tipografico + contagem, sem pastilha */
+.vf{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--rule-strong);margin-bottom:var(--s3)}
+.vf label{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;cursor:pointer;
+  border-right:1px solid var(--rule);font-size:11.5px}
+.vf label:last-child{border-right:0}
+.vf label:hover{background:var(--paper-2)}
+.vf .n{font:400 11px var(--mono);color:var(--ink-3)}
+/* indice de grupos como sumario lateral do capitulo */
+.diff{display:grid;grid-template-columns:176px minmax(0,1fr);gap:0;align-items:start;
+  border-top:1px solid var(--rule-strong)}
+.sub{border-right:1px solid var(--rule);max-height:600px;overflow-y:auto;background:var(--paper-2)}
+.sb{display:flex;align-items:baseline;gap:8px;width:100%;padding:5px 11px;background:none;border:0;
+  border-bottom:1px solid var(--rule-hair);color:var(--ink-2);font:400 12px var(--sans);
+  cursor:pointer;text-align:left}
+.sb .k{font:500 10px var(--mono);color:var(--ink-3);width:22px;flex:none}
+.sb .d{margin-left:auto;font:600 10px var(--mono);color:var(--err)}
+.sb:hover{background:var(--card);color:var(--ink)}
+.sb.on{background:var(--card);color:var(--ink);font-weight:600;box-shadow:inset 3px 0 0 var(--slate)}
+.tbl-wrap{overflow:auto;max-height:600px}
+.tbl-wrap th:last-child,.tbl-wrap td:last-child{position:sticky;right:0;background:var(--paper);
+  border-left:1px solid var(--rule);z-index:1}
+.tbl-wrap th:last-child{background:var(--paper-2);z-index:3}
+.tbl-wrap tr:hover td:last-child{background:var(--paper-2)}
+.dif-val{color:var(--err)}
+@media (max-width:900px){.diff{grid-template-columns:1fr}.sub{max-height:140px;border-right:0}}
+</style>
+</head><body><div class="page">
+
+  <div class="masthead">
+    <div><h1>Comissionamento SEL</h1><div class="sub">Ferramenta 2 · Comparador de Ajustes</div></div>
+    <span class="spacer"></span>
+    <span class="doc">DOC. CM-311 · REV. 05<br>7 relés 7xx · 25 grupos</span>
+    <a class="lnk" href="../index.html">← propostas</a>
+  </div>
+
+  <nav class="toc">
+    <a href="index.html"><span class="n">0</span>Menu</a>
+    <a href="glv-landing.html"><span class="n">1</span>Lógica ao vivo</a>
+    <a class="on" href="comparador-1.html"><span class="n">2</span>Comparador de ajustes</a>
+    <a href="vb-updater.html"><span class="n">3</span>VB Updater</a>
+    <a href="vlan-mapper.html"><span class="n">4</span>VLAN Mapper</a>
+    <a href="exportador.html"><span class="n">5</span>Exportador de comentários</a>
+    <span class="off"><span class="n">6</span>Comparador RDB ↔ SCD</span>
+  </nav>
+
+  <div class="grid">
+    <div class="col-main">
+      <div class="steps">
+        <a class="step done" href="comparador-1.html">1 · RDBs e relés ✓</a>
+        <a class="step done" href="comparador-2.html">2 · Grupos ✓</a>
+        <span class="step on">3 · Comparação</span>
+      </div>
+
+      <h2><span class="num">4.</span>Comparação · grupo Lógica 1</h2>
+
+      <div class="bar">
+        <a class="btn" href="comparador-2.html">← trocar grupos</a>
+        <input type="search" placeholder="Filtrar por nome…">
+        <span class="spacer"></span>
+        <button class="btn">Todos</button><button class="btn">Nenhum</button>
+        <button class="btn">Só diferenças</button><button class="btn">Imprimir</button>
+      </div>
+
+      <div class="vf">
+        <label><input type="checkbox" checked><span class="j j-ok">Igual</span><span class="n">340</span></label>
+        <label><input type="checkbox" checked><span class="j j-warn">Só comentário</span><span class="n">2</span></label>
+        <label><input type="checkbox" checked><span class="j j-info">Deslocado</span><span class="n">0</span></label>
+        <label><input type="checkbox" checked><span class="j j-vb">Difere VB</span><span class="n">16</span></label>
+        <label><input type="checkbox" checked><span class="j j-dif">Diferente</span><span class="n">9</span></label>
+        <label><input type="checkbox" checked><span class="j j-falta">Faltante</span><span class="n">0</span></label>
+      </div>
+
+      <div class="diff">
+        <nav class="sub">
+          <button class="sb"><span class="k">1</span>Grupo 1<span class="d">5</span></button>
+          <button class="sb"><span class="k">2</span>Grupo 2</button>
+          <button class="sb"><span class="k">3</span>Grupo 3</button>
+          <button class="sb"><span class="k">4</span>Grupo 4</button>
+          <button class="sb on"><span class="k">L1</span>Lógica 1<span class="d">27</span></button>
+          <button class="sb"><span class="k">L2</span>Lógica 2</button>
+          <button class="sb"><span class="k">L3</span>Lógica 3</button>
+          <button class="sb"><span class="k">L4</span>Lógica 4</button>
+          <button class="sb"><span class="k">G</span>Global<span class="d">1</span></button>
+          <button class="sb"><span class="k">M</span>Modbus</button>
+          <button class="sb"><span class="k">R</span>Relatórios</button>
+          <button class="sb"><span class="k">F</span>Front Panel</button>
+          <button class="sb"><span class="k">I</span>Info</button>
+          <button class="sb"><span class="k">P1</span>Porta 1<span class="d">5</span></button>
+          <button class="sb"><span class="k">P2</span>Porta 2</button>
+          <button class="sb"><span class="k">P3</span>Porta 3</button>
+          <button class="sb"><span class="k">P4</span>Porta 4</button>
+          <button class="sb"><span class="k">PF</span>Painel Frontal</button>
+          <button class="sb"><span class="k">HMI</span>HMI<span class="d">10</span></button>
+          <button class="sb"><span class="k">D1</span>DNP 1<span class="d">11</span></button>
+          <button class="sb"><span class="k">D2</span>DNP 2</button>
+          <button class="sb"><span class="k">D3</span>DNP 3</button>
+          <button class="sb"><span class="k">E1</span>Ethernet 1</button>
+          <button class="sb"><span class="k">E2</span>Ethernet 2</button>
+          <button class="sb"><span class="k">E3</span>Ethernet 3</button>
+        </nav>
+
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Variável</th><th>Campo</th><th>QPC2_TR1_UPC1</th><th>QPC2_TR1_UPC2</th>
+              <th>QPC2_TR1_UPC3</th><th>QPC2_TR1_UPC4</th><th>Situação</th></tr></thead>
+            <tbody>
+              <tr><td class="var">LT06</td><td class="val">set</td>
+                <td class="val">BFT<span class="src">set_L1.txt:25</span></td><td class="val">BFT</td>
+                <td class="val">BFT</td><td class="val">BFT</td><td><span class="j j-ok">Igual</span></td></tr>
+              <tr><td class="var">LT13</td><td class="val">set</td>
+                <td class="val">R_TRIG SV25</td><td class="val">R_TRIG SV25</td>
+                <td class="val">R_TRIG SV25</td><td class="val">R_TRIG SV25</td><td><span class="j j-ok">Igual</span></td></tr>
+              <tr><td class="var">LT14<sup class="ref">1</sup></td><td class="val">set</td>
+                <td class="val">VB102 OR VB103<span class="cmt"># MESSAGE QUALITY</span></td>
+                <td class="val">VB101 OR VB102<span class="cmt"># MESSAGE QUALITY</span></td>
+                <td class="val">VB101 OR VB102<span class="cmt"># MESSAGE QUALITY</span></td>
+                <td class="val">VB101 OR VB102<span class="cmt"># MESSAGE QUALITY</span></td>
+                <td><span class="j j-vb">Difere VB</span></td></tr>
+              <tr><td class="var"></td><td class="val">reset</td>
+                <td class="val">NOT (VB102 OR VB103)</td><td class="val">NOT (VB101 OR VB102)</td>
+                <td class="val">NOT (VB101 OR VB102)</td><td class="val">NOT (VB101 OR VB102)</td>
+                <td><span class="j j-vb">Difere VB</span></td></tr>
+              <tr><td class="var">LT16<sup class="ref">2</sup></td><td class="val">set</td>
+                <td class="val">R_TRIG RB07 AND NOT LT03<span class="cmt"># BLOQUEIO RESIDUAL</span></td>
+                <td class="val">R_TRIG RB07 AND NOT LT03</td><td class="val">R_TRIG RB07 AND NOT LT03</td>
+                <td class="val">R_TRIG RB07 AND NOT LT03</td><td><span class="j j-warn">Só comentário</span></td></tr>
+              <tr><td class="var">LT17<sup class="ref">3</sup></td><td class="val">set</td>
+                <td class="val">SV02 AND LT03 AND<br>(PB04 PUL OR CC)</td>
+                <td class="val">SV02 AND LT03 AND<br>(PB04 PUL OR CC)</td>
+                <td class="val dif-val">SV02 AND LT04 AND<br>(PB04 PUL OR CC)</td>
+                <td class="val">SV02 AND LT03 AND<br>(PB04 PUL OR CC)</td>
+                <td><span class="j j-dif">Diferente</span></td></tr>
+              <tr><td class="var">SV02</td><td class="val">PU</td><td class="val">0.40</td><td class="val">0.40</td>
+                <td class="val">0.40</td><td class="val">0.40</td><td><span class="j j-ok">Igual</span></td></tr>
+              <tr><td class="var">27I1CFA</td><td class="val">value</td><td class="val">1.00</td><td class="val">1.00</td>
+                <td class="val">—</td><td class="val">1.00</td><td><span class="j j-falta">Faltante</span></td></tr>
+              <tr><td class="var">50P1P</td><td class="val">value</td><td class="val">5.00</td><td class="val">5.00</td>
+                <td class="val">5.00</td><td class="val">5.00</td><td><span class="j j-ok">Igual</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="totals"><span>variáveis <b>367</b></span><span>iguais <b>340</b></span>
+        <span>diferentes <b>9</b></span><span>difere VB <b>16</b></span>
+        <span>só comentário <b>2</b></span><span>faltantes <b>0</b></span></div>
+    </div>
+
+    <aside class="col-notes">
+      <div class="cap">Notas</div>
+      <div class="note"><span class="n">1</span><b>LT14</b> difere apenas no número do Virtual Bit
+      (VB102/VB103 contra VB101/VB102). A lógica é equivalente; verificar o mapeamento GOOSE antes
+      de igualar.</div>
+      <div class="note"><span class="n">2</span><b>LT16</b> tem a mesma equação nos quatro; só o
+      comentário de porta está ausente em três. Não afeta proteção.</div>
+      <div class="note"><span class="n">3</span><b>LT17</b> usa <b>LT04</b> no UPC3 onde os demais usam
+      <b>LT03</b>. Divergência real de lógica — reter para análise.</div>
+      <div class="note"><span class="n">4</span>Comparação feita sobre o RDB, não sobre o relé. Confirme
+      que o arquivo é o mesmo que foi baixado no equipamento.</div>
+    </aside>
+  </div>
+</div></body></html>

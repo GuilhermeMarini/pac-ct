@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Editor de Mapa DNP</title>
+<style>
+  /* Tokens e casca vem de /theme.css (pacct/web/themes/). Aqui fica so o
+     que e' desta tela. */
+  .hint { color: var(--text-2); font-size: var(--fs-2); }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--s3);
+    margin-bottom: var(--s3);
+  }
+  #extras:empty { display: none; }
+  #no-wordbits {
+    color: var(--warn);
+    border: 1px solid var(--warn);
+    border-radius: var(--radius);
+    padding: var(--s2) var(--s3);
+    margin-bottom: var(--s3);
+  }
+  /* A barra e' pegajosa porque um mapa DNP tem centenas de linhas: sem isso o
+     seletor de sessao e o botao de exportar ficam a 18 000 px do olho de quem
+     esta editando o ponto 380. Nao pode ficar so na coluna lateral -- em regua
+     e caderno o `.grid` e' de uma coluna so, entao a lateral empilha DEPOIS da
+     tabela inteira. */
+  .topbar { display:flex; gap:var(--s3); align-items:center;
+           flex-wrap:wrap; margin-bottom:var(--s3);
+           position:sticky; top:0; z-index:5;
+           background:var(--bg);
+           padding:var(--s2) 0;
+           border-bottom:1px solid var(--border); }
+  .topbar .gap { flex:1 1 auto; }
+  .topbar .count {
+    font: var(--w-label) var(--fs-2) var(--cond);
+    letter-spacing: var(--track);
+    color: var(--text-2);
+  }
+  .topbar label { display:flex; gap:var(--s2); align-items:center; }
+  .topbar select { font: inherit; background: var(--surface);
+                  color: var(--text); border: 1px solid var(--border);
+                  border-radius: var(--radius); padding: var(--s1); }
+  .btn {
+    font: var(--w-label) var(--fs-2) var(--cond);
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    padding: var(--pad-ctl);
+    background: var(--accent-strong);
+    color: var(--accent-fg);
+    border: 1px solid var(--accent-strong);
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .btn.secondary {
+    background: none;
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+  .btn:hover { opacity: .85; }
+  .btn[disabled] { opacity: .45; cursor: default; }
+  .blocktabs { display:flex; gap:var(--s2); margin:var(--s3) 0; flex-wrap:wrap;
+          border-bottom:1px solid var(--border); }
+  .blocktabs button {
+    font: inherit;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    padding: var(--s1) var(--s2);
+    color: var(--text-2);
+    cursor: pointer;
+  }
+  .blocktabs button[aria-selected="true"] { border-bottom:2px solid var(--text); color: var(--text); }
+  #points { width:100%; border-collapse:collapse; font-family:var(--sans);
+            font-size: var(--fs-3); }
+  #points th { background: var(--surface-2); color: var(--text-2);
+               font: var(--w-label) var(--fs-1) var(--cond);
+               letter-spacing: var(--track); text-transform: uppercase;
+               border-bottom: 2px solid var(--border-strong); }
+  #points th, #points td { border-bottom:1px solid var(--border-hair);
+                           padding:var(--pad-cell); text-align:left; }
+  #points tr.dragging { opacity:.4; }
+  #points tr.droptarget td { outline:2px dashed var(--border); }
+  #points input { width:100%; background:var(--surface); color:var(--text);
+                  border:1px solid var(--border); border-radius:var(--radius);
+                  padding:var(--s1); font-family:var(--sans); }
+  #points td.warn-unknown input { border-color:var(--warn); }
+  #points td.warn-duplicate input { border-style:dashed; }
+  .grip { cursor:grab; user-select:none; color: var(--text-2); }
+  /* Lateral: detalhe do que esta pendente. O botao em si mora na barra. */
+  #pending-list { list-style:none; margin:var(--s2) 0 0; padding:0;
+                font-size: var(--fs-2); color: var(--text-2); }
+  #pending-list li { padding: var(--s1) 0;
+                   border-bottom: 1px solid var(--border-hair); }
+  #pending-list li:last-child { border-bottom: none; }
+  #export-out { font-size: var(--fs-2); margin-top: var(--s2); }
+  #export-out a { color: var(--accent); display:block; }
+  #pending-count { font: var(--w-label) var(--fs-4) var(--cond); color: var(--text); }
+  #out-top:empty { display:none; }
+  #out-top {
+    font-size: var(--fs-2);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--s2) var(--s3);
+    margin-bottom: var(--s3);
+  }
+  #out-top a { color: var(--accent); margin-right: var(--s3); }
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+  <div>
+    <h1 id="title">Mapa DNP</h1>
+    <div class="sub" id="subtitle"></div>
+  </div>
+  <span class="spacer"></span>
+  <a id="back" class="lnk" href="./" title="Voltar à lista de relés">← Relés</a>
+</header>
+<div class="shell">
+<!--NAV:dnp-map-->
+<div class="grid">
+<main class="col-main">
+
+<section class="topbar">
+  <span id="model" class="hint"></span>
+  <label>Sessão
+    <select id="session"></select>
+  </label>
+  <span id="groups" class="hint"></span>
+  <button id="copy" type="button" class="btn secondary">Aplicar às demais sessões</button>
+  <span class="gap"></span>
+  <span class="count" id="bar-count">sem alterações</span>
+  <button id="export" type="button" class="btn" disabled>Exportar RDB</button>
+</section>
+
+<div id="out-top"></div>
+
+<p id="no-wordbits" class="hint" hidden>
+  Sem perfil DNP para este modelo: a verificação de nomes está desligada.
+  Importe o perfil do relé na página anterior para ligá-la.
+</p>
+
+<section id="extras" class="card"></section>
+
+<nav id="blocktabs" class="blocktabs"></nav>
+
+<table id="points">
+  <thead><tr id="header-row"></tr></thead>
+  <tbody></tbody>
+</table>
+
+<p id="footnote" class="hint"></p>
+
+</main>
+
+<aside class="col-notes">
+  <div class="cap">Exportar</div>
+  <div class="note">
+    <span id="pending-count">0</span> alteração(ões) pendente(s) neste RDB.
+    <ul id="pending-list"></ul>
+    <div id="export-out"></div>
+  </div>
+  <div class="cap">Notas</div>
+  <div class="note"><span class="n">1</span>Arraste pelo <b>⠿</b> à esquerda
+    para <b>trocar</b> dois pontos de lugar; o resto da linha fica livre para
+    selecionar e copiar texto. Escala e banda morta viajam junto com a
+    variável.</div>
+  <div class="note"><span class="n">2</span>Avisos <b>nunca</b> impedem a
+    exportação.</div>
+</aside>
+
+</div>
+</div>
+</div>
+
+<script>
+// RDB-derived names (relay/relaytype, session names, group labels, point
+// values, extras) come from the uploaded file's OLE storage/content and are
+// never sanitized server-side, so they must be escaped before reaching
+// innerHTML. Same helpers as pacct/web/vb_updater.py and landing.html, kept
+// in sync on purpose.
+function escapeHtml(s) {
+  return (s == null ? '' : String(s))
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function escapeAttr(s) {
+  return (s == null ? '' : String(s))
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+const P = new URLSearchParams(location.search);
+const RDB = P.get('rdb'), RELAY = P.get('relay');
+let SESSION = P.get('d'), DATA = null, TAB = null, DRAGGING = null;
+
+// The landing page restores whichever RDB was last worked on; tell it which
+// one that is, so "← Relés" comes back to this RDB's relay list instead of an
+// empty upload form. Per-tab UI state, hence sessionStorage -- and it is only
+// a convenience, so a browser that refuses storage costs nothing.
+try { if (RDB) sessionStorage.setItem('dnp-map:rdb', RDB); } catch (e) { }
+
+// The id of the most recently issued /map request. load() bumps this
+// before fetching and compares it on arrival, so a response answering out
+// of order (an older fetch landing after a newer one, e.g. because the
+// user switched sessions while the first was still in flight) is dropped
+// instead of overwriting DATA with a stale snapshot -- see load().
+let MAP_REQ = 0;
+
+// Key -> value the user has typed but the server has not yet been confirmed
+// to hold. This is the single source of truth for "unsent work" and carries
+// no request-lifecycle bookkeeping at all (no in-flight counters, no
+// per-element markers that a redraw can wipe): an oninput handler writes to
+// it, every render overlays it on top of the server's data, and an entry is
+// removed only when a server response shows the key already holding that
+// exact value, or when the server is explicitly known to have overridden it
+// (see the /swap and /copy-session handlers, and the session switch below).
+const EDITED = new Map();
+
+async function load() {
+  const myReq = ++MAP_REQ;
+  const r = await (await fetch('/map?rdb=' + encodeURIComponent(RDB) +
+    '&relay=' + encodeURIComponent(RELAY) +
+    '&d=' + encodeURIComponent(SESSION))).json();
+  // A newer /map has been issued since this one went out -- drop this
+  // response outright. Applying a stale one would render an old session's
+  // values under a new session's label (point keys repeat across sessions,
+  // e.g. BI_1 is BI_1 in both), and an edit typed against what's on screen
+  // would then land on the wrong session's point.
+  if (myReq !== MAP_REQ) return;
+  if (!r.ok) { alert(r.error); return; }
+  DATA = r;
+
+  // Confirm across every block the response carries, not just the one
+  // currently visible: a hidden tab's key must retire its EDITED entry
+  // the moment the server proves it caught up too, or a later server-side
+  // change to that same key would be masked by a stale local value once
+  // that tab is reopened.
+  for (const block of Object.values(r.blocks)) {
+    for (const p of block) {
+      confirmSaved(p.key, p.value);
+      if (p.sca_key) confirmSaved(p.sca_key, p.sca);
+      if (p.dbd_key) confirmSaved(p.dbd_key, p.dbd);
+    }
+  }
+  // .textContent never interprets markup, so it needs no escaping helper.
+  document.getElementById('title').textContent = 'Mapa DNP — ' + r.relay;
+  document.getElementById('subtitle').textContent =
+    (r.relaytype || 'modelo desconhecido') + ' · sessão ' + r.session;
+  document.getElementById('model').textContent = r.relaytype || '—';
+  document.getElementById('no-wordbits').hidden = r.wordbits_ok;
+  document.getElementById('groups').textContent =
+    'Sessões iguais: ' + r.groups.map(g => g.join('=')).join(' · ');
+  showPending(r.dirty || []);
+
+  const sel = document.getElementById('session');
+  sel.innerHTML = '';
+  for (const s of r.sessions) {
+    const o = document.createElement('option');
+    o.value = o.textContent = s;
+    o.selected = (s === SESSION);
+    sel.appendChild(o);
+  }
+
+  document.getElementById('extras').innerHTML = r.extras.length
+    ? r.extras.map(e => '<span class="hint">' + escapeHtml(e.key) + ': ' +
+        escapeHtml(e.value) + '</span>').join(' · ')
+    : '';
+
+  const tabs = document.getElementById('blocktabs');
+  tabs.innerHTML = '';
+  const kinds = Object.keys(r.blocks);
+  if (!kinds.includes(TAB)) TAB = kinds[0];
+  for (const k of kinds) {
+    const n = r.blocks[k].filter(p => p.warning).length;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = k + (n ? ' ' + n + '⚠' : '');
+    b.setAttribute('aria-selected', k === TAB);
+    b.onclick = () => {
+      TAB = k;
+      // draw() only redraws the table; without this the active-tab
+      // highlight stays stuck on the first tab even as the content switches.
+      tabs.querySelectorAll('button').forEach(x => x.setAttribute('aria-selected', 'false'));
+      b.setAttribute('aria-selected', 'true');
+      draw();
+    };
+    tabs.appendChild(b);
+  }
+  draw();
+}
+
+// The value to show for a key: the user's unsent local edit if there is
+// one, otherwise the server's value.
+function currentValue(key, serverValue) {
+  return EDITED.has(key) ? EDITED.get(key) : (serverValue || '');
+}
+
+// A server response reflecting exactly what EDITED already holds means the
+// server has caught up; the local copy no longer has a job to do. This is
+// the ONLY place an entry disappears other than an explicit invalidation
+// (swap, copy-session, session switch) -- never a redraw count, a focus
+// check, or whether some request happens to be in flight.
+function confirmSaved(key, serverValue) {
+  if (key && EDITED.has(key) && EDITED.get(key) === (serverValue || '')) {
+    EDITED.delete(key);
+  }
+}
+
+function field(key, value) {
+  if (!key) return '';
+  return '<input value="' + escapeAttr(currentValue(key, value)) +
+         '" data-key="' + escapeAttr(key) + '">';
+}
+
+// O codigo do aviso viaja em ingles (`unknown`/`duplicate`); o rotulo que o
+// usuario le e' portugues e mora aqui.
+const WARN_LABEL = {unknown: 'desconhecido', duplicate: 'duplicado'};
+
+function draw() {
+  const rows = DATA.blocks[TAB] || [];
+  const hasSca = rows.some(p => p.sca_key);
+  const hasDbd = rows.some(p => p.dbd_key);
+  document.getElementById('header-row').innerHTML =
+    '<th></th><th>#</th><th>Variável</th>' +
+    (hasSca ? '<th>Escala</th>' : '') +
+    (hasDbd ? '<th>Banda morta</th>' : '') + '<th></th>';
+
+  const tb = document.querySelector('#points tbody');
+
+  // A redraw here can be triggered by another field's commit landing while
+  // this one is still mid-edit, or by a drag-swap, or by anything else that
+  // changes what a row should show (including flipping a "duplicado"
+  // warning) -- so the DOM does get fully rebuilt from fresh server data
+  // every time. What must survive the rebuild is only the user's own unsent
+  // work, which lives entirely in EDITED (see its declaration) and is
+  // simply overlaid onto the server's values below via currentValue()/field()
+  // -- nothing here is inferred from the old DOM. Focus and caret are the
+  // one thing genuinely tied to the DOM, so those are still captured from
+  // it and restored after the rebuild.
+  let caret = null;
+  const focused = document.activeElement;
+  if (focused && focused.tagName === 'INPUT' && tb.contains(focused)) {
+    caret = {key: focused.dataset.key, start: focused.selectionStart,
+            end: focused.selectionEnd};
+  }
+
+  tb.innerHTML = '';
+  for (const p of rows) {
+    const tr = document.createElement('tr');
+    // `draggable` so' e' ligado enquanto o ponteiro esta segurando o grip
+    // (ver wireDrag). Com a linha sempre arrastavel, selecionar o texto de
+    // um ponto virava um arraste: o navegador tira a selecao da mao do usuario
+    // assim que o mouse anda com o botao pressionado dentro de um elemento
+    // arrastavel.
+    tr.draggable = false;
+    tr.dataset.key = p.key;
+    tr.innerHTML =
+      '<td class="grip" title="Arraste por aqui para trocar de posição">⠿</td>' +
+      '<td>' + p.index + '</td>' +
+      '<td class="' + (p.warning ? 'warn-' + escapeAttr(p.warning) : '') + '">' +
+        '<input value="' + escapeAttr(currentValue(p.key, p.value)) +
+        '" data-key="' + escapeAttr(p.key) + '"></td>' +
+      (hasSca ? '<td>' + field(p.sca_key, p.sca) + '</td>' : '') +
+      (hasDbd ? '<td>' + field(p.dbd_key, p.dbd) + '</td>' : '') +
+      '<td class="hint">' + escapeHtml(WARN_LABEL[p.warning] || '') + '</td>';
+    tb.appendChild(tr);
+  }
+
+  let caretEl = null;
+  tb.querySelectorAll('input').forEach(i => {
+    const k = i.dataset.key;
+    if (caret && k === caret.key) caretEl = i;
+    // The only writer of EDITED: every keystroke lands here, independent
+    // of any request -- this is what makes an in-progress or re-edited
+    // value survive any number of redraws.
+    i.oninput = () => { EDITED.set(k, i.value); };
+    i.onchange = () => send({[k]: i.value});
+  });
+  if (caretEl) {
+    caretEl.focus();
+    // The server's (or EDITED's) value can be shorter than the caret
+    // position that was valid for the old one (e.g. a swap just replaced
+    // it outright).
+    const len = caretEl.value.length;
+    try {
+      caretEl.setSelectionRange(Math.min(caret.start, len), Math.min(caret.end, len));
+    } catch (e) { /* not a text caret */ }
+  }
+  wireDrag(tb);
+
+  const warnings = rows.filter(p => p.warning).length;
+  let footnote = rows.length + ' ponto(s), ' + warnings + ' aviso(s). ' +
+    'Avisos não impedem a exportação.';
+  // Which blocks carry a name domain worth judging is per model and comes
+  // from the server (`check_kinds`, from the model's wordbits file). Saying
+  // so per tab matters: silence on a tab that is simply not checked would
+  // otherwise read as "no problems found".
+  const checked = DATA.check_kinds || [];
+  if (DATA.wordbits_ok && !checked.includes(TAB)) {
+    footnote += ' A verificação de nomes não se aplica à aba ' + TAB +
+      ' neste modelo (blocos verificados: ' +
+      (checked.join(', ') || 'nenhum') + '); aqui o aviso só cobre duplicados.';
+  }
+  document.getElementById('footnote').textContent = footnote;
+}
+
+// -- Painel de exportacao ---------------------------------------------------
+//
+// O botao de exportar vivia so na pagina anterior, entao quem estava no editor
+// tinha que voltar pra achar. O contador de pendencias ja chega em toda
+// resposta de /map, e a exportacao e' do RDB inteiro (nao da sessao aberta),
+// entao o painel mostra tudo que esta pendente, nao so deste rele.
+function showPending(dirty) {
+  const total = dirty.reduce(
+    (n, d) => n + Object.values(d.sessions).reduce((a, b) => a + b, 0), 0);
+  document.getElementById('pending-count').textContent = total;
+  const ul = document.getElementById('pending-list');
+  ul.innerHTML = '';
+  for (const d of dirty) {
+    const li = document.createElement('li');
+    li.textContent = d.relay + ' — ' + Object.entries(d.sessions)
+      .map(([k, v]) => k + ' (' + v + ')').join(', ');
+    ul.appendChild(li);
+  }
+  document.getElementById('export').disabled = total === 0;
+  document.getElementById('bar-count').textContent = total
+    ? total + ' alteração(ões) pendente(s)'
+    : 'sem alterações';
+}
+
+document.getElementById('export').onclick = async () => {
+  const r = await SelProgress.post('/export', {rdb: RDB},
+                                   {label: 'Exportando RDB'});
+  const out = document.getElementById('export-out');
+  // O resultado sai LOGO ABAIXO da barra, nao so na coluna lateral: em regua e
+  // caderno a lateral fica depois da tabela toda, e um link de download que
+  // aparece a 18 000 px do clique nao existe.
+  const top = document.getElementById('out-top');
+  const d = r.data || {};
+  if (!r.ok) {
+    top.textContent = 'Falha ao exportar: ' + (d.error || r.status);
+    out.textContent = '';
+    return;
+  }
+  let msg = '<a href="' + escapeAttr(d.download_url) + '" download>Baixar RDB (' +
+    (d.method === 'rebuild' ? 'reconstruído' : 'gravado no lugar') + ')</a>' +
+    (d.txt_urls || []).map(u => '<a href="' + escapeAttr(u.url) +
+      '" download>' + escapeHtml(u.name) + '</a>').join('');
+  top.innerHTML = msg;
+  out.innerHTML = msg + (d.note
+    ? '<span class="hint">' + escapeHtml(d.note) + '</span>' : '')
+    + SelLibrary.savedNote(d.project_file);
+};
+
+async function send(changes) {
+  const r = await (await fetch('/edit', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({rdb: RDB, relay: RELAY, session: SESSION, changes}),
+  })).json();
+  if (r.ok) { load(); return; }
+  alert(r.error);
+  // The server never stored this: drop the local guess so the field falls
+  // back to what is actually saved instead of quietly keeping the rejected
+  // text on screen as if it had gone through.
+  for (const k of Object.keys(changes)) EDITED.delete(k);
+  draw();
+}
+
+// Dragging swaps the two points; it never inserts-and-shifts. A DNP index is
+// a contract with the SCADA master, and inserting would renumber everything
+// in between.
+function wireDrag(tb) {
+  tb.querySelectorAll('tr').forEach(tr => {
+    // O arraste comeca no grip e em nenhum outro lugar. `draggable` tem
+    // que estar na LINHA (e' ela que se arrasta, e e' ela que vira a imagem
+    // do arraste), entao o grip liga a bandeira no mousedown e ela cai de
+    // volta no dragend -- e no mouseup solto, para o caso de segurar o
+    // grip e largar sem arrastar nada.
+    const grip = tr.querySelector('.grip');
+    if (grip) {
+      grip.addEventListener('mousedown', () => { tr.draggable = true; });
+      grip.addEventListener('mouseup', () => { tr.draggable = false; });
+    }
+    tr.ondragstart = e => {
+      DRAGGING = tr.dataset.key;
+      tr.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    };
+    tr.ondragend = () => {
+      tr.draggable = false;
+      tr.classList.remove('dragging');
+      tb.querySelectorAll('tr').forEach(x => x.classList.remove('droptarget'));
+      DRAGGING = null;
+    };
+    tr.ondragover = e => { e.preventDefault(); tr.classList.add('droptarget'); };
+    tr.ondragleave = () => tr.classList.remove('droptarget');
+    tr.ondrop = async e => {
+      e.preventDefault();
+      const target = tr.dataset.key;
+      // Captured once, up front: DRAGGING can be repointed by a second
+      // drag started while this handler is suspended at the await below,
+      // and reading it again after that would delete the wrong key's
+      // EDITED entry (and leave the actually-swapped key's stale entry
+      // in place, overlaying a pre-swap value onto the just-swapped row).
+      const source = DRAGGING;
+      if (!source || source === target) return;
+      const r = await (await fetch('/swap', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({rdb: RDB, relay: RELAY, session: SESSION,
+                              a: source, b: target}),
+      })).json();
+      if (r.ok) {
+        // The server just traded these two keys' values outright; any
+        // locally unsent edit for either one is now meaningless.
+        EDITED.delete(source);
+        EDITED.delete(target);
+        load();
+      } else {
+        alert(r.error);
+      }
+    };
+  });
+}
+
+// Segurou o grip, saiu de cima dele e soltou sem arrastar: o `mouseup` do
+// grip nunca chega, e a linha ficaria armada -- a proxima selecao de texto
+// nela viraria arraste de novo. Uma vez no documento, nao por linha.
+document.addEventListener('mouseup', () => {
+  document.querySelectorAll('#points tbody tr[draggable="true"]')
+    .forEach(tr => { tr.draggable = false; });
+});
+
+document.getElementById('session').onchange = e => {
+  SESSION = e.target.value;
+  // Unsent edits are scoped to the session they were typed in; carrying
+  // them across a session switch would silently misapply them to the new
+  // session's points.
+  EDITED.clear();
+  history.replaceState({}, '', '?rdb=' + encodeURIComponent(RDB) +
+    '&relay=' + encodeURIComponent(RELAY) +
+    '&d=' + encodeURIComponent(SESSION));
+  load();
+};
+
+document.getElementById('copy').onclick = async () => {
+  if (!confirm('Aplicar o mapa de ' + SESSION +
+               ' às demais sessões deste relé?')) return;
+  const r = await (await fetch('/copy-session', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({rdb: RDB, relay: RELAY, session: SESSION}),
+  })).json();
+  if (r.ok) {
+    // The copy writes the *other* sessions server-side and leaves this one
+    // untouched, so nothing here invalidates a locally unsent edit -- it is
+    // still exactly as valid as before the copy. Refresh anyway so the
+    // screen picks up what the copy actually changed (e.g. the "Sessões
+    // iguais" grouping hint), keeping it in step with the server.
+    load();
+    alert(r.touched + ' field(s) alterado(s) em ' + r.sessions.join(', '));
+  } else {
+    alert(r.error);
+  }
+};
+
+load();
+</script>
+</body>
+</html>

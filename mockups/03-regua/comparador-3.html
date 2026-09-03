@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comparador · comparação — Régua de Bornes</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../../sellib/web/static/fonts/fonts.css">
+<link rel="stylesheet" href="theme.css">
+<style>
+.steps{display:flex;gap:2px;margin-bottom:var(--s3)}
+.step{flex:1;padding:8px 12px;background:var(--bake-2);border:1px solid var(--edge);
+  font:700 10px var(--cond);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:center;text-decoration:none}
+.step.on{color:var(--text);border-color:var(--wire-blue);box-shadow:inset 0 -3px 0 var(--wire-blue)}
+.step.done{color:var(--wire-green);border-color:#2d5a3f}
+/* filtros de veredito: um por cor de fio */
+.vf{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;background:var(--bake-2);
+  border:1px solid var(--edge);margin-bottom:var(--s3)}
+.vf label{display:inline-flex;align-items:center;gap:7px;padding:4px 9px;border:1px solid var(--edge-2);
+  font:700 9.5px var(--cond);letter-spacing:.1em;text-transform:uppercase;cursor:pointer;color:var(--muted)}
+.vf label:hover{border-color:var(--brass)}
+.vf .n{font-family:var(--mono);opacity:.75}
+/* grupos como sub-regua, do lado da tabela */
+.diff{display:grid;grid-template-columns:186px minmax(0,1fr);gap:10px;align-items:start}
+.sub{background:var(--bake-2);border:1px solid var(--edge);max-height:560px;overflow-y:auto}
+.sub .cap{font:700 9.5px var(--cond);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);padding:9px 11px 6px}
+.sb{display:flex;align-items:center;gap:8px;width:100%;padding:6px 11px;background:none;border:0;
+  border-bottom:1px solid var(--bake-3);color:var(--muted);font:inherit;font-size:12.5px;cursor:pointer;text-align:left}
+.sb .k{font:700 10px var(--mono);color:var(--dim);width:22px;flex:none}
+.sb .d{margin-left:auto;font:700 10px var(--mono);color:var(--wire-red)}
+.sb:hover{background:var(--bake-3);color:var(--text)}
+.sb.on{background:var(--bake-3);color:#fff;box-shadow:inset 3px 0 0 var(--wire-blue)}
+.sb.on .k{color:var(--brass)}
+.tbl-wrap{border:1px solid var(--edge);background:var(--bake-2);overflow:auto;max-height:560px}
+/* comentario e origem ficam em linha propria, sob o valor */
+.cmt{color:var(--muted);display:block;font-size:11px;margin-top:2px}
+.src{color:#5a554e;display:block;font-size:10px;margin-top:2px}
+/* o veredito e' a coluna que o usuario veio ver: fica presa a direita
+   quando a tabela rola na horizontal */
+.tbl-wrap th:last-child,.tbl-wrap td:last-child{position:sticky;right:0;background:var(--bake-2);
+  border-left:1px solid var(--edge);z-index:1}
+.tbl-wrap th:last-child{background:#26241f;z-index:3}
+.tbl-wrap tr:hover td:last-child{background:#282622}
+@media (max-width:900px){.diff{grid-template-columns:1fr}.sub{max-height:150px}}
+</style>
+</head><body>
+
+<div class="top">
+  <h1>Comissionamento SEL</h1>
+  <span class="sub">Borne 2 · Comparador de Ajustes</span>
+  <span class="spacer"></span>
+  <span class="rid">7 relés 7xx · 25 grupos</span>
+  <a class="lnk" href="index.html">← menu</a>
+</div>
+
+<div class="shell">
+  <nav class="strip">
+    <div class="cap">Régua X1 — ferramentas</div>
+    <a class="borne" href="glv-landing.html"><span class="num">1</span><span class="lbl">Visualizador de Lógica<small>estado ao vivo no GLE</small></span></a>
+    <a class="borne on" href="comparador-1.html"><span class="num">2</span><span class="lbl">Comparador de Ajustes<small>até 7 relés lado a lado</small></span></a>
+    <a class="borne" href="vb-updater.html"><span class="num">3</span><span class="lbl">VB Updater<small>virtual bits GLE ↔ SCD</small></span></a>
+    <a class="borne" href="vlan-mapper.html"><span class="num">4</span><span class="lbl">VLAN Mapper<small>GOOSE por porta</small></span></a>
+    <a class="borne" href="exportador.html"><span class="num">5</span><span class="lbl">Exportador de Comentários<small>Excel ida e volta</small></span></a>
+    <span class="borne off"><span class="num">6</span><span class="lbl">Comparador RDB ↔ SCD<small>em breve</small></span></span>
+    <span class="borne off"><span class="num">7</span><span class="lbl">Validador de Settings<small>em breve</small></span></span>
+    <span class="borne off"><span class="num">8</span><span class="lbl">Relatório de Comissionamento<small>em breve</small></span></span>
+  </nav>
+
+  <main>
+    <div class="steps">
+      <a class="step done" href="comparador-1.html">1 · RDBs e relés ✓</a>
+      <a class="step done" href="comparador-2.html">2 · Grupos ✓</a>
+      <span class="step on">3 · Comparação</span>
+    </div>
+
+    <div class="bar">
+      <a class="btn" href="comparador-2.html">← trocar grupos</a>
+      <input type="search" placeholder="Filtrar por nome…">
+      <span class="spacer"></span>
+      <button class="btn">Todos</button><button class="btn">Nenhum</button><button class="btn">Só diferenças</button>
+      <button class="btn">Exportar</button>
+    </div>
+
+    <div class="vf">
+      <label><input type="checkbox" checked><span class="term t-ok">Igual</span><span class="n">340</span></label>
+      <label><input type="checkbox" checked><span class="term t-equiv">Lógica igual, comentário difere</span><span class="n">2</span></label>
+      <label><input type="checkbox" checked><span class="term t-desl">Deslocado</span><span class="n">0</span></label>
+      <label><input type="checkbox" checked><span class="term t-vb">Difere VB</span><span class="n">16</span></label>
+      <label><input type="checkbox" checked><span class="term t-equiv">Equivalente</span><span class="n">0</span></label>
+      <label><input type="checkbox" checked><span class="term t-dif">Diferente</span><span class="n">9</span></label>
+      <label><input type="checkbox" checked><span class="term t-falta">Faltante</span><span class="n">0</span></label>
+    </div>
+
+    <div class="diff">
+      <nav class="sub">
+        <div class="cap">Régua X2 — grupos</div>
+        <button class="sb"><span class="k">1</span>Grupo 1<span class="d">5</span></button>
+        <button class="sb"><span class="k">2</span>Grupo 2</button>
+        <button class="sb"><span class="k">3</span>Grupo 3</button>
+        <button class="sb"><span class="k">4</span>Grupo 4</button>
+        <button class="sb on"><span class="k">L1</span>Lógica 1<span class="d">27</span></button>
+        <button class="sb"><span class="k">L2</span>Lógica 2</button>
+        <button class="sb"><span class="k">L3</span>Lógica 3</button>
+        <button class="sb"><span class="k">L4</span>Lógica 4</button>
+        <button class="sb"><span class="k">G</span>Global<span class="d">1</span></button>
+        <button class="sb"><span class="k">M</span>Modbus</button>
+        <button class="sb"><span class="k">R</span>Relatórios</button>
+        <button class="sb"><span class="k">F</span>Front Panel</button>
+        <button class="sb"><span class="k">I</span>Info</button>
+        <button class="sb"><span class="k">P1</span>Porta 1<span class="d">5</span></button>
+        <button class="sb"><span class="k">P2</span>Porta 2</button>
+        <button class="sb"><span class="k">P3</span>Porta 3</button>
+        <button class="sb"><span class="k">P4</span>Porta 4</button>
+        <button class="sb"><span class="k">PF</span>Painel Frontal</button>
+        <button class="sb"><span class="k">HMI</span>HMI<span class="d">10</span></button>
+        <button class="sb"><span class="k">D1</span>DNP 1<span class="d">11</span></button>
+        <button class="sb"><span class="k">D2</span>DNP 2</button>
+        <button class="sb"><span class="k">D3</span>DNP 3</button>
+        <button class="sb"><span class="k">E1</span>Ethernet 1</button>
+        <button class="sb"><span class="k">E2</span>Ethernet 2</button>
+        <button class="sb"><span class="k">E3</span>Ethernet 3</button>
+      </nav>
+
+      <div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>Variável</th><th>Campo</th>
+              <th>QPC2_TR1_UPC1</th><th>QPC2_TR1_UPC2</th><th>QPC2_TR1_UPC3</th><th>QPC2_TR1_UPC4</th>
+              <th>Situação</th></tr></thead>
+            <tbody>
+              <tr><td class="var">LT06</td><td class="val">set</td>
+                <td class="val">BFT<span class="src">set_L1.txt:25</span></td><td class="val">BFT</td><td class="val">BFT</td><td class="val">BFT</td>
+                <td><span class="term t-ok">Igual</span></td></tr>
+              <tr><td class="var">LT13</td><td class="val">set</td>
+                <td class="val">R_TRIG SV25</td><td class="val">R_TRIG SV25</td><td class="val">R_TRIG SV25</td><td class="val">R_TRIG SV25</td>
+                <td><span class="term t-ok">Igual</span></td></tr>
+              <tr><td class="var">LT14</td><td class="val">set</td>
+                <td class="val">VB102 OR VB103<span class="cmt"># MESSAGE QUALITY</span></td>
+                <td class="val">VB101 OR VB102<span class="cmt"># MESSAGE QUALITY</span></td>
+                <td class="val">VB101 OR VB102<span class="cmt"># MESSAGE QUALITY</span></td>
+                <td class="val">VB101 OR VB102<span class="cmt"># MESSAGE QUALITY</span></td>
+                <td><span class="term t-vb">Difere VB</span></td></tr>
+              <tr><td class="var"></td><td class="val">reset</td>
+                <td class="val">NOT (VB102 OR VB103)</td><td class="val">NOT (VB101 OR VB102)</td>
+                <td class="val">NOT (VB101 OR VB102)</td><td class="val">NOT (VB101 OR VB102)</td>
+                <td><span class="term t-vb">Difere VB</span></td></tr>
+              <tr><td class="var">LT16</td><td class="val">set</td>
+                <td class="val">R_TRIG RB07 AND NOT LT03<span class="cmt"># BLOQUEIO RESIDUAL</span></td>
+                <td class="val">R_TRIG RB07 AND NOT LT03</td><td class="val">R_TRIG RB07 AND NOT LT03</td><td class="val">R_TRIG RB07 AND NOT LT03</td>
+                <td><span class="term t-equiv">Comentário difere</span></td></tr>
+              <tr><td class="var">LT17</td><td class="val">set</td>
+                <td class="val">SV02 AND LT03 AND<br>(PB04 PUL OR CC)</td>
+                <td class="val">SV02 AND LT03 AND<br>(PB04 PUL OR CC)</td>
+                <td class="val" style="color:#ff8d88">SV02 AND LT04 AND<br>(PB04 PUL OR CC)</td>
+                <td class="val">SV02 AND LT03 AND<br>(PB04 PUL OR CC)</td>
+                <td><span class="term t-dif">Diferente</span></td></tr>
+              <tr><td class="var">SV02</td><td class="val">PU</td>
+                <td class="val">0.40</td><td class="val">0.40</td><td class="val">0.40</td><td class="val">0.40</td>
+                <td><span class="term t-ok">Igual</span></td></tr>
+              <tr><td class="var">27I1CFA</td><td class="val">value</td>
+                <td class="val">1.00</td><td class="val">1.00</td><td class="val">—</td><td class="val">1.00</td>
+                <td><span class="term t-falta">Faltante</span></td></tr>
+              <tr><td class="var">50P1P</td><td class="val">value</td>
+                <td class="val">5.00</td><td class="val">5.00</td><td class="val">5.00</td><td class="val">5.00</td>
+                <td><span class="term t-ok">Igual</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="footbar"><span><b>367</b> variáveis</span><span><b>340</b> iguais</span><span><b>9</b> diferentes</span>
+          <span><b>16</b> difere VB</span><span><b>2</b> só comentário</span><span><b>0</b> faltantes</span></div>
+      </div>
+    </div>
+  </main>
+</div>
+</body></html>

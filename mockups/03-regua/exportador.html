@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exportador de Comentários GLE — Régua de Bornes</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../../sellib/web/static/fonts/fonts.css">
+<link rel="stylesheet" href="theme.css">
+<style>
+/* o fluxo do borne 5 e' um circuito de ida e volta: RDB → Excel → RDB */
+.loop{display:grid;grid-template-columns:1fr 26px 1fr 26px 1fr;align-items:center;gap:0;margin-bottom:var(--s5)}
+.loop .st{background:var(--bake-2);border:1px solid var(--edge);border-top:3px solid var(--wire-violet);padding:14px 16px}
+.loop .st b{display:block;font:500 14px var(--sans);margin-bottom:3px}
+.loop .st span{color:var(--muted);font-size:12px}
+.loop .w{height:2px;background:var(--wire-violet);position:relative}
+.loop .w::after{content:"";position:absolute;right:-1px;top:-4px;border-left:8px solid var(--wire-violet);
+  border-top:5px solid transparent;border-bottom:5px solid transparent}
+@media (max-width:820px){.loop{grid-template-columns:1fr}.loop .w{height:18px;width:2px;margin-left:22px}
+  .loop .w::after{right:-4px;top:auto;bottom:-1px;border:0;border-top:8px solid var(--wire-violet);
+    border-left:5px solid transparent;border-right:5px solid transparent}}
+.res{display:flex;align-items:center;gap:12px;padding:12px var(--s3);background:var(--bake-2);
+  border:1px solid var(--edge);border-left:3px solid var(--wire-green);margin-bottom:var(--s3)}
+.dl{font:700 10px var(--cond);letter-spacing:.12em;text-transform:uppercase;color:#241d05;
+  background:var(--brass);padding:7px 13px;text-decoration:none}
+</style>
+</head><body>
+
+<div class="top">
+  <h1>Comissionamento SEL</h1>
+  <span class="sub">Borne 5 · Exportador de Comentários GLE</span>
+  <span class="spacer"></span>
+  <span class="rid">RDB carregado · 25 relés</span>
+  <a class="lnk" href="index.html">← menu</a>
+</div>
+
+<div class="shell">
+  <nav class="strip">
+    <div class="cap">Régua X1 — ferramentas</div>
+    <a class="borne" href="glv-landing.html"><span class="num">1</span><span class="lbl">Visualizador de Lógica<small>estado ao vivo no GLE</small></span></a>
+    <a class="borne" href="comparador-1.html"><span class="num">2</span><span class="lbl">Comparador de Ajustes<small>até 7 relés lado a lado</small></span></a>
+    <a class="borne" href="vb-updater.html"><span class="num">3</span><span class="lbl">VB Updater<small>virtual bits GLE ↔ SCD</small></span></a>
+    <a class="borne" href="vlan-mapper.html"><span class="num">4</span><span class="lbl">VLAN Mapper<small>GOOSE por porta</small></span></a>
+    <a class="borne on" href="exportador.html"><span class="num">5</span><span class="lbl">Exportador de Comentários<small>Excel ida e volta</small></span></a>
+    <span class="borne off"><span class="num">6</span><span class="lbl">Comparador RDB ↔ SCD<small>em breve</small></span></span>
+    <span class="borne off"><span class="num">7</span><span class="lbl">Validador de Settings<small>em breve</small></span></span>
+    <span class="borne off"><span class="num">8</span><span class="lbl">Relatório de Comissionamento<small>em breve</small></span></span>
+  </nav>
+
+  <main>
+    <h2>Circuito de ida e volta</h2>
+    <div class="loop">
+      <div class="st"><b>1 · RDB de entrada</b><span>Os SYMBOLs de cada GLE viram uma aba da planilha.</span></div>
+      <div class="w"></div>
+      <div class="st"><b>2 · Excel</b><span>Edite os comentários de porta fora do QuickSet.</span></div>
+      <div class="w"></div>
+      <div class="st"><b>3 · RDB de saída</b><span>Reimporte e baixe o RDB já com os comentários.</span></div>
+    </div>
+
+    <h2 class="g">Arquivo</h2>
+    <div class="filebar" style="border-left-color:var(--wire-violet);margin-bottom:var(--s5)">
+      <span class="nm">SE EXEMPLO III_17-08-26.rdb</span>
+      <span class="term t-ok">Extraído</span>
+      <span class="hash">25 relés · 39 MB</span>
+      <span class="spacer"></span>
+      <button class="btn">Outro arquivo</button>
+    </div>
+
+    <div class="res">
+      <span class="term t-ok">Planilha gerada</span>
+      <span style="font-family:var(--mono);font-size:12px;color:var(--muted)">comentarios_QPC2_TR1_UPC1+2.xlsx · 2 abas · 128 variáveis</span>
+      <span class="spacer"></span>
+      <a class="dl" href="#">Baixar Excel</a>
+    </div>
+
+    <h2>Relés no RDB</h2>
+    <div class="bar">
+      <button class="btn pri">Exportar selecionados</button>
+      <button class="btn">Importar Excel editado</button>
+      <span class="count">2 de 25 selecionados</span>
+      <span class="spacer"></span>
+      <input type="search" placeholder="Filtrar relé ou GLE…">
+    </div>
+
+    <div class="wrap" style="max-height:460px">
+      <table>
+        <thead><tr><th style="width:36px"><input type="checkbox"></th><th>Relé</th><th>Modelo</th><th>IP</th><th>GLE</th><th>Variáveis</th><th>Com comentário</th></tr></thead>
+        <tbody>
+          <tr><td><input type="checkbox" checked></td><td class="var">QPC2_TR1_UPC1</td><td class="val">751</td>
+            <td class="val">203.0.113.41</td><td class="val">TR1_UPC1_751.gle</td><td class="val">64</td>
+            <td><span class="term t-ok">61 / 64</span></td></tr>
+          <tr><td><input type="checkbox" checked></td><td class="var">QPC2_TR1_UPC2</td><td class="val">751</td>
+            <td class="val">203.0.113.42</td><td class="val">TR1_UPC2_751.gle</td><td class="val">64</td>
+            <td><span class="term t-ok">64 / 64</span></td></tr>
+          <tr><td><input type="checkbox"></td><td class="var">QPC2_TR1_UPC3</td><td class="val">751</td>
+            <td class="val">203.0.113.43</td><td class="val">TR1_UPC3_751.gle</td><td class="val">64</td>
+            <td><span class="term t-equiv">40 / 64</span></td></tr>
+          <tr><td><input type="checkbox"></td><td class="var">QPC1_LT1_UPC1</td><td class="val">411L-A</td>
+            <td class="val">203.0.113.22</td><td class="val">LT1_UPC1.gle</td><td class="val">112</td>
+            <td><span class="term t-ok">112 / 112</span></td></tr>
+          <tr><td><input type="checkbox"></td><td class="var">QPC1_LT1_UPC2</td><td class="val">311C-1</td>
+            <td class="val">203.0.113.23</td><td class="val">LT1_UPC2.gle</td><td class="val">38</td>
+            <td><span class="term t-dif">6 / 38</span></td></tr>
+          <tr><td><input type="checkbox"></td><td class="var">QPC1_TR1_UPC1</td><td class="val">487E-3</td>
+            <td class="val">203.0.113.31</td><td class="val">TR1_UPC1.gle</td><td class="val">96</td>
+            <td><span class="term t-ok">96 / 96</span></td></tr>
+          <tr><td><input type="checkbox"></td><td class="var">QPC2_TFE1_UPC1</td><td class="val">451-5</td>
+            <td class="val">203.0.113.62</td><td class="val">TFE1.gle</td><td class="val">48</td>
+            <td><span class="term t-equiv">31 / 48</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="footbar"><span>uma aba por GLE</span><span>a coluna de comentário é a única editável</span>
+      <span>o RDB de saída mantém tudo o mais intacto</span></div>
+  </main>
+</div>
+</body></html>

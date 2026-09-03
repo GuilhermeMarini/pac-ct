@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 584" preserveAspectRatio="xMinYMin meet" class="gle-page" data-page-name="L-R / WatchDog">
+<style>
+.bg              { fill: #fefefe; }
+.element-symbol  { fill: #fff;    stroke: #555; stroke-width: 0.8; }
+.element-symbol.active   { fill: #b8f0b8; stroke: #1a6a1a; }
+.element-symbol.inactive { fill: #f5f5f5; stroke: #888; }
+.element-gate    { fill: #fff8d8; stroke: #a08020; stroke-width: 0.8; }
+.element-logic   { fill: #d8e8ff; stroke: #2050a0; stroke-width: 0.8; }
+.element-timer   { fill: #ffe8cc; stroke: #c06000; stroke-width: 0.8; }
+.element-latch   { fill: #f0d8f0; stroke: #802080; stroke-width: 0.8; }
+.element-text    { font-family: monospace; font-size: 7px; fill: #111; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+.gate-label      { font-family: monospace; font-size: 7.5px; font-weight: bold; fill: #222; text-anchor: middle; dominant-baseline: middle; }
+.connection      { fill: none; stroke: #404040; stroke-width: 0.6; }
+.connection.active   { stroke: #16a316; stroke-width: 1.8; }
+.junction-dot    { fill: #202020; stroke: none; }
+.junction-dot.active { fill: #16a316; }
+.port-pin        { stroke: #666; stroke-width: 0.6; }
+.port-bubble     { fill: #fff; stroke: #555; stroke-width: 0.6; }
+.port-edge       { font-family: monospace; font-size: 7px; fill: #c00; font-weight: bold; text-anchor: start; dominant-baseline: middle; pointer-events: none; }
+.port-sublabel   { font-family: monospace; font-size: 5px; fill: #555; dominant-baseline: middle; }
+.port-comment    { font-family: monospace; font-size: 6px; fill: #444; dominant-baseline: alphabetic; pointer-events: none; }
+.element-symbol.const { fill: #eef2ff; stroke: #5566a0; stroke-width: 0.8; }
+.element-symbol.const + .element-text, .const-text { fill: #1a2a6a; font-weight: bold; }
+.element-analog        { fill: #fff4d9; stroke: #b07a18; stroke-width: 0.8; }
+.element-analog.has-value { fill: #fde8b5; stroke: #8a5a06; }
+.analog-name           { font-family: monospace; font-size: 7px; fill: #4a3500; text-anchor: middle; dominant-baseline: middle; pointer-events: none; font-weight: bold; }
+.analog-value          { font-family: monospace; font-size: 6.5px; fill: #6a4500; text-anchor: middle; dominant-baseline: middle; pointer-events: none; }
+.analog-value.live     { fill: #1a3a8a; font-weight: bold; }
+.group-frame      { fill: none; stroke: #6a6a6a; stroke-width: 0.6; stroke-dasharray: 3,2; }
+.group-label      { font-family: monospace; font-size: 8px; font-weight: bold; fill: #333; text-anchor: middle; dominant-baseline: middle; }
+.group-label-bg   { fill: #fefefe; stroke: none; }
+.group-checkbox       { cursor: pointer; }
+.group-check-box      { fill: #fff; stroke: #555; stroke-width: 0.6; }
+.group-check-mark     { fill: none; stroke: #2050a0; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; visibility: hidden; pointer-events: none; }
+.group-grp.checked .group-check-mark { visibility: visible; }
+.group-grp.checked .group-frame      { stroke: #2050a0; stroke-width: 1.0; }
+.group-grp.checked .group-check-box  { stroke: #2050a0; }
+
+.element-symbol.bit-1 { fill: #6fdc6f; stroke: #1a6a1a; stroke-width: 1.5; }
+.element-symbol.bit-0 { fill: #e8e8e8; stroke: #888; }
+.element-symbol.bit-unknown { fill: #fff4c8; stroke: #d49a00; stroke-dasharray: 2,2; }
+.gate-grp rect.bit-1 { fill: #6fdc6f; stroke: #1a6a1a; stroke-width: 1.5; }
+.gate-grp rect.bit-0 { fill: #e8e8e8; stroke: #666; }
+.gate-grp rect.bit-unknown { fill: #fff4c8; stroke: #d49a00; stroke-dasharray: 2,2; }
+</style>
+<rect class="bg" x="0" y="0" width="800" height="584"/>
+<title>L-R / WatchDog</title>
+<g class="group-grp" data-group-id="47">
+<rect class="group-frame" x="44" y="44" width="746" height="110" rx="2"/>
+<rect class="group-label-bg" x="340.5" y="46.0" width="153" height="14"/>
+<g class="group-checkbox" data-group-id="47"><rect class="group-check-box" x="340.5" y="49.0" width="8" height="8" rx="1"/><path class="group-check-mark" d="M342.0,53.2 L344.0,55.2 L347.0,50.5"/></g>
+<text class="group-label" x="422.5" y="53.0">SELECAO LOCAL REMOTO DO RELE</text>
+</g>
+<g class="group-grp" data-group-id="46">
+<rect class="group-frame" x="44" y="176" width="697" height="62" rx="2"/>
+<rect class="group-label-bg" x="340.0" y="178.0" width="105" height="14"/>
+<g class="group-checkbox" data-group-id="46"><rect class="group-check-box" x="340.0" y="181.0" width="8" height="8" rx="1"/><path class="group-check-mark" d="M341.5,185.2 L343.5,187.2 L346.5,182.5"/></g>
+<text class="group-label" x="398.0" y="185.0">FALHA INTERNA RELE</text>
+</g>
+<g class="group-grp" data-group-id="51">
+<rect class="group-frame" x="44" y="284" width="746" height="86" rx="2"/>
+<rect class="group-label-bg" x="314.0" y="286.0" width="206" height="14"/>
+<g class="group-checkbox" data-group-id="51"><rect class="group-check-box" x="314.0" y="289.0" width="8" height="8" rx="1"/><path class="group-check-mark" d="M315.5,293.2 L317.5,295.2 L320.5,290.5"/></g>
+<text class="group-label" x="422.5" y="293.0">LIBERA OS INTERTRAVAMENTOS - EMERGENCIA</text>
+</g>
+<g class="group-grp" data-group-id="50">
+<rect class="group-frame" x="44" y="410" width="746" height="164" rx="2"/>
+<rect class="group-label-bg" x="383.5" y="412.0" width="67" height="14"/>
+<g class="group-checkbox" data-group-id="50"><rect class="group-check-box" x="383.5" y="415.0" width="8" height="8" rx="1"/><path class="group-check-mark" d="M385.0,419.2 L387.0,421.2 L390.0,416.5"/></g>
+<text class="group-label" x="422.5" y="419.0">MODO TESTE</text>
+</g>
+<polyline class="connection active" data-src="58" data-src-port="0" data-dst="409" data-dst-port="0" data-sink-mod="" data-src-mod="" points="132,108 276,108 276,126 312,126"/>
+<polyline class="connection" data-src="138" data-src-port="0" data-dst="459" data-dst-port="0" data-sink-mod="" data-src-mod="" points="126,210 138,210 138,210 378,210"/>
+<polyline class="connection" data-src="459" data-src-port="0" data-dst="585" data-dst-port="0" data-sink-mod="" data-src-mod="" points="414,210 426,210 426,210 684,210"/>
+<polyline class="connection active" data-src="58" data-src-port="0" data-dst="408" data-dst-port="1" data-sink-mod="" data-src-mod="" points="132,108 276,108 276,90 312,90"/>
+<polyline class="connection active" data-src="35" data-src-port="0" data-dst="408" data-dst-port="0" data-sink-mod="NOT" data-src-mod="" points="102,78 114,78 114,78 312,78"/>
+<polyline class="connection active" data-src="88" data-src-port="0" data-dst="409" data-dst-port="1" data-sink-mod="" data-src-mod="" points="102,138 114,138 114,138 312,138"/>
+<polyline class="connection" data-src="145" data-src-port="0" data-dst="459" data-dst-port="1" data-sink-mod="" data-src-mod="" points="126,222 138,222 138,222 378,222"/>
+<polyline class="connection" data-src="408" data-src-port="0" data-dst="660" data-dst-port="0" data-sink-mod="" data-src-mod="" points="354,78 366,78 366,114 726,114"/>
+<polyline class="connection" data-src="409" data-src-port="0" data-dst="660" data-dst-port="1" data-sink-mod="" data-src-mod="" points="354,126 366,126 366,126 726,126"/>
+<polyline class="connection" data-src="188" data-src-port="0" data-dst="460" data-dst-port="0" data-sink-mod="" data-src-mod="" points="132,330 144,330 144,330 378,330"/>
+<polyline class="connection active" data-src="196" data-src-port="0" data-dst="460" data-dst-port="1" data-sink-mod="" data-src-mod="" points="102,342 114,342 114,342 378,342"/>
+<polyline class="connection" data-src="460" data-src-port="0" data-dst="645" data-dst-port="0" data-sink-mod="" data-src-mod="" points="420,330 432,330 432,330 714,330"/>
+<polyline class="connection" data-src="520" data-src-port="0" data-dst="645" data-dst-port="1" data-sink-mod="" data-src-mod="" points="624,342 636,342 636,342 714,342"/>
+<polyline class="connection" data-src="521" data-src-port="0" data-dst="645" data-dst-port="2" data-sink-mod="" data-src-mod="" points="630,354 642,354 642,354 714,354"/>
+<polyline class="connection" data-src="492" data-src-port="0" data-dst="664" data-dst-port="1" data-sink-mod="" data-src-mod="" points="492,522 636,522 636,480 726,480"/>
+<polyline class="connection" data-src="491" data-src-port="0" data-dst="664" data-dst-port="0" data-sink-mod="" data-src-mod="" points="492,468 504,468 504,468 726,468"/>
+<polyline class="connection" data-src="341" data-src-port="0" data-dst="383" data-dst-port="2" data-sink-mod="" data-src-mod="" points="228,480 240,480 240,480 270,480"/>
+<polyline class="connection" data-src="340" data-src-port="0" data-dst="383" data-dst-port="1" data-sink-mod="" data-src-mod="" points="234,468 246,468 246,468 270,468"/>
+<polyline class="connection active" data-src="237" data-src-port="0" data-dst="383" data-dst-port="0" data-sink-mod="" data-src-mod="" points="102,456 114,456 114,456 270,456"/>
+<polyline class="connection" data-src="383" data-src-port="1" data-dst="491" data-dst-port="0" data-sink-mod="" data-src-mod="" points="330,468 342,468 342,468 450,468"/>
+<polyline class="connection active" data-src="252" data-src-port="0" data-dst="492" data-dst-port="1" data-sink-mod="RTRIG" data-src-mod="" points="102,534 114,534 114,534 450,534"/>
+<polyline class="connection active" data-src="253" data-src-port="0" data-dst="492" data-dst-port="2" data-sink-mod="NOT" data-src-mod="" points="102,546 114,546 114,546 450,546"/>
+<polyline class="connection active" data-src="255" data-src-port="0" data-dst="492" data-dst-port="3" data-sink-mod="NOT" data-src-mod="" points="96,558 108,558 108,558 450,558"/>
+<polyline class="connection" data-src="248" data-src-port="0" data-dst="491" data-dst-port="1" data-sink-mod="NOT" data-src-mod="" points="102,504 432,504 432,480 450,480"/>
+<polyline class="connection" data-src="248" data-src-port="0" data-dst="492" data-dst-port="0" data-sink-mod="" data-src-mod="" points="102,504 432,504 432,522 450,522"/>
+<g class="symbol-grp" id="el-58" data-bit="PB01_PUL"><rect class="element-symbol bit-1" x="54" y="102" width="78" height="12"/><text class="element-text" x="93.0" y="108.0">PB01_PUL</text><text class="port-comment" x="136" y="106.5" text-anchor="start">SELECAO LOCAL/REMOTO</text></g>
+<g class="gate-grp" id="el-408" data-type="AND"><rect class="element-logic" x="312" y="66" width="36" height="30"/><line class="port-pin" x1="308" y1="78" x2="308" y2="78"/><circle class="port-bubble" cx="310" cy="78" r="2"/><line class="port-pin" x1="308" y1="90" x2="312" y2="90"/><line class="port-pin" x1="348" y1="78" x2="352" y2="78"/><text class="gate-label" x="330.0" y="81.0">&amp;</text></g>
+<g class="gate-grp" id="el-409" data-type="AND"><rect class="element-logic" x="312" y="114" width="36" height="30"/><line class="port-pin" x1="308" y1="126" x2="312" y2="126"/><line class="port-pin" x1="308" y1="138" x2="312" y2="138"/><line class="port-pin" x1="348" y1="126" x2="352" y2="126"/><text class="gate-label" x="330.0" y="129.0">&amp;</text></g>
+<g class="symbol-grp" id="el-35" data-bit="LT03"><rect class="element-symbol bit-1" x="54" y="72" width="48" height="12"/><text class="element-text" x="78.0" y="78.0">LT03</text><text class="port-comment" x="106" y="76.5" text-anchor="start">RELE EM LOCAL</text></g>
+<g class="symbol-grp" id="el-88" data-bit="LT03"><rect class="element-symbol bit-1" x="54" y="132" width="48" height="12"/><text class="element-text" x="78.0" y="138.0">LT03</text><text class="port-comment" x="106" y="136.5" text-anchor="start">RELE EM LOCAL</text></g>
+<g class="gate-grp" id="el-660" data-type="LATCH" data-output-bit="LT03"><rect class="element-latch" x="726" y="90" width="54" height="42"/><line class="port-pin" x1="722" y1="114" x2="726" y2="114"/><line class="port-pin" x1="722" y1="126" x2="726" y2="126"/><line class="port-pin" x1="780" y1="114" x2="784" y2="114"/><text class="gate-label" x="753.0" y="100">LT03</text><text class="port-sublabel" x="734" y="114.5">S</text><text class="port-sublabel" x="734" y="126.5">R</text><text class="port-comment" x="722" y="112.5" text-anchor="end">RELE EM LOCAL</text></g>
+<g class="symbol-grp" id="el-138" data-bit="HALARM"><rect class="element-symbol bit-unknown" x="54" y="204" width="72" height="12"/><text class="element-text" x="90.0" y="210.0">HALARM</text><text class="port-comment" x="130" y="208.5" text-anchor="start">FALHA HARDWARE</text></g>
+<g class="gate-grp" id="el-459" data-type="OR"><rect class="element-logic" x="378" y="198" width="36" height="30"/><line class="port-pin" x1="374" y1="210" x2="378" y2="210"/><line class="port-pin" x1="374" y1="222" x2="378" y2="222"/><line class="port-pin" x1="414" y1="210" x2="418" y2="210"/><text class="gate-label" x="396.0" y="213.0">≥1</text></g>
+<g class="symbol-grp" id="el-585" data-bit="OUT103"><rect class="element-symbol bit-1" x="684" y="204" width="47" height="12"/><text class="element-text" x="707.5" y="210.0">OUT103</text><text class="port-comment" x="680" y="208.5" text-anchor="end">FALHA INTERNA (FAIL SAFE)</text></g>
+<g class="symbol-grp" id="el-145" data-bit="LINKFAIL"><rect class="element-symbol bit-unknown" x="54" y="216" width="72" height="12"/><text class="element-text" x="90.0" y="222.0">LINKFAIL</text><text class="port-comment" x="130" y="220.5" text-anchor="start">FALHA COMUNICACAO</text></g>
+<g class="symbol-grp" id="el-188" data-bit="PB08_PUL"><rect class="element-symbol bit-0" x="54" y="324" width="78" height="12"/><text class="element-text" x="93.0" y="330.0">PB08_PUL</text><text class="port-comment" x="136" y="328.5" text-anchor="start">LIBERA INTERTRAV. EMERGENCIA</text></g>
+<g class="symbol-grp" id="el-520" data-const="0"><rect class="element-symbol const" x="594" y="336" width="30" height="12"/><text class="element-text" x="609.0" y="342.0">0</text></g>
+<g class="symbol-grp" id="el-521" data-const="30"><rect class="element-symbol const" x="594" y="348" width="36" height="12"/><text class="element-text" x="612.0" y="354.0">30</text></g>
+<g class="gate-grp" id="el-460" data-type="AND"><rect class="element-logic" x="378" y="318" width="36" height="30"/><line class="port-pin" x1="374" y1="330" x2="378" y2="330"/><line class="port-pin" x1="374" y1="342" x2="378" y2="342"/><line class="port-pin" x1="414" y1="330" x2="418" y2="330"/><text class="gate-label" x="396.0" y="333.0">&amp;</text></g>
+<g class="symbol-grp" id="el-196" data-bit="LT03"><rect class="element-symbol bit-1" x="54" y="336" width="48" height="12"/><text class="element-text" x="78.0" y="342.0">LT03</text><text class="port-comment" x="106" y="340.5" text-anchor="start">RELE EM LOCAL</text></g>
+<g class="gate-grp" id="el-645" data-type="TIMER" data-output-bit="SV08T"><rect class="element-timer" x="714" y="306" width="66" height="54"/><line class="port-pin" x1="710" y1="330" x2="714" y2="330"/><line class="port-pin" x1="710" y1="342" x2="714" y2="342"/><line class="port-pin" x1="710" y1="354" x2="714" y2="354"/><line class="port-pin" x1="780" y1="330" x2="784" y2="330"/><text class="gate-label" x="747.0" y="316">SV08</text><text class="port-sublabel" x="722" y="330.5">in</text><text class="port-sublabel" x="722" y="342.5">PU</text><text class="port-sublabel" x="722" y="354.5">DO</text><text class="port-comment" x="710" y="328.5" text-anchor="end">LIBERA INTERTRAV. EMERGENCIA</text></g>
+<g class="symbol-grp" id="el-237" data-bit="PB06"><rect class="element-symbol bit-1" x="54" y="450" width="48" height="12"/><text class="element-text" x="78.0" y="456.0">PB06</text><text class="port-comment" x="106" y="454.5" text-anchor="start">CMD MODO TESTE</text></g>
+<g class="gate-grp" id="el-491" data-type="AND"><rect class="element-logic" x="450" y="456" width="36" height="30"/><line class="port-pin" x1="446" y1="468" x2="450" y2="468"/><line class="port-pin" x1="446" y1="480" x2="446" y2="480"/><circle class="port-bubble" cx="448" cy="480" r="2"/><line class="port-pin" x1="486" y1="468" x2="490" y2="468"/><text class="gate-label" x="468.0" y="471.0">&amp;</text></g>
+<g class="gate-grp" id="el-492" data-type="AND"><rect class="element-logic" x="450" y="510" width="36" height="54"/><line class="port-pin" x1="446" y1="522" x2="450" y2="522"/><line class="port-pin" x1="446" y1="534" x2="450" y2="534"/><text class="port-edge" x="452" y="534.5">↑</text><line class="port-pin" x1="446" y1="546" x2="446" y2="546"/><circle class="port-bubble" cx="448" cy="546" r="2"/><line class="port-pin" x1="446" y1="558" x2="446" y2="558"/><circle class="port-bubble" cx="448" cy="558" r="2"/><line class="port-pin" x1="486" y1="522" x2="490" y2="522"/><text class="gate-label" x="468.0" y="537.0">&amp;</text></g>
+<g class="symbol-grp" id="el-340" data-const="10"><rect class="element-symbol const" x="198" y="462" width="36" height="12"/><text class="element-text" x="216.0" y="468.0">10</text></g>
+<g class="symbol-grp" id="el-341" data-const="0"><rect class="element-symbol const" x="198" y="474" width="30" height="12"/><text class="element-text" x="213.0" y="480.0">0</text></g>
+<g class="symbol-grp" id="el-252" data-bit="PB06"><rect class="element-symbol bit-1" x="54" y="528" width="48" height="12"/><text class="element-text" x="78.0" y="534.0">PB06</text><text class="port-comment" x="106" y="532.5" text-anchor="start">CMD MODO TESTE</text></g>
+<g class="gate-grp" id="el-664" data-type="LATCH" data-output-bit="LT05"><rect class="element-latch" x="726" y="444" width="54" height="42"/><line class="port-pin" x1="722" y1="468" x2="726" y2="468"/><line class="port-pin" x1="722" y1="480" x2="726" y2="480"/><line class="port-pin" x1="780" y1="468" x2="784" y2="468"/><text class="gate-label" x="753.0" y="454">LT05</text><text class="port-sublabel" x="734" y="468.5">S</text><text class="port-sublabel" x="734" y="480.5">R</text><text class="port-comment" x="722" y="466.5" text-anchor="end">MODO TESTE</text></g>
+<g class="gate-grp" id="el-383" data-type="TIMER" data-output-bit="SV26T"><rect class="element-timer" x="270" y="432" width="66" height="54"/><line class="port-pin" x1="266" y1="456" x2="270" y2="456"/><line class="port-pin" x1="266" y1="468" x2="270" y2="468"/><line class="port-pin" x1="266" y1="480" x2="270" y2="480"/><line class="port-pin" x1="336" y1="456" x2="340" y2="456"/><line class="port-pin" x1="336" y1="468" x2="340" y2="468"/><text class="gate-label" x="303.0" y="442">SV26</text><text class="port-sublabel" x="278" y="456.5">in</text><text class="port-sublabel" x="278" y="468.5">PU</text><text class="port-sublabel" x="278" y="480.5">DO</text></g>
+<g class="symbol-grp" id="el-253" data-bit="TRIP"><rect class="element-symbol bit-1" x="54" y="540" width="48" height="12"/><text class="element-text" x="78.0" y="546.0">TRIP</text><text class="port-comment" x="106" y="544.5" text-anchor="start">TRIP GERAL</text></g>
+<g class="symbol-grp" id="el-255" data-bit="BFT"><rect class="element-symbol bit-1" x="54" y="552" width="42" height="12"/><text class="element-text" x="75.0" y="558.0">BFT</text><text class="port-comment" x="100" y="556.5" text-anchor="start">ATUACAO 50/62BF</text></g>
+<g class="symbol-grp" id="el-248" data-bit="LT05"><rect class="element-symbol bit-0" x="54" y="498" width="48" height="12"/><text class="element-text" x="78.0" y="504.0">LT05</text><text class="port-comment" x="106" y="502.5" text-anchor="start">MODO TESTE</text></g>
+</svg>

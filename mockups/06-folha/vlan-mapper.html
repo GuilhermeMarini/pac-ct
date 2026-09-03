@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VLAN Mapper — Folha de Dados</title>
+<!-- Fontes do proprio projeto, sem CDN: a subestacao pode estar offline. -->
+<link rel="stylesheet" href="../../sellib/web/static/fonts/fonts.css">
+<link rel="stylesheet" href="theme.css">
+<style>
+.chip{display:inline-block;font:500 11px var(--mono);padding:1px 6px;margin:1px 3px 1px 0;
+  border:1px solid var(--rule-strong);background:var(--card)}
+.chip.rx{border-color:#8fb3d6;background:#eef4fa;color:#1f5f8b}
+.chip.tx{border-color:#dcc48a;background:#fbf5e6;color:#8a5f13}
+.sum{display:flex;gap:var(--s4);flex-wrap:wrap;padding:10px 12px;background:var(--card);
+  border:1px solid var(--rule);border-left:3px solid var(--slate);margin-bottom:var(--s3);
+  font:400 12px var(--mono);color:var(--ink-2)}
+.sum b{color:var(--ink);font-size:15px}
+.grp2{display:inline-flex}
+.grp2 .btn{border-left-width:0}.grp2 .btn:first-child{border-left-width:1px}
+.grp2 .btn.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+</style>
+</head><body><div class="page">
+  <div class="masthead">
+    <div><h1>Comissionamento SEL</h1><div class="sub">Ferramenta 4 · VLAN Mapper</div></div>
+    <span class="spacer"></span>
+    <span class="doc">DOC. CM-311 · REV. 05 · pág. 1 de 1</span>
+    <a class="lnk" href="../index.html">← propostas</a>
+  </div>
+<nav class="toc">
+  <a class="" href="index.html"><span class="n">0</span>Menu</a>
+  <a class="" href="glv-landing.html"><span class="n">1</span>Lógica ao vivo</a>
+  <a class="" href="comparador-1.html"><span class="n">2</span>Comparador de ajustes</a>
+  <a class="" href="vb-updater.html"><span class="n">3</span>VB Updater</a>
+  <a class="on" href="vlan-mapper.html"><span class="n">4</span>VLAN Mapper</a>
+  <a class="" href="exportador.html"><span class="n">5</span>Exportador de comentários</a>
+  <span class="off"><span class="n">6</span>Comparador RDB ↔ SCD</span>
+</nav>
+  <div class="grid">
+    <div class="col-main">
+      <section>
+        <h2><span class="num">1.</span>Arquivo SCD</h2>
+        <div class="filebar" style="border-left-color:var(--slate)">
+          <span>SE_EXEMPLO_III.scd</span><span class="j j-ok">25 IEDs</span>
+          <span class="hash">41 GOOSE · 12 VLANs distintas</span>
+          <span class="spacer"></span><button class="btn">Outro arquivo</button>
+        </div>
+      </section>
+
+      <section>
+        <h2><span class="num">2.</span>VLANs por relé</h2>
+        <p class="lead">O que precisa estar liberado na porta do switch onde cada relé está plugado —
+        somando o que ele publica e o que ele assina.<sup class="ref">1</sup></p>
+        <div class="sum">
+          <span>IEDs <b>25</b></span><span>GOOSE <b>41</b></span><span>VLANs <b>12</b></span>
+          <span>sem VLAN <b>3</b></span><span>não resolvidos <b>2</b></span>
+        </div>
+        <div class="bar">
+          <input type="search" placeholder="Filtrar IED, IP ou VLAN…">
+          <span class="grp2"><button class="btn on">Hex</button><button class="btn">Decimal</button></span>
+          <span class="grp2"><button class="btn on">Chips</button><button class="btn">Texto</button></span>
+          <button class="btn">Mostrar sem VLAN</button>
+          <span class="spacer"></span>
+          <button class="btn">Copiar CSV</button>
+        </div>
+        <div class="wrap">
+          <table>
+            <thead><tr><th>IED (relé)</th><th>IP</th><th>VLANs a permitir na porta</th><th>RX / TX</th><th>Situação</th></tr></thead>
+            <tbody>
+              <tr><td class="var">TR1UPC1</td><td class="val">203.0.113.41</td>
+                <td><span class="chip rx">0x00A</span><span class="chip rx">0x00B</span><span class="chip tx">0x014</span></td>
+                <td class="val">2 RX / 1 TX</td><td><span class="j j-ok">Resolvido</span></td></tr>
+              <tr><td class="var">TR1UPC2</td><td class="val">203.0.113.42</td>
+                <td><span class="chip rx">0x00A</span><span class="chip tx">0x015</span></td>
+                <td class="val">1 RX / 1 TX</td><td><span class="j j-ok">Resolvido</span></td></tr>
+              <tr><td class="var">TR1UPC3</td><td class="val">203.0.113.43</td>
+                <td><span class="chip rx">0x00A</span><span class="chip rx">0x00C</span><span class="chip tx">0x016</span></td>
+                <td class="val">2 RX / 1 TX</td><td><span class="j j-ok">Resolvido</span></td></tr>
+              <tr><td class="var">LT1UPC1</td><td class="val">203.0.113.22</td>
+                <td><span class="chip rx">0x001</span><span class="chip rx">0x002</span><span class="chip tx">0x001</span><span class="chip tx">0x003</span></td>
+                <td class="val">2 RX / 2 TX</td><td><span class="j j-ok">Resolvido</span></td></tr>
+              <tr><td class="var">LT1UPC2</td><td class="val">203.0.113.23</td>
+                <td><span class="chip rx">0x001</span><span class="chip tx">0x004</span></td>
+                <td class="val">1 RX / 1 TX</td><td><span class="j j-ok">Resolvido</span></td></tr>
+              <tr><td class="var">TFE1UPC1</td><td class="val">203.0.113.62</td>
+                <td><span class="chip tx">0x020</span></td><td class="val">0 RX / 1 TX</td>
+                <td><span class="j j-ok">Resolvido</span></td></tr>
+              <tr><td class="var">TR2UPC1</td><td class="val">203.0.113.47</td>
+                <td class="val">—</td><td class="val">1 RX / 0 TX</td>
+                <td><span class="j j-warn">GSE sem VLAN-ID<sup class="ref">2</sup></span></td></tr>
+              <tr><td class="var">SV_MERGING_01</td><td class="val">203.0.113.90</td>
+                <td class="val">—</td><td class="val">—</td>
+                <td><span class="j j-dif">IED inexistente</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="totals"><span>chip azul = assinada (RX)</span><span>chip âmbar = publicada (TX)</span>
+          <span>a porta precisa das duas</span></div>
+      </section>
+    </div>
+
+    <aside class="col-notes">
+      <div class="cap">Notas</div>
+      <div class="note"><span class="n">1</span>Liberar só o que o relé publica deixa a assinatura muda:
+      o GOOSE chega ao switch e é descartado antes da porta.</div>
+      <div class="note"><span class="n">2</span>GSE sem <code>VLAN-ID</code> no SCD: o publicador
+      manda sem tag e o switch trata como VLAN nativa. Pedir correção ao projetista.</div>
+      <div class="note"><span class="n">3</span>Hexadecimal é o formato do SCL; decimal é o que a maioria
+      das CLIs de switch espera. O botão troca a exibição, não o dado.</div>
+    </aside>
+  </div>
+</div></body></html>
