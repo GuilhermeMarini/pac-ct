@@ -41,6 +41,21 @@ def built(tmp_path_factory):
     return mod, out, manifest
 
 
+def tmp_requirements() -> Path:
+    """A requirements file with one of each shape, written where the test can
+    reach it. Testing the split against the LIVE file made the assertion
+    change every time a dependency did."""
+    import tempfile
+    fh = tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False,
+                                     encoding="utf-8")
+    fh.write("olefile>=0.47\n"
+             "# a comment, and a blank line\n\n"
+             "somelib @ git+https://example.invalid/somelib@abc123\n"
+             "py61850>=0.2.0.dev1\n")
+    fh.close()
+    return Path(fh.name)
+
+
 def _names(zip_path: Path) -> list[str]:
     with zipfile.ZipFile(zip_path) as z:
         return z.namelist()
@@ -129,14 +144,24 @@ def test_a_release_build_refuses_a_version_that_is_not_a_release(tmp_path,
 
 def test_the_two_halves_of_requirements_are_fetched_by_different_commands():
     """`pip download --only-binary=:all:` refuses a direct reference -- it has
-    to build one. So `cfbwrite`/`selfiles` are built with `pip wheel` and the
-    rest downloaded with the platform flags, and the split is by shape rather
-    than by name."""
+    to build one. So a direct reference is built with `pip wheel` and the rest
+    downloaded with the platform flags, and the split is by SHAPE rather than
+    by name -- which is what lets it keep working now that `cfbwrite` and
+    `selfiles` are published and neither is a direct reference any more."""
     mod = _build_module()
-    direct, indexed = mod.split_requirements(ROOT / "requirements.txt")
-    assert [d.split(" @ ")[0] for d in direct] == ["cfbwrite", "selfiles"]
-    assert any(line.startswith("py61850") for line in indexed)
-    assert not any(" @ " in line for line in indexed)
+    direct, indexed = mod.split_requirements(tmp_requirements())
+    assert [d.split(" @ ")[0] for d in direct] == ["somelib"]
+    assert indexed == ["olefile>=0.47", "py61850>=0.2.0.dev1"]
+
+
+def test_todays_requirements_need_no_direct_reference_at_all():
+    """Both libraries are on PyPI since 2026-09-03, so `pin_direct_references`
+    is dormant. It stays because the mechanism is the guard: the day something
+    is pinned to a URL again, the offline bundle must not silently go back to
+    needing a network."""
+    mod = _build_module()
+    direct, _ = mod.split_requirements(ROOT / "requirements.txt")
+    assert direct == [], direct
 
 
 def test_a_second_build_adds_to_the_manifest_instead_of_erasing_it(tmp_path):

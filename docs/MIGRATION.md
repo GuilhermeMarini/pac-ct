@@ -398,7 +398,18 @@ Rules, all of which follow from facts already established in this project:
 Everything in §5.1–5.5 landed as decided. Six things are worth naming, because
 they are either a departure or a fact the plan did not have.
 
-**A blocker the plan did not price: neither library is on PyPI.** `cfbwrite`
+**Both libraries were published on 2026-09-03**, which retires the workaround
+described immediately below. `cfbwrite 1.0.0` and `selfiles 1.0.0` are on PyPI
+(cfbwrite first — selfiles depends on it), each tagged `v1.0.0` in its own
+repository so the source the uploaded artefacts were built from is recorded.
+`requirements.txt` and `pyproject.toml` are back to `cfbwrite>=1.0` /
+`selfiles>=1.0`, which was always the one-line change. Verified before upload
+against the exact artefacts, and again after: `pip install selfiles` into an
+empty venv with `--no-cache-dir` pulls `cfbwrite` transitively, finds the 7
+packaged relay models, and `pac-ct`'s 647 tests pass against the built wheels
+with nothing editable and nothing from git.
+
+**A blocker the plan did not price: neither library was on PyPI.** `cfbwrite`
 and `selfiles` were extracted, committed and pushed in Phase 4, and
 `requirements.txt` was left saying `cfbwrite>=1.0`. That resolves to nothing.
 CI had been **red on every push since Phase 4** (`No matching distribution

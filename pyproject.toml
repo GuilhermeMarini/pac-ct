@@ -30,12 +30,12 @@ dependencies = [
     "pyserial>=3.5",
     "telnetlib3>=4.0.2",
     "olefile>=0.47",
-    # Direct references, because neither is on PyPI yet. Kept identical to
-    # requirements.txt -- `tests/test_version.py` fails when the two disagree,
-    # since a bundle built from one and a venv built from the other is the
-    # kind of difference nobody notices until a relay is on the bench.
-    "cfbwrite @ git+https://github.com/GuilhermeMarini/cfbwrite@ce2afd36f91d9d9887fa93f0b96fa4f1806edda2",
-    "selfiles @ git+https://github.com/GuilhermeMarini/selfiles@9f7958fe8cddd2c920488ca34ed53ec0acaab33b",
+    # Kept identical to requirements.txt -- `tests/test_version.py` fails when
+    # the two disagree, since a bundle built from one and a venv built from the
+    # other is the kind of difference nobody notices until a relay is on the
+    # bench.
+    "cfbwrite>=1.0",
+    "selfiles>=1.0",
     "openpyxl>=3.1",
     # PRE-RELEASE on purpose: the MMS client the GLV calls exists from
     # 0.2.0.dev1 and 0.2.0 final does not exist. Naming a pre-release in the
