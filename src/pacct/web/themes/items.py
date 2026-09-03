@@ -19,15 +19,15 @@ from dataclasses import dataclass
 class Tool:
     """Uma ferramenta do toolkit, do ponto de vista do menu e da navegacao."""
 
-    key: str            # o mesmo slug que o handler usa pra se marcar ativo
+    key: str            # the slug the handler uses to mark itself active
     group: str          # a key de um Group. OBRIGATORIO: um default silencioso
                         # would put a new tool in the wrong group unseen
-    href: str | None  # None = ainda nao existe, aparece desabilitada
-    name: str           # nome completo (folha, regua)
-    short: str          # nome curto (caderno)
-    hint: str           # subtitulo de uma linha (regua)
-    does: str           # o que faz, uma frase (todas as direcoes)
-    takes: str          # o que precisa receber
+    href: str | None  # None = does not exist yet, shown disabled
+    name: str           # the full name (folha, regua)
+    short: str          # the short name (caderno)
+    hint: str           # a one-line subtitle (regua)
+    does: str           # what it does, one sentence (every direction)
+    takes: str          # what it needs to be given
     note: int = 0       # 1..4 -> ancora numa nota de rodape, 0 = nenhuma
 
     @property
@@ -46,10 +46,10 @@ class Group:
     """
 
     key: str      # o slug, usado por Tool.group e pelos testes
-    name: str     # nome completo (folha, regua)
-    short: str    # nome curto (caderno, capa da regua)
-    eats: str     # o que este grupo le, uma linha
-    empty: str = ""   # o que dizer quando o grupo nao tem ferramenta
+    name: str     # the full name (folha, regua)
+    short: str    # the short name (caderno, regua's header)
+    eats: str     # what this group reads, one line
+    empty: str = ""   # what to say when the group has no tool
 
 
 # Group order is menu order, and the 1..9 numbering runs over it: generic

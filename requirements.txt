@@ -1,37 +1,39 @@
 pyserial>=3.5
 telnetlib3>=4.0.2
 olefile>=0.47
-# Escrita de Compound File (MS-CFB v3): o `olefile` LE bem e so' troca um
-# stream por outro do mesmo tamanho, entao qualquer edicao que cresca precisa
-# do container reconstruido. Saiu deste projeto (era `pacct/parsers/
-# ole_rebuild.py`) e virou biblioteca propria porque nao tem nada de SEL
-# dentro: https://github.com/GuilhermeMarini/cfbwrite
+# Writing a Compound File (MS-CFB v3): `olefile` READS one well and will only
+# swap a stream for another of exactly the same size, so any edit that grows
+# one needs the container rebuilt. This came out of this project (it was
+# `pacct/parsers/ole_rebuild.py`) and became a library of its own because there
+# is nothing SEL-specific inside it:
+# https://github.com/GuilhermeMarini/cfbwrite
 cfbwrite>=1.0
-# Os formatos de arquivo de um projeto SEL: RDB, SET_*.TXT, mapa DNP, GLE,
-# SELOGIC, SCL/IEC 61850, e os registros por modelo. Era pacct/parsers/,
-# pacct/core/ e pacct/matchers/ -- a camada que ja nao sabia que a web
-# existia: https://github.com/GuilhermeMarini/selfiles
+# The file formats an SEL project is made of: RDB, SET_*.TXT, DNP maps, GLE,
+# SELOGIC, SCL/IEC 61850, and the per-model registries. This was
+# `pacct/parsers/`, `pacct/core/` and `pacct/matchers/` -- the layer that
+# already did not know the web existed:
+# https://github.com/GuilhermeMarini/selfiles
 selfiles>=1.0
 openpyxl>=3.1
-# py61850 (transporte MMS do GLV). Ate' 2026-08-31 isto era um pin de commit
-# (`py61850 @ git+https://...@<sha>`), porque o PyPI so' tinha a 0.0.1 e o
-# cliente que o GLV chama (`MmsClient`, `decode_data_definition`,
-# `py61850.mms.pdu`) nao estava publicado em lugar nenhum. Agora esta': o PyPI
-# serve a 0.2.0.dev1, um PRE-RELEASE -- a 0.2.0 final ainda nao existe.
+# py61850 (the GLV's MMS transport). Until 2026-08-31 this was a commit pin
+# (`py61850 @ git+https://...@<sha>`), because PyPI carried only 0.0.1 and the
+# client the GLV calls (`MmsClient`, `decode_data_definition`,
+# `py61850.mms.pdu`) was not published anywhere. Now it is: PyPI serves
+# 0.2.0.dev1, a PRE-RELEASE -- 0.2.0 final still does not exist.
 #
-# Mencionar um pre-release no proprio especificador e' o que autoriza o pip a
-# instalar dev SEM `--pre` na linha de comando (PEP 440 / pip: pre-releases
-# entram quando o requisito as menciona). Por isso `>=0.2.0.dev1` e nao
-# `>=0.2.0`: este ultimo nao casa com nenhuma versao publicada hoje.
+# Naming a pre-release in the specifier itself is what lets pip install a dev
+# WITHOUT `--pre` on the command line (PEP 440 / pip: pre-releases are eligible
+# when the requirement mentions them). Hence `>=0.2.0.dev1` and not
+# `>=0.2.0`: the latter matches no published version today.
 #
-# E' tambem o que faz uma dev NOVA ser puxada sem editar este arquivo:
+# It is also what makes a NEW dev get picked up without editing this file:
 #
 #   python3 app.py --atualizar-deps        # pip install --pre -U -r requirements.txt
 #
-# O boot normal NAO atualiza de proposito: o `app.py` so' chama o pip quando
-# um pacote nao importa, e uma subestacao costuma nao ter internet -- um
-# `pip install -U` a cada `--web` transformaria "sem rede" em "nenhuma das
-# nove ferramentas sobe" (o app.py sai no erro do pip).
+# A normal boot deliberately does NOT update: `app.py` calls pip only when a
+# package fails to import, and a substation usually has no internet -- a
+# `pip install -U` on every `--web` would turn "no network" into "not one of
+# the nine tools comes up" (app.py exits on pip's error).
 #
-# Trocar por `py61850>=0.2.0` no dia em que a final for publicada.
+# Switch to `py61850>=0.2.0` the day the final is published.
 py61850>=0.2.0.dev1

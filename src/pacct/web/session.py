@@ -201,7 +201,7 @@ class SessionManager:
             while not self._stop.wait(interval):
                 try:
                     self.sweep()
-                except Exception as e:  # nunca derruba a thread do sweeper
+                except Exception as e:  # never take the sweeper thread down
                     self.logger.warning("[session] falha no sweep: %s", e)
                 hook = self.on_sweep
                 if hook is not None:
@@ -296,7 +296,7 @@ class SessionHandler(BaseHTTPRequestHandler):
     theme: str = themes.DEFAULT_THEME
 
     def log_message(self, fmt, *args):
-        pass  # silencia stderr; cada ferramenta loga o que interessa
+        pass  # silence stderr; each tool logs what matters
 
     # -- sessao -------------------------------------------------------------
 

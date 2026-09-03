@@ -1,11 +1,11 @@
-"""A faixa de abas do GLV quebra em linhas; nao rola de lado.
+"""The GLV tab strip wraps into rows; it does not scroll sideways.
 
-CSS nao tem teste de unidade nesta suite -- as ferramentas web se verificam no
-navegador (ver docs/ENGINEERING-NOTES.md). O que se pinha aqui e' so o que volta em silencio:
-`overflow-x: auto` numa faixa de uma linha nao quebra nada, nao aparece em
-nenhum teste, e some da tela exatamente quando o teto de 10 diagramas e'
-usado. Medido no navegador com 10 abas: 2 linhas a 1908 px, 4 a 900 px, 10 a
-420 px, e `scrollWidth == clientWidth` nos tres.
+CSS has no unit test in this suite -- the web tools are verified in the
+browser (see docs/ENGINEERING-NOTES.md). What is pinned here is only what comes back in
+silence: `overflow-x: auto` on a one-row strip breaks nothing, appears in no
+test, and goes off screen exactly when the ceiling of 10 diagrams is used.
+Measured in the browser with 10 tabs: 2 rows at 1908 px, 4 at 900 px, 10 at
+420 px, and `scrollWidth == clientWidth` in all three.
 """
 from __future__ import annotations
 
@@ -26,28 +26,29 @@ def test_the_tab_strip_wraps():
 
 
 def test_the_tab_strip_does_not_scroll_sideways():
-    """O que estava aqui antes. Voltar a rolar esconde as abas seguintes atras
-    de uma barra que ninguem procura."""
+    """What was here before. Going back to scrolling hides the following tabs
+    behind a bar nobody looks for."""
     assert "overflow-x" not in _tabs_rule()
 
 
 def test_each_tab_stays_on_one_line():
-    """O `nowrap` saiu da FAIXA e foi pro ITEM: a faixa quebra entre abas, e
-    nunca dentro do nome de uma."""
+    """The `nowrap` moved from the STRIP to the ITEM: the strip breaks between
+    tabs, and never inside one tab's name."""
     css = glv.load_template("dashboard.html")
     assert "#tabs .tab, #tabs .tab-new { white-space: nowrap; }" in css
     assert "white-space: nowrap" not in _tabs_rule()
 
 
 def test_a_long_relay_name_cannot_widen_the_strip_past_the_viewport():
-    """Quebrar entre abas nao salva de UMA aba mais larga que a tela -- um item
-    de flex nao quebra dentro de si. O nome e' cortado com reticencias, e o
-    texto inteiro fica no `title` da aba (`renderTabs`), entao nada se perde."""
+    """Wrapping between tabs cannot save you from ONE tab wider than the screen
+    -- a flex item does not wrap within itself. The name is cut with an
+    ellipsis, and the whole text stays in the tab's `title` (`renderTabs`), so
+    nothing is lost."""
     css = glv.load_template("dashboard.html")
     m = re.search(r"#tabs \.tab \.label \{(.*?)\}", css, re.S)
     assert m, "o corte do nome da aba sumiu"
     rule = m.group(1)
     assert "max-width" in rule
     assert "text-overflow: ellipsis" in rule
-    # E o nome tem que CARREGAR a classe que a regra pinta.
+    # And the name has to CARRY the class that the rule paints.
     assert "name.className = 'label';" in css

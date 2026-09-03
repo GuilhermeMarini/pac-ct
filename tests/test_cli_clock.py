@@ -80,7 +80,7 @@ def test_draining_ends_within_its_own_budget(monkeypatch, backwards):
     assert elapsed <= 0.5 + 1e-9, (
         f"o dreno levou {elapsed:.2f}s de relogio monotonico, teto 0,50s"
     )
-    # 0,08 s de silencio a 5 ms por volta: ~16 leituras, nunca milhares.
+    # 0,08 s of silence at 5 ms per turn: ~16 reads, never thousands.
     assert conn.reads < 200, f"{conn.reads} leituras -- o prazo escorregou"
 
 

@@ -309,10 +309,10 @@ def test_the_whole_diagram_recovers_the_acd_points(lt2):
 
 
 def test_the_disconnector_positions_are_what_the_decoration_recovers(lt2):
-    """Os 7 bits que so' o endereco decorado enderaca neste 411L. `89CL0n` e
-    `89OPN0n` sao os dois contatos auxiliares da MESMA seccionadora, entao
-    saem do MESMO item -- e' um `Pos$stVal` so', lido uma vez, com uma regra
-    por bit."""
+    """The 7 bits only the decorated address reaches on this 411L. `89CL0n`
+    and `89OPN0n` are the two auxiliary contacts of the SAME disconnector, so
+    they come out of the SAME item -- one single `Pos$stVal`, read once, with
+    one rule per bit."""
     pages, *_ = lt2
     m = _resolved(lt2, set().union(*pages.values()))
     decorated = {b: p for b, p in m.points.items() if p.rule is not None}
@@ -325,8 +325,9 @@ def test_the_disconnector_positions_are_what_the_decoration_recovers(lt2):
 
 
 def test_the_pair_costs_one_leaf_in_the_read_plan_not_two(lt2):
-    """O plano de leitura e' de FOLHAS. Dois bits no mesmo item sao UM nome
-    pedido, nao dois -- e' por isso que a decoracao nao encarece o ciclo."""
+    """The read plan is of LEAVES. Two bits on the same item are ONE name
+    asked for, not two -- which is why the decoration does not make the cycle
+    more expensive."""
     pages, *_ = lt2
     m = _resolved(lt2, set().union(*pages.values()))
     pair = {"89CL01", "89OPN01"}
@@ -341,14 +342,14 @@ def test_trip_itself_is_mapped_and_reads_general(lt2):
     assert m.points["TRIP"].item.endswith("$general")
 
 
-# -- pontos DECORADOS: um item MMS que carrega dois bits --------------------
+# -- DECORATED points: one MMS item that carries two bits -------------------
 #
-# `sAddr="db:52A|52B?0:1:2:3"` num `Pos$stVal` e' um DPS: o Dbpos codifica os
-# dois contatos auxiliares do disjuntor. O `ScdPoint` chega aqui com a `rule`
-# que diz como tirar cada bit do valor, e o portao desta camada e' o que
-# impede o mesmo `Pos$stVal` de entrar SEM regra -- caso em que a py61850
-# devolveria a string "10", `bool("00")` seria True, e todo disjuntor sairia
-# pintado fechado.
+# `sAddr="db:52A|52B?0:1:2:3"` on a `Pos$stVal` is a DPS: the Dbpos encodes
+# the breaker's two auxiliary contacts. The `ScdPoint` arrives here with the
+# `rule` that says how to take each bit out of the value, and this layer's
+# gate is what stops the same `Pos$stVal` from entering WITHOUT a rule -- in
+# which case py61850 would return the string "10", `bool("00")` would be True,
+# and every breaker would come out painted closed.
 
 class TestDecoratedPoints:
 
@@ -370,9 +371,9 @@ class TestDecoratedPoints:
         assert m.points["52B"].rule.index == 1
 
     def test_an_enum_da_without_a_rule_is_still_refused(self):
-        """Este e' o portao. `Pos$stVal` passa em `is_boolean_status`, entao
-        sem exigir a regra ele entraria pelo caminho booleano -- e um Dbpos
-        lido com `int(bool(...))` e' um disjuntor sempre fechado."""
+        """This is the gate. `Pos$stVal` passes `is_boolean_status`, so without
+        requiring the rule it would enter through the boolean path -- and a
+        Dbpos read with `int(bool(...))` is a breaker that is always closed."""
         scd = {"52A": ScdPoint(bit="52A", ld_inst="PRO", ln="BKR1CSWI1",
                                do="Pos", da="stVal")}
         m = resolve_map(wanted={"52A"},
@@ -381,8 +382,8 @@ class TestDecoratedPoints:
         assert m.points == {}
 
     def test_a_dirgeneral_point_needs_a_rule_and_then_resolves(self):
-        """`dirGeneral` nao esta em `BOOLEAN_STATUS_DAS`, entao antes disto
-        ele nao entrava de jeito nenhum."""
+        """`dirGeneral` is not in `BOOLEAN_STATUS_DAS`, so before this it did
+        not get in at all."""
         scd = {"32GF": self._point("32GF", 0, alternatives=(0, 1), nbits=1,
                                    do="Dir", da="dirGeneral")}
         m = resolve_map(wanted={"32GF"},
@@ -399,8 +400,8 @@ class TestDecoratedPoints:
         assert m.points["PLT01"].rule is None
 
     def test_a_rule_never_rescues_a_float_or_a_control(self):
-        """A decoracao diz como decodificar um ENUMERADO. Ela nao transforma
-        um `instMag.f` nem um `Oper.ctlVal` em leitura de bit."""
+        """The decoration says how to decode an ENUMERATED. It does not turn
+        an `instMag.f` or an `Oper.ctlVal` into a bit reading."""
         scd = {"IA": self._point("IA", 0, alternatives=(0, 1), nbits=1,
                                  do="A", da="instMag.f"),
                "RB01": self._point("RB01", 0, alternatives=(0, 1), nbits=1,
@@ -413,8 +414,8 @@ class TestDecoratedPoints:
 
 
 def test_the_breaker_position_reaches_the_map_on_the_real_relay(lt2):
-    """Fim a fim no corpus: `QPC2_TR1_UPC1` -- o rele cujo GL1 abriu o
-    assunto -- so' enderaca `52A` pelo ponto decorado."""
+    """End to end on the corpus: `QPC2_TR1_UPC1` -- the relay whose GL1 opened
+    the subject -- only reaches `52A` through the decorated point."""
     from selfiles.scl.mms_tables import da_parts
     from selfiles.scl.read import sel_short_addresses
 

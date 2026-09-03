@@ -1,14 +1,13 @@
-"""Arquivos do Projeto: o acervo de RDB e SCD de um visitante.
+"""Arquivos do Projeto: a visitor's library of RDBs and SCDs.
 
-    library.py   o acervo em si -- dedup por sha256, sem saber que ha HTTP
-    handler.py   as rotas de /files/
-    client.py    o runtime `SelLibrary`, injetado em toda pagina
+    library.py   the library itself -- dedup by sha256, knowing no HTTP
+    handler.py   the /files/ routes
+    client.py    the `SelLibrary` runtime, injected into every page
     templates/   library.html
 
-Antes disto cada ferramenta tinha o proprio painel de upload: o mesmo RDB de
-40-140 MB era transferido uma vez por ferramenta, e dois uploads do mesmo SCD
-eram dois arquivos. Aqui o acervo e' um so por sessao, e as ferramentas
-escolhem dentro dele.
+Before this each tool had its own upload panel: the same 40-140 MB RDB was
+transferred once per tool, and two uploads of the same SCD were two files.
+Here the library is one per session, and the tools choose from within it.
 """
 
 from __future__ import annotations

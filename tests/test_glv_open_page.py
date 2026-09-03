@@ -1,11 +1,11 @@
-"""A aba lembra a pagina que estava aberta.
+"""The tab remembers the page that was open.
 
-Trocar de diagrama nao recarrega a pagina: o cliente busca `/meta?d=` e
-re-renderiza a faixa de paginas e o viewer com `meta.initial`. Enquanto
-`initial` era sempre a pagina inicial do GLE, quem estava na pagina 7 de um
-GLE de 12 voltava pra primeira a cada ida e volta entre dois reles -- e o
-mesmo acontecia depois de um F5. A pagina aberta e' estado do diagrama, que
-mora no servidor como a propria lista de diagramas.
+Switching diagrams does not reload the page: the client fetches `/meta?d=`
+and re-renders the page strip and the viewer with `meta.initial`. While
+`initial` was always the GLE's initial page, whoever was on page 7 of a
+12-page GLE came back to the first one on every trip between two relays -- and
+the same happened after an F5. The open page is diagram state, which lives on
+the server like the diagram list itself.
 """
 from __future__ import annotations
 
@@ -30,19 +30,19 @@ def _diagram(pages=("Capa", "SCADA", "LEDS", "TRIP")) -> GlvDiagram:
         ip="192.0.2.10", port=23, relay_model=None, logger=_LOG,
         scan_mode=SCAN_TELNET,
     )
-    # `build_diagram` monta os dois juntos: um id seguro por pagina em
-    # `pages_meta` e o SVG dela em `svgs`.
+    # `build_diagram` builds both together: a safe id per page in
+    # `pages_meta` and that page's SVG in `svgs`.
     d.pages_meta = [[p, p] for p in pages]
     d.svgs = {p: f"<svg id='{p}'/>" for p in pages}
     return d
 
 
-# -- o padrao de quem nunca abriu nada --------------------------------------
+# -- the default for someone who never opened anything ----------------------
 
 def test_a_diagram_nobody_opened_yet_starts_on_the_second_page():
-    """A primeira pagina de um GLE do QuickSet e' capa/indice em quase todo
-    arquivo do corpo. Comportamento inalterado -- e' o que `initial` sempre
-    fez, agora com nome."""
+    """The first page of a QuickSet GLE is a cover/index in almost every file
+    of the corpus. Behaviour unchanged -- it is what `initial` always did, now
+    with a name."""
     d = _diagram()
     assert d.open_page == ""
     assert d.default_page() == "SCADA"
@@ -61,7 +61,7 @@ def test_a_gle_with_no_page_at_all_answers_empty_instead_of_raising():
     assert d.meta(_Defaults())["initial"] == ""
 
 
-# -- lembrar ----------------------------------------------------------------
+# -- remembering ------------------------------------------------------------
 
 def test_meta_comes_back_on_the_page_that_was_open():
     d = _diagram()
@@ -77,8 +77,9 @@ def test_the_last_page_opened_is_the_one_remembered():
 
 
 def test_the_first_page_can_be_remembered_too():
-    """`open_page` nao pode ser falsy-testado contra a inicial: a capa e' uma
-    escolha legitima, e cair no `default_page()` a devolveria como SCADA."""
+    """`open_page` cannot be falsy-tested against the initial one: the cover
+    is a legitimate choice, and falling back to `default_page()` would return
+    it as SCADA."""
     d = _diagram()
     d.remember_page("Capa")
     assert d.open_page == "Capa"
@@ -86,8 +87,8 @@ def test_the_first_page_can_be_remembered_too():
 
 
 def test_two_diagrams_remember_their_own_page():
-    """A memoria e' por diagrama. Duas abas no mesmo rele, cada uma numa
-    pagina, e' exactamente o caso que a faixa de abas existe pra servir."""
+    """The memory is per diagram. Two tabs on the same relay, each on its own
+    page, is exactly the case the tab strip exists to serve."""
     a, b = _diagram(), _diagram()
     a.remember_page("SCADA")
     b.remember_page("TRIP")
@@ -95,11 +96,11 @@ def test_two_diagrams_remember_their_own_page():
     assert b.meta(_Defaults())["initial"] == "TRIP"
 
 
-# -- o que NAO se lembra ----------------------------------------------------
+# -- what is NOT remembered -------------------------------------------------
 
 def test_a_page_the_gle_does_not_have_is_not_remembered():
-    """`remember_page` roda com o que veio na URL de `/pages/<id>`. Um id que
-    nao e' pagina deste GLE nao pode virar a proxima `initial`."""
+    """`remember_page` runs with what came in the URL of `/pages/<id>`. An id
+    that is not a page of this GLE cannot become the next `initial`."""
     d = _diagram()
     d.remember_page("SCADA")
     d.remember_page("../../etc/passwd")
@@ -109,8 +110,8 @@ def test_a_page_the_gle_does_not_have_is_not_remembered():
 
 
 def test_a_remembered_page_that_vanished_falls_back_to_the_default():
-    """O diagrama pode ser reconstruido sobre outro GLE. Abrir vazio seria
-    pior que abrir na inicial."""
+    """The diagram can be rebuilt over another GLE. Opening empty would be
+    worse than opening on the initial page."""
     d = _diagram()
     d.remember_page("TRIP")
     d.pages_meta = [["Capa", "Capa"], ["OUTRA", "OUTRA"]]
@@ -118,18 +119,18 @@ def test_a_remembered_page_that_vanished_falls_back_to_the_default():
     assert d.meta(_Defaults())["initial"] == "OUTRA"
 
 
-# -- a rota que anota ------------------------------------------------------
+# -- the route that records ------------------------------------------------
 #
-# `GET /pages/<safe_id>` e' o UNICO caminho pro SVG, e passa por ele tanto o
-# clique na faixa de paginas quanto a navegacao da busca de variaveis. E' por
-# isso que a anotacao mora la, e nao num endpoint novo: nao existe abrir uma
-# pagina sem buscar o desenho dela.
+# `GET /pages/<safe_id>` is the ONLY path to the SVG, and both the page-strip
+# click and the variable search's navigation travel through it. That is why
+# the recording lives there, and not in a new endpoint: there is no way to
+# open a page without fetching its drawing.
 
 def _handler_with_diagram(tmp_path):
-    """`(handler_instance_factory, diagram)` -- um GLV real com um diagrama
-    de tres paginas, sem socket. Mesmo padrao de
-    `tests/test_glv_handler_scan_mode.py`: instancia via `__new__` e `_send`
-    trocado por um gravador."""
+    """`(handler_instance_factory, diagram)` -- a real GLV with a three-page
+    diagram, with no socket. Same pattern as
+    `tests/test_glv_handler_scan_mode.py`: instance via `__new__` and `_send`
+    swapped for a recorder."""
     from pacct.web.glv.handler import GlvDefaults, build_glv_handler
     from pacct.web.session import SessionManager
 
@@ -138,7 +139,7 @@ def _handler_with_diagram(tmp_path):
     sess, _ = sessions.resolve(None)
 
     d = _diagram(pages=("Capa", "SCADA", "LEDS"))
-    # O estado da ferramenta e' criado pelo proprio handler; pega-se por ele.
+    # The tool state is created by the handler itself; take it from there.
     probe = Handler.__new__(Handler)
     probe.session = sess
     probe.mount_prefix = ""

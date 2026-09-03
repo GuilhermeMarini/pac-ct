@@ -140,12 +140,12 @@ def build_project_files_handler(logger: logging.Logger, sessions) -> type:
                 self._send_json(413, {"ok": False, "error": msg})
                 return
 
-            # O corpo NAO e' lido de uma vez. Um RDB vai de 40 a 140 MB e o
-            # teto e' 500; `self.rfile.read(length)` deixava esse tamanho
-            # inteiro residente, e o servidor e' threaded -- dois uploads
-            # simultaneos no teto seriam um giga de RSS num notebook de campo.
-            # Cada caminho abaixo transmite em pedacos de 1 MB, com o sha256
-            # crescendo junto.
+            # The body is NOT read in one go. An RDB runs 40 to 140 MB and
+            # the ceiling is 500; `self.rfile.read(length)` kept that whole
+            # size resident, and the server is threaded -- two simultaneous
+            # uploads at the ceiling would be a gigabyte of RSS on a field
+            # laptop. Each path below streams in 1 MB chunks, with the sha256
+            # growing along with it.
             job.stage("Recebendo arquivo", 0)
             if kind == library.KIND_RDB:
                 built = self._build_rdb_entry(filename, length, job)
@@ -155,10 +155,11 @@ def build_project_files_handler(logger: logging.Logger, sessions) -> type:
                 return  # the builder already answered
             entry, sha = built
 
-            # A checagem de duplicata so pode vir AQUI: o sha256 e' do
-            # conteudo, e o conteudo so acabou de chegar. Um segundo upload dos
-            # mesmos bytes reaproveita a extracao no cache (`reused`), entao o
-            # custo dessa ordem e' reler o arquivo, nao reprocessa-lo.
+            # The duplicate check can only come HERE: the sha256 is of the
+            # content, and the content has only just arrived. A second upload
+            # of the same bytes reuses the extraction in the cache (`reused`),
+            # so the cost of this order is re-reading the file, not
+            # reprocessing it.
             lib = self.sess()
             with self.session.lock:
                 existing = lib.get(sha)

@@ -1,49 +1,52 @@
-"""Uma conexao por rele, compartilhada pelos diagramas que a pedem.
+"""One connection per relay, shared by the diagrams that ask for it.
 
-Um rele SEL aceita poucas sessoes simultaneas, entao a conexao nao pode ser do
-diagrama: e' do PROCESSO, chaveada por `ip:porta` e contada por referencia. O
-segundo diagrama que pedir o mesmo rele entra na conexao existente; ela so cai
-quando o ultimo solta.
+A SEL relay accepts few simultaneous sessions, so the connection cannot belong
+to the diagram: it is the PROCESS's, keyed by `ip:porta` and refcounted. The
+second diagram asking for the same relay joins the existing connection; it
+only drops when the last one lets go.
 
-O `LiveState` mora aqui, e nao no diagrama, porque quem escreve nele sao as
-threads de polling -- uma por conexao. Dois diagramas do mesmo rele leem o
-mesmo estado, que e' o certo: a Relay Word e' do rele.
+The `LiveState` lives here, and not in the diagram, because what writes into
+it are the polling threads -- one per connection. Two diagrams on the same
+relay read the same state, which is right: the Relay Word is the relay's.
 
-O PROTOCOLO nao mora aqui. `RelayLink` e' a casca: identidade, refcount,
-`LiveState`, watchdog e a thread de polling. Quem sabe falar com o rele e' o
-transporte (`transport/telnet.py`, e amanha o de MMS), atras do Protocol de
-`transport/__init__.py`. A casca nunca pergunta qual transporte e': quando
-precisa abortar um setup travado, ela chama `transport.abort()`, porque como
-se acorda uma leitura pendurada e' coisa do protocolo -- no telnet, fechar o
-socket e' a unica coisa que faz o selprotopy levantar.
+The PROTOCOL does not live here. `RelayLink` is the shell: identity, refcount,
+`LiveState`, watchdog and the polling thread. What knows how to talk to the
+relay is the transport (`transport/telnet.py`, and tomorrow the MMS one),
+behind the Protocol of `transport/__init__.py`. The shell never asks which
+transport it is: when it needs to abort a stuck setup, it calls
+`transport.abort()`, because how you wake a hanging read is the protocol's
+business -- on telnet, closing the socket is the only thing that makes
+selprotopy raise.
 
-Quem trava o que:
+Who locks what:
 
-    LinkPool._lock            o mapa `key -> RelayLink` e TODA transicao de
-                              `owners`. Nunca segurado durante
-                              connect()/close()/descoberta.
-    RelayLink._lock           o transporte, a thread de polling, o stop event
-                              e o flag `_closed`. E' o lock de CICLO DE VIDA:
-                              so' se segura por operacoes curtas, nunca por
-                              uma conversa com o rele.
-    RelayLink._discovery_lock uma descoberta por vez. E' este, e nao o de
-                              cima, que fica preso durante a varredura de
-                              bits -- que num 3xx frio custa ~90s de `TAR`.
-    LiveState.lock            os valores.
+    LinkPool._lock            the `key -> RelayLink` map and EVERY transition
+                              of `owners`. Never held during
+                              connect()/close()/discovery.
+    RelayLink._lock           the transport, the polling thread, the stop
+                              event and the `_closed` flag. It is the
+                              LIFECYCLE lock: it is only held for short
+                              operations, never for a conversation with the
+                              relay.
+    RelayLink._discovery_lock one discovery at a time. It is this one, and
+                              not the one above, that stays held during the
+                              bit sweep -- which on a cold 3xx costs ~90s of
+                              `TAR`.
+    LiveState.lock            the values.
 
-Foi assim que `Desconectar` deixou de parecer travado: `prepare_bits` segurava
-o `_lock` durante a `transport.prepare_bits(...)` inteira, entao um
-`POST /disconnect` -> `pool.release` -> `link.close()` ficava BLOQUEADO ali
-ate' a descoberta acabar. Separar os dois locks reabre a corrida que o
-`pause_polling` tinha (o restart no `finally` acontece fora do `_lock`), e por
-isso o `_closed` entrou no mesmo movimento: `close()` o marca sob o `_lock` e
-`_start_polling` o confere, recusando subir leitor num link fechado -- a mesma
-recusa que ele ja faz por thread zumbi.
+This is how `Desconectar` stopped looking stuck: `prepare_bits` held the
+`_lock` during the whole `transport.prepare_bits(...)`, so a
+`POST /disconnect` -> `pool.release` -> `link.close()` sat BLOCKED there
+until discovery finished. Splitting the two locks reopens the race
+`pause_polling` had (the restart in the `finally` happens outside `_lock`), and
+that is why `_closed` came in the same move: `close()` marks it under `_lock`
+and `_start_polling` checks it, refusing to bring a reader up on a closed link
+-- the same refusal it already makes for a zombie thread.
 
-E o refcount, que e' onde mora o risco: `owners` e' um CONJUNTO de ids de
-diagrama, e nao um inteiro. Adicionar ou remover duas vezes o mesmo dono e'
-idempotente, entao um duplo clique em Conectar/Desconectar nao consegue fechar
-o telnet debaixo de um diagrama vivo nem deixar conexao pendurada.
+And the refcount, which is where the risk lives: `owners` is a SET of diagram
+ids, and not an integer. Adding or removing the same owner twice is
+idempotent, so a double click on Conectar/Desconectar cannot close the telnet
+under a live diagram nor leave a connection dangling.
 """
 
 from __future__ import annotations
@@ -53,7 +56,7 @@ from contextlib import contextmanager
 
 from pacct.web.glv.poll import FirstTimeLog
 from pacct.web.glv.state import LiveState
-from pacct.web.glv.transport import (  # noqa: F401  (re-exportados)
+from pacct.web.glv.transport import (  # noqa: F401  (re-exported)
     MODE_FAST_METER,
     MODE_TAR,
     MODE_TARGET,
@@ -61,37 +64,38 @@ from pacct.web.glv.transport import (  # noqa: F401  (re-exportados)
     pick_transport,
 )
 
-# Teto do setup (telnet + login + autoconfig). Nao cobre a descoberta de bits,
-# que leva minutos de propria vontade num FID sem cache.
+# Ceiling for the setup (telnet + login + autoconfig). It does not cover bit
+# discovery, which takes minutes of its own accord on an uncached FID.
 SETUP_TIMEOUT = 60.0
 
-# Quanto esperar a thread de polling morrer. Tem que ser MAIOR que a volta mais
-# longa de um loop de poll: uma leitura fica ate `RESPONSE_DEADLINE_S` (3.0s) +
-# `DRAIN_DEADLINE_S` (0.3s) de `poll.py` dentro de uma espera que nao olha o
-# stop event. Com os 2.0s de antes, o join voltava com a thread AINDA VIVA e o
-# `_start_polling` seguinte punha um segundo leitor no mesmo telnet -- que e'
-# exatamente o que parar o polling existe pra evitar.
+# How long to wait for the polling thread to die. It has to be LONGER than the
+# longest turn of a poll loop: a read sits up to `RESPONSE_DEADLINE_S` (3.0s) +
+# `DRAIN_DEADLINE_S` (0.3s) of `poll.py` inside a wait that does not look at
+# the stop event. With the 2.0s of before, the join came back with the thread
+# STILL ALIVE and the next `_start_polling` put a second reader on the same
+# telnet -- which is exactly what stopping the polling exists to avoid.
 POLL_JOIN_TIMEOUT = 4.0
-# Quanto `_poll_gave_up` espera pelo `_lock` antes de desistir dele. Tem que
-# ser MUITO menor que o join acima: quem faz o join segura o `_lock` durante
-# ele, entao esperar mais que isso e' esperar o proprio join estourar.
+# How long `_poll_gave_up` waits for the `_lock` before giving up on it. It
+# has to be MUCH smaller than the join above: whoever does the join holds the
+# `_lock` during it, so waiting longer is waiting for the join itself to blow.
 GIVE_UP_LOCK_TIMEOUT = 0.25
 
 
 class TooManyLinks(RuntimeError):
-    """Teto de conexoes simultaneas atingido."""
+    """Ceiling of simultaneous connections reached."""
 
 
 class PollingWedged(RuntimeError):
-    """A volta de polling anterior nao morreu, e por isso ninguem mais pode
-    falar com o rele agora: duas conversas no mesmo telnet se embaralham."""
+    """The previous polling turn did not die, and so nobody else can talk to
+    the relay now: two conversations on the same telnet get scrambled."""
 
 
 def _default_transport(*, ip, port, acc_password, relay_model, logger):
-    """O transporte de sempre: SEL Fast Message por telnet.
+    """The usual transport: SEL Fast Message over telnet.
 
-    Fabrica, e nao instancia, porque so em `connect()` se conhece a senha e o
-    modelo do rele -- o `LinkPool` cria o link antes disso.
+    A factory, and not an instance, because only in `connect()` are the
+    password and the relay model known -- `LinkPool` creates the link before
+    that.
     """
     return pick_transport(SCAN_TELNET, ip=ip, port=port,
                           acc_password=acc_password, relay_model=relay_model,
@@ -99,7 +103,7 @@ def _default_transport(*, ip, port, acc_password, relay_model, logger):
 
 
 class RelayLink:
-    """Uma conexao com um rele, compartilhada por N diagramas."""
+    """One connection with a relay, shared by N diagrams."""
 
     def __init__(self, ip: str, port: int, logger, pool=None, transport=None,
                  make_transport=None):
@@ -109,8 +113,8 @@ class RelayLink:
         self.key = f"{ip}:{port}"
         self.logger = logger
         self.state = LiveState()
-        # O transporte pode chegar pronto (testes, um modo escolhido na tela)
-        # ou ser construido em connect(), quando a senha e o modelo aparecem.
+        # The transport may arrive ready (tests, a mode chosen on the screen)
+        # or be built in connect(), when the password and the model show up.
         self.transport = transport
         self._make_transport = make_transport or _default_transport
         self.fid = ""
@@ -118,44 +122,45 @@ class RelayLink:
         self.mode = MODE_TARGET
         self.error = ""
         self._connected = False
-        # Setado quando connect() termina, com ou sem erro. Quem entra numa
-        # conexao ja existente espera aqui em vez de abrir um segundo telnet.
+        # Set when connect() finishes, with or without an error. Whoever
+        # joins an existing connection waits here instead of opening a second
+        # telnet.
         self.ready = threading.Event()
-        # ids de diagrama; refs == len(owners). So o LinkPool mexe.
+        # diagram ids; refs == len(owners). Only the LinkPool touches it.
         self.owners: set = set()
         self._lock = threading.RLock()
-        # Uma descoberta por vez, e SO' isso -- separado do `_lock` de ciclo
-        # de vida porque uma varredura de bits fala com o rele por minutos.
+        # One discovery at a time, and ONLY that -- separate from the
+        # lifecycle `_lock` because a bit sweep talks to the relay for minutes.
         self._discovery_lock = threading.RLock()
-        # Marcado por `close()`. Um link fechado nao sobe leitor nenhum, nem
-        # pelo `finally` de um `pause_polling` que estava em voo.
+        # Marked by `close()`. A closed link brings no reader up, not even
+        # through the `finally` of a `pause_polling` that was in flight.
         self._closed = False
-        # Diagnosticos que valem uma vez por CONEXAO. Mora aqui, e nao nas
-        # funcoes de poll, porque a GLV abre N diagramas sobre N reles: um
-        # flag no modulo dava os logs ao primeiro rele conectado depois do
-        # restart e silencio a todos os outros.
+        # Diagnostics worth logging once per CONNECTION. It lives here, and
+        # not in the poll functions, because the GLV opens N diagrams over N
+        # relays: a module-level flag gave the logs to the first relay
+        # connected after the restart and silence to all the others.
         self._once = FirstTimeLog(logger)
         self._poll_thread = None
         self._poll_stop = None
-        # Thread de polling que nao morreu dentro do join. Enquanto viva,
-        # nenhuma outra sobe.
+        # Polling thread that did not die inside the join. While it lives,
+        # no other one comes up.
         self._poll_dying = None
         self._poll_interval = 0.5
-        # owner -> bits da pagina aberta naquele diagrama. O modo TAR (3xx) le
-        # so o que esta na tela; com dois diagramas no mesmo rele, um apagaria
-        # a lista do outro se nao fosse a uniao.
+        # owner -> bits of the open page in that diagram. The TAR mode (3xx)
+        # reads only what is on screen; with two diagrams on the same relay,
+        # one would wipe the other's list if it were not for the union.
         self._wanted: dict = {}
 
-    # -- ciclo de vida (so o LinkPool cria e destroi) ------------------------
+    # -- lifecycle (only the LinkPool creates and destroys) ------------------
 
     def start_connect(self, **kwargs) -> None:
-        """Conecta na thread DO LINK, e nao na de quem pediu.
+        """Connects on the LINK's thread, and not on the caller's.
 
-        Um `selprotopy` travado numa leitura nao acorda nem fechando o socket
-        (ele engole a excecao e tenta de novo), entao a thread de quem pediu
-        nunca voltaria pra soltar a referencia. Aqui quem trava e' esta thread,
-        que nao e' dona de nada: os diagramas esperam em `ready`, que o
-        watchdog seta mesmo quando o setup fica pendurado.
+        A `selprotopy` stuck on a read does not wake even when the socket is
+        closed (it swallows the exception and tries again), so the caller's
+        thread would never come back to release the reference. Here what gets
+        stuck is this thread, which owns nothing: the diagrams wait on
+        `ready`, which the watchdog sets even when the setup hangs.
         """
         threading.Thread(target=self.connect, kwargs=kwargs, daemon=True,
                          name=f"glv-link-{self.key}").start()
@@ -163,17 +168,18 @@ class RelayLink:
     def connect(self, *, relay_model=None, poll_interval: float,
                 acc_password: str = "", job=None,
                 setup_timeout: float = SETUP_TIMEOUT) -> None:
-        """Conecta, descobre os bits do rele e sobe o polling.
+        """Connects, discovers the relay's bits and brings the polling up.
 
-        Nao levanta: falha vira `self.error`, e quem pediu decide o que fazer.
-        O diagrama continua aberto e desconectado, com o motivo no badge -- o
-        mesmo que o setup fazia quando caia pra "modo desenho".
+        It does not raise: a failure becomes `self.error`, and the caller
+        decides what to do. The diagram stays open and disconnected, with the
+        reason on the badge -- the same thing the setup did when it fell back
+        to "modo desenho".
 
-        `setup_timeout` cobre so o setup (telnet + login + autoconfig), e nao
-        a descoberta de bits, que num FID sem cache leva minutos de propria
-        vontade. Sem ele, um peer que aceita a conexao e nunca responde deixa
-        o diagrama em "conectando" pra sempre -- e segurando uma das vagas do
-        teto de conexoes.
+        `setup_timeout` covers only the setup (telnet + login + autoconfig),
+        and not bit discovery, which on an uncached FID takes minutes of its
+        own accord. Without it, a peer that accepts the connection and never
+        answers leaves the diagram on "conectando" forever -- and holding one
+        of the slots of the connection ceiling.
         """
         logger = self.logger
         try:
@@ -192,17 +198,18 @@ class RelayLink:
             self.devid = self.transport.devid or ""
             logger.info("[glv] %s conectado. FID=%s", self.key, self.fid)
             if job:
-                # Sem percentual DE PROPOSITO: num 4xx/3xx o setup ja passou
-                # pelo `_setup_ascii_reader`, que reporta 30, entao um 20 aqui
-                # fazia a barra ANDAR PRA TRAS (8 -> 30 -> 20 -> 70). `None`
-                # troca o texto e deixa a barra onde ela esta'.
+                # No percentage ON PURPOSE: on a 4xx/3xx the setup has been
+                # through `_setup_ascii_reader`, which reports 30, so a 20
+                # here made the bar GO BACKWARDS (8 -> 30 -> 20 -> 70). `None`
+                # swaps the text and leaves the bar where it is.
                 job.stage(f"Conectado ({self.fid or 'rele'})", None)
             self._start_polling()
             logger.info("[glv] %s: polling no modo %s", self.key, self.mode)
         except Exception as e:
-            # Failsafe: IP que nao responde, timeout, recusa de conexao, falha
-            # de autoconfig. O diagrama segue aberto, so que desconectado.
-            if not self.error:      # o watchdog pode ter chegado primeiro
+            # Failsafe: an IP that does not answer, a timeout, a refused
+            # connection, a failed autoconfig. The diagram stays open, only
+            # disconnected.
+            if not self.error:      # the watchdog may have got there first
                 self.error = f"sem conexão com {self.key}: {e}"
             logger.warning("[glv] falha ao conectar em %s: %s", self.key, e)
             self._close_transport()
@@ -210,31 +217,32 @@ class RelayLink:
             self.ready.set()
 
     def _connect_with_watchdog(self, timeout: float, job=None) -> None:
-        """`transport.connect` com um cronometro que o aborta se ele travar.
+        """`transport.connect` with a stopwatch that aborts it if it hangs.
 
-        O cronometro e' generico; ABORTAR e' do transporte. No telnet nao da
-        pra interromper uma leitura bloqueada de fora, e fechar o socket faz
-        ela levantar -- que e' o que queremos.
+        The stopwatch is generic; ABORTING is the transport's. On telnet you
+        cannot interrupt a blocked read from outside, and closing the socket
+        makes it raise -- which is what we want.
 
-        O prazo cobre o SETUP, e nao a descoberta de bits: quem diz onde uma
-        acaba e a outra comeca e' o proprio transporte, pelo `setup_done`. Sem
-        esse evento o prazo cobre o `connect()` inteiro.
+        The deadline covers the SETUP, and not bit discovery: what says where
+        one ends and the other begins is the transport itself, through
+        `setup_done`. Without that event the deadline covers the whole
+        `connect()`.
         """
         timed_out = threading.Event()
         setup_done = getattr(self.transport, "setup_done", None)
 
         def abort():
             if setup_done is not None and setup_done.is_set():
-                return          # o setup passou; a descoberta nao tem prazo
+                return          # setup went through; discovery has no deadline
             timed_out.set()
             self.logger.warning(
                 "[glv] %s nao respondeu em %.0fs no setup -- abortando.",
                 self.key, timeout)
             self.transport.abort()
-            # Fechar o socket nem sempre acorda a leitura: o selprotopy tenta
-            # de novo e pode ficar pendurado. Entao liberamos quem espera e
-            # devolvemos a vaga do teto aqui mesmo, sem depender daquela
-            # thread voltar.
+            # Closing the socket does not always wake the read: selprotopy
+            # tries again and can hang. So we release whoever is waiting and
+            # give the ceiling slot back right here, without depending on that
+            # thread coming back.
             self.error = (f"o rele em {self.key} aceitou a conexao mas nao "
                           f"respondeu em {timeout:.0f}s")
             self.ready.set()
@@ -255,24 +263,25 @@ class RelayLink:
             watchdog.cancel()
 
     def close(self) -> None:
-        """Para o polling e fecha a conexao. Chamado pelo pool, fora do lock dele.
+        """Stops the polling and closes the connection. Called by the pool,
+        outside its lock.
 
-        Nao esperamos a thread zumbi (a que sobreviveu ao join) morrer: ela e'
-        daemon, e dar outro prazo a quem ja ignorou um stop so atrasaria o
-        Desconectar. Fechar a conexao e' o que a mata de verdade -- a leitura
-        dela levanta -- e o link sai do pool logo depois, entao ninguem mais
-        chega a este objeto.
+        We do not wait for the zombie thread (the one that survived the join)
+        to die: it is a daemon, and giving another deadline to something that
+        has already ignored a stop would only delay Desconectar. Closing the
+        connection is what really kills it -- its read raises -- and the link
+        leaves the pool right after, so nobody reaches this object any more.
         """
         with self._lock:
             self._closed = True
             transport = self.transport
-        # Quebra uma descoberta EM VOO antes de tentar parar qualquer coisa.
-        # Sem isto, desconectar no meio de um `TAR` frio (~90s medidos num
-        # 3xx) ou de uma busca de layouts MMS so' voltava quando a conversa
-        # com o rele acabasse por conta propria -- na tela, o botao parecia
-        # morto. `abort()` e' do transporte porque ACORDAR uma leitura pendurada
-        # e' coisa do protocolo: no telnet, fechar o socket e' a unica coisa
-        # que faz o selprotopy levantar.
+        # Breaks a discovery IN FLIGHT before trying to stop anything else.
+        # Without this, disconnecting in the middle of a cold `TAR` (~90s
+        # measured on a 3xx) or of an MMS layout fetch only came back when the
+        # conversation with the relay ended of its own accord -- on screen,
+        # the button looked dead. `abort()` is the transport's because WAKING
+        # a hanging read is the protocol's business: on telnet, closing the
+        # socket is the only thing that makes selprotopy raise.
         if transport is not None:
             try:
                 transport.abort()
@@ -295,29 +304,31 @@ class RelayLink:
             except Exception:
                 pass
 
-    # -- descoberta ---------------------------------------------------------
+    # -- discovery ----------------------------------------------------------
 
     def prepare_bits(self, names, job=None) -> int:
-        """Descobre/mapeia bits, com o polling parado ENQUANTO PRECISAR.
+        """Discovers/maps bits, with polling stopped FOR AS LONG AS NEEDED.
 
-        Parar e' obrigatorio no telnet: e' um stream so, e intercalar
-        `TAR <nome>` com o pipeline de Fast Meter embaralha as duas respostas.
-        No MMS era pela mesma razao de fundo -- o cliente da py61850 nao e'
-        thread-safe (um socket, um contador de invoke) -- mas hoje o transporte
-        MMS nao pede o `pause`: desde que a leitura passou a ser por folha, o
-        `prepare_bits` dele nao fala mais com o rele, e mapear os bits de um
-        segundo diagrama nao tira uma volta do leitor do primeiro.
+        Stopping is mandatory on telnet: it is a single stream, and
+        interleaving `TAR <name>` with the Fast Meter pipeline scrambles both
+        answers. On MMS it was for the same underlying reason -- the py61850
+        client is not thread-safe (one socket, one invoke counter) -- but today
+        the MMS transport does not ask for the `pause`: since the reading
+        became leaf by leaf, its `prepare_bits` no longer talks to the relay,
+        and mapping the bits of a second diagram does not cost the first one's
+        reader a turn.
 
-        E' tambem o que faz um SEGUNDO diagrama funcionar numa conexao que ja
-        existe: ele traz bits que ninguem pediu ao rele ainda.
+        It is also what makes a SECOND diagram work on a connection that
+        already exists: it brings bits nobody has asked the relay for yet.
 
-        Quem para e' a casca (a thread e' dela), mas QUANDO parar e' do
-        transporte: quem sabe se vai mesmo falar com o rele e' ele. Por isso o
-        `pause` vai como argumento em vez de embrulhar a chamada -- num 7xx os
-        digitais vem do Fast Meter e nao ha o que descobrir, e num FID com
-        cache completo nao ha bit faltando. Nesses casos a chamada volta sem
-        entrar no `pause`, e a thread de polling nem fica sabendo. Embrulhar
-        aqui derrubava e subia o leitor a cada conexao de 751, de graca.
+        What stops is the shell (the thread is its own), but WHEN to stop is
+        the transport's: what knows whether it will really talk to the relay is
+        the transport. That is why `pause` goes as an argument instead of
+        wrapping the call -- on a 7xx the digitals come from the Fast Meter and
+        there is nothing to discover, and on a FID with a complete cache there
+        is no missing bit. In those cases the call returns without entering the
+        `pause`, and the polling thread never even finds out. Wrapping here
+        brought the reader down and up on every 751 connection, for nothing.
         """
         with self._discovery_lock:
             with self._lock:
@@ -329,14 +340,16 @@ class RelayLink:
 
     @contextmanager
     def pause_polling(self):
-        """Para o polling na entrada e sobe de novo na saida, se estava rodando.
+        """Stops the polling on entry and brings it back up on exit, if it was
+        running.
 
-        Uma thread que ja ignorou um stop nao para: `_poll_dying` guarda a que
-        sobreviveu ao join, e enquanto ela viver ninguem fala com o rele. Sem
-        esta checagem o buraco voltava pelo outro lado -- com o `_poll_thread`
-        ja zerado, `was_polling` dava False, o pause nao fazia nada, e a
-        descoberta ia pro mesmo socket que a zumbi ainda esta lendo. Nao da pra
-        pausar quem nao ouve: so da pra RECUSAR, e dizer no log.
+        A thread that has already ignored a stop does not stop: `_poll_dying`
+        keeps the one that survived the join, and while it lives nobody talks
+        to the relay. Without this check the hole came back from the other side
+        -- with `_poll_thread` already cleared, `was_polling` was False, the
+        pause did nothing, and the discovery went to the same socket the zombie
+        is still reading. You cannot pause what does not listen: you can only
+        REFUSE, and say so in the log.
         """
         with self._lock:
             dying = self._reap_dying()
@@ -357,8 +370,8 @@ class RelayLink:
                 self._start_polling()
 
     def _reap_dying(self):
-        """Esquece a thread zumbi se ela finalmente morreu; devolve a que
-        ainda estiver viva."""
+        """Forgets the zombie thread if it has finally died; returns the one
+        that is still alive."""
         dying = self._poll_dying
         if dying is not None and not dying.is_alive():
             self._poll_dying = dying = None
@@ -370,23 +383,25 @@ class RelayLink:
     # -- polling ------------------------------------------------------------
 
     def _start_polling(self) -> None:
-        # TUDO sob o `_lock`: ele e' reentrante, entao `set_poll_interval`
-        # segue atomico, e quem chama de fora (o `finally` do `pause_polling`,
-        # o `connect()`) passa a ler `_closed` sem corrida.
+        # EVERYTHING under the `_lock`: it is reentrant, so
+        # `set_poll_interval` stays atomic, and callers from outside (the
+        # `finally` of `pause_polling`, `connect()`) get to read `_closed`
+        # without a race.
         with self._lock:
-            # Um link fechado nao sobe leitor. E' a outra metade da separacao
-            # do `_discovery_lock`: agora que `close()` nao espera mais a
-            # descoberta terminar, ele pode chegar ANTES do restart que o
-            # `pause_polling` faz no `finally` -- e sem esta guarda esse
-            # restart poria uma thread nova num transporte ja fechado.
+            # A closed link brings no reader up. It is the other half of
+            # splitting off the `_discovery_lock`: now that `close()` no longer
+            # waits for the discovery to finish, it can arrive BEFORE the
+            # restart `pause_polling` does in its `finally` -- and without this
+            # guard that restart would put a new thread on a closed transport.
             if self._closed:
                 self.logger.info(
                     "[glv] %s: link fechado; nao subo polling.", self.key)
                 return
-            # Um leitor por conexao. Se a volta anterior nao morreu dentro do
-            # join, subir outra poe duas threads no mesmo telnet e no mesmo
-            # `FastMessageChannel` memoizado, e as respostas se embaralham.
-            # Melhor ficar sem leitura (e dizer isso no log) do que ler errado.
+            # One reader per connection. If the previous turn did not die
+            # inside the join, bringing another up puts two threads on the same
+            # telnet and the same memoised `FastMessageChannel`, and the
+            # answers get scrambled. Better no reading at all (and say so in
+            # the log) than reading wrong.
             if self._reap_dying() is not None:
                 self.logger.warning(
                     "[glv] %s: a volta de polling anterior ainda nao terminou; "
@@ -403,51 +418,52 @@ class RelayLink:
             thread.start()
 
     def _poll_runner(self, stop, interval: float) -> None:
-        """O loop do transporte, mais o que fazer se ele DESISTIR.
+        """The transport's loop, plus what to do if it GIVES UP.
 
-        Os tres loops de telnet marcam `state.error` e continuam girando; o do
-        MMS encerra a volta num `Iec61850Error`, porque uma associacao caida
-        nao volta sozinha e insistir num socket morto so' enche o log. A frase
-        da spec ("um erro de leitura marca `state.error` e para o loop, como o
-        telnet faz") esta' errada sobre o telnet, e a implementacao seguiu as
-        palavras.
+        The three telnet loops set `state.error` and keep spinning; the MMS one
+        ends the turn on an `Iec61850Error`, because a dropped association does
+        not come back on its own and insisting on a dead socket only fills the
+        log. The sentence in the spec ("a read error sets `state.error` and
+        stops the loop, as telnet does") is wrong about telnet, and the
+        implementation followed the words.
 
-        Parar nao e' o problema -- o problema e' parar em SILENCIO: o link
-        seguia com `_connected = True`, a aba continuava LIVE com "Desconectar",
-        e `state.digitals` ficava CONGELADO na ultima leitura, com o SVG
-        pintando aquelas cores debaixo de um badge vermelho. Congelado-e-velho
-        e' o mais perto que esta branch chega de mostrar na tela um valor que
-        ninguem leu.
+        Stopping is not the problem -- the problem is stopping in SILENCE: the
+        link went on with `_connected = True`, the tab stayed LIVE with
+        "Desconectar", and `state.digitals` stayed FROZEN on the last reading,
+        with the SVG painting those colours under a red badge. Frozen-and-old
+        is the closest this branch gets to showing on screen a value nobody
+        read.
         """
         try:
             self.transport.poll(self.state, interval, stop, self._once)
-        except Exception as e:      # o transporte nao deve deixar vazar
+        except Exception as e:      # the transport should not let this leak
             with self.state.lock:
                 self.state.error = f"leitura: {e}"
             self.logger.exception("[glv] %s: a thread de leitura morreu",
                                   self.key)
         if stop.is_set():
-            return                  # parada pedida: nao ha' o que anunciar
+            return                  # stop asked for: nothing to announce
         self._poll_gave_up(stop)
 
     def _poll_gave_up(self, stop) -> None:
-        """A leitura terminou sozinha: o diagrama volta a indeterminado.
+        """The reading ended on its own: the diagram goes back to
+        indeterminate.
 
-        O motivo (o `state.error` que o loop deixou) e' preservado, entao a
-        tela mostra POR QUE parou em vez de so' apagar. Quem chegar depois --
-        um `close()`, ou um restart que ja trocou o stop event -- nao mexe em
-        nada.
+        The reason (the `state.error` the loop left) is preserved, so the
+        screen shows WHY it stopped instead of just going blank. Whoever
+        arrives later -- a `close()`, or a restart that has already swapped the
+        stop event -- touches nothing.
         """
-        # NAO espera pelo `_lock`. Quem o tiver neste instante esta' fazendo
-        # uma de duas coisas, e as duas ja tornam esta atualizacao sem efeito:
-        # `close()` (que poe `_closed`) ou um `_stop_polling` seguido de
-        # restart (que troca o `_poll_stop`) -- exatamente as duas guardas
-        # logo abaixo. E esperar seria pior que inutil: `_stop_polling` faz o
-        # `join` DENTRO do lock, entao a espera daqui vira o join estourando.
-        # Medido sob interleaving forcado: 4,00 s de Desconectar travado (o
-        # POLL_JOIN_TIMEOUT inteiro), terminando no aviso de leitor emperrado
-        # -- que e' o sintoma que a separacao do `_discovery_lock` tinha
-        # acabado de remover, voltando por uma porta mais estreita.
+        # It does NOT wait for the `_lock`. Whoever holds it at this instant
+        # is doing one of two things, and both already make this update
+        # pointless: `close()` (which sets `_closed`) or a `_stop_polling`
+        # followed by a restart (which swaps `_poll_stop`) -- exactly the two
+        # guards just below. And waiting would be worse than useless:
+        # `_stop_polling` does the `join` INSIDE the lock, so waiting here
+        # turns into the join blowing. Measured under forced interleaving:
+        # 4.00 s of Desconectar stuck (the whole POLL_JOIN_TIMEOUT), ending in
+        # the wedged-reader warning -- which is the symptom that splitting off
+        # the `_discovery_lock` had just removed, back through a narrower door.
         if not self._lock.acquire(timeout=GIVE_UP_LOCK_TIMEOUT):
             self.logger.info(
                 "[glv] %s: a leitura parou, mas o link ja esta sendo fechado "
@@ -470,26 +486,27 @@ class RelayLink:
             "tudo indeterminado.", self.key, reason)
 
     def set_poll_interval(self, seconds: float) -> bool:
-        """Troca o periodo de polling em voo, reiniciando a thread se ela
-        estiver rodando -- e' a unica forma de mudar o `interval` que uma
-        thread ja iniciada recebeu por argumento e nunca mais releu.
+        """Swaps the polling period in flight, restarting the thread if it is
+        running -- it is the only way to change the `interval` that a thread
+        already started got as an argument and never read again.
 
-        O stop-e-restart acontece TODO dentro de `self._lock`, sem soltar no
-        meio: e' o que impede `close()` de entrar entre o stop e o restart e
-        ver "nada pra parar", deixando o restart daqui subir uma thread nova
-        sobre um transporte que `close()` ja fechou por baixo. `close()`
-        tambem toma este lock pra parar o polling, entao os dois nunca
-        interlacam -- um espera o outro terminar a operacao inteira.
+        The stop-and-restart happens ALL inside `self._lock`, without letting
+        go halfway: it is what stops `close()` from getting in between the stop
+        and the restart and seeing "nothing to stop", letting the restart here
+        bring a new thread up on a transport `close()` has already closed
+        underneath. `close()` also takes this lock to stop the polling, so the
+        two never interleave -- one waits for the other to finish the whole
+        operation.
 
-        Mesma guarda de `pause_polling`: uma volta que sobreviveu ao join
-        continua dona do telnet/socket, entao nao subimos um segundo leitor
-        por cima dela. Nesse caso o novo periodo so vale a partir da proxima
-        vez que o polling subir por conta propria.
+        Same guard as `pause_polling`: a turn that survived the join still owns
+        the telnet/socket, so we do not bring a second reader up on top of it.
+        In that case the new period only applies from the next time the polling
+        comes up of its own accord.
 
-        Devolve True se reiniciou o polling AGORA (o novo periodo ja vale);
-        False se so guardou o valor pra quando o polling subir de novo por
-        conta propria (nada rodando agora, ou leitura zumbi que ainda nao
-        morreu).
+        Returns True if it restarted the polling NOW (the new period already
+        applies); False if it only stored the value for when the polling comes
+        up again on its own (nothing running now, or a zombie reading that has
+        not died yet).
         """
         with self._lock:
             self._poll_interval = seconds
@@ -502,8 +519,8 @@ class RelayLink:
 
     @property
     def poll_interval(self) -> float:
-        """O periodo configurado agora, em segundos -- pra quem precisa
-        mostrar o valor em vigor sem torcer o braco de `_poll_interval`."""
+        """The period configured now, in seconds -- for whoever needs to show
+        the value in force without twisting `_poll_interval`'s arm."""
         return self._poll_interval
 
     def _stop_polling(self) -> None:
@@ -514,17 +531,17 @@ class RelayLink:
         if thread is not None:
             thread.join(timeout=POLL_JOIN_TIMEOUT)
             if thread.is_alive():
-                # Guardada pro `_start_polling` recusar: uma thread que nao
-                # morreu continua sendo dona do telnet.
+                # Kept for `_start_polling` to refuse: a thread that did not
+                # die still owns the telnet.
                 self._poll_dying = thread
                 self.logger.warning(
                     "[glv] %s: a thread de polling nao terminou em %.1fs.",
                     self.key, POLL_JOIN_TIMEOUT)
 
-    # -- estado -------------------------------------------------------------
+    # -- state --------------------------------------------------------------
 
     def set_wanted_bits(self, owner: str, bits) -> None:
-        """Bits da pagina aberta num diagrama. Publica a UNIAO dos donos."""
+        """Bits of the open page in a diagram. Publishes the owners' UNION."""
         with self._lock:
             if bits:
                 self._wanted[owner] = set(bits)
@@ -548,7 +565,7 @@ class RelayLink:
         }
 
 class LinkPool:
-    """Mapa `ip:porta -> RelayLink` do processo."""
+    """The process's `ip:porta -> RelayLink` map."""
 
     def __init__(self, logger, max_links: int = 4):
         self.logger = logger
@@ -558,16 +575,16 @@ class LinkPool:
 
     def acquire(self, ip: str, port: int, owner: str,
                 make_transport=None) -> tuple[RelayLink, bool]:
-        """Devolve `(link, criei_agora)`.
+        """Returns `(link, created_now)`.
 
-        `criei_agora=True` significa que quem chamou tem que rodar
-        `link.connect(...)`; `False`, que basta esperar `link.ready`. Levanta
-        TooManyLinks quando uma chave NOVA estouraria o teto -- entrar numa
-        conexao existente nunca estoura, porque nao custa nada ao rele.
+        `created_now=True` means the caller has to run `link.connect(...)`;
+        `False`, that waiting on `link.ready` is enough. Raises TooManyLinks
+        when a NEW key would blow the ceiling -- joining an existing
+        connection never blows it, because it costs the relay nothing.
 
-        `make_transport` e' a fabrica que o link vai usar em `connect()`.
-        Ausente, e' o telnet de sempre -- e' por aqui que o modo de varredura
-        entra no caminho vivo, e nao so nos testes.
+        `make_transport` is the factory the link will use in `connect()`.
+        Absent, it is the usual telnet one -- this is how the scan mode gets
+        into the live path, and not only into the tests.
         """
         key = f"{ip}:{port}"
         with self._lock:
@@ -589,7 +606,8 @@ class LinkPool:
             return link, True
 
     def release(self, link: RelayLink, owner: str) -> None:
-        """Tira `owner` do link. Zerando, fecha -- fora do lock."""
+        """Removes `owner` from the link. At zero it closes -- outside the
+        lock."""
         with self._lock:
             link.owners.discard(owner)
             if link.owners:
@@ -597,18 +615,19 @@ class LinkPool:
                                  link.key, len(link.owners))
                 link.set_wanted_bits(owner, set())
                 return
-            # Sai do mapa DENTRO do lock: um acquire() concorrente nao pode
-            # entrar num link que esta fechando.
+            # It leaves the map INSIDE the lock: a concurrent acquire() must
+            # not join a link that is closing.
             self._links.pop(link.key, None)
         link.set_wanted_bits(owner, set())
         link.close()
         self.logger.info("[glv] %s fechado (ultimo diagrama saiu)", link.key)
 
     def abandon(self, link: RelayLink) -> None:
-        """Tira do mapa um link cujo setup travou, sem esperar os donos.
+        """Takes out of the map a link whose setup hung, without waiting for
+        the owners.
 
-        Os `release()` que chegarem depois continuam validos: eles so mexem em
-        `owners` e num `pop` que ja nao encontra nada.
+        The `release()` calls that arrive later stay valid: they only touch
+        `owners` and a `pop` that no longer finds anything.
         """
         with self._lock:
             if self._links.get(link.key) is link:

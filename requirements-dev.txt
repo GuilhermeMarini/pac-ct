@@ -1,7 +1,7 @@
-# Dependencias so de desenvolvimento. `app.py` bootstrapa apenas
-# requirements.txt -- nada daqui e' importado em producao.
+# Development-only dependencies. `app.py` bootstraps requirements.txt only --
+# nothing here is imported in production.
 pytest>=8.0
-# Lint e tipos. Nao sao importados por nada -- rodam na CI e na mao:
+# Lint and types. Nothing imports these -- they run in CI and by hand:
 #     .venv/bin/python -m ruff check .
 #     .venv/bin/python -m mypy
 ruff>=0.6

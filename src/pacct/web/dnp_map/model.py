@@ -271,11 +271,11 @@ def copy_map_to(st: DnpMapState, lock, src_rdb: str, src_relay: str,
                 relay=relay_name,
                 session=session_name,
                 touched=touched,
-                # Ambos sobre o que foi PEDIDO. Com uma selecao parcial, os
-                # pontos que o usuario deixou de fora nao sao "sobrando no
-                # destino" -- ele decidiu que ficam como estao, e contar isso
-                # como desencontro transformaria uma copia parcial deliberada
-                # num aviso amarelo em todo destino.
+                # Both over what was ASKED FOR. With a partial selection, the
+                # points the user left out are not "extra in the target" --
+                # the user decided they stay as they are, and counting that as
+                # a mismatch would turn a deliberate partial copy into a
+                # yellow warning on every destination.
                 missing=sum(1 for k in wanted if k not in keys),
                 extra=(0 if point_keys is not None
                        else sum(1 for k in keys if k not in wanted)),

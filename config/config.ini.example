@@ -1,5 +1,5 @@
 ; =============================================================================
-;  Arquivo de configuracao para o exemplo SELProtoPy -- MODELO
+;  Arquivo de configuracao do PAC CT -- MODELO
 ;
 ;  Este e' o modelo versionado. O arquivo que a app le e' `config/config.ini`,
 ;  que NAO vai pro git (esta no .gitignore) justamente porque e' nele que voce

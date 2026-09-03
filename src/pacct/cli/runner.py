@@ -1,17 +1,17 @@
 """
-CLI do PAC CT: polling de um rele no terminal.
+PAC CT CLI: polling one relay from the terminal.
 
-Este script:
-  1. Le as configuracoes do arquivo `config.ini`
-  2. Estabelece conexao com o rele SEL (via TCP ou Serial)
-  3. Executa a autoconfiguracao (descobre capacidades do rele)
-  4. Imprime as informacoes de identificacao do equipamento
-  5. Faz polling de Fast Meter (analogicos + digitais) em um loop
-  6. (Opcional) Envia um comando de Fast Operate ao final
+This script:
+  1. Reads the settings from the `config.ini` file
+  2. Opens a connection to the SEL relay (over TCP or Serial)
+  3. Runs the autoconfiguration (discovers the relay's capabilities)
+  4. Prints the device's identification information
+  5. Polls Fast Meter (analogs + digitals) in a loop
+  6. (Optional) Sends a Fast Operate command at the end
 
-Uso:
+Usage:
     python example_usage.py
-    python example_usage.py --config caminho/para/config.ini
+    python example_usage.py --config path/to/config.ini
 """
 
 import argparse
@@ -19,57 +19,59 @@ import configparser
 import logging
 import sys
 
-# `time.monotonic`, nunca `time.time`, para TODA duracao e todo prazo deste
-# arquivo -- que e' o que ele mede, do primeiro ao ultimo uso do relogio: nao
-# ha aqui nenhum registro de "hora do dia". O motivo esta medido no docs/ENGINEERING-NOTES.md:
-# nesta maquina o relogio de parede do WSL ficou 82,5 s atras do host e
-# ressincronizou, entao `time.time()` pulava nos dois sentidos. Numa volta que
-# atravessa o pulo, `time.time() - t0` da 82,3 s (prazo expira na hora) e, no
-# pulo para tras, da NEGATIVO -- o prazo passa a ser 82 s no futuro e a leitura
-# fica pendurada. O caminho web ja tinha sido convertido junto com a medicao;
-# este arquivo tinha ficado para tras, com os mesmos 22 usos do relogio errado.
+# `time.monotonic`, never `time.time`, for EVERY duration and every deadline
+# in this file -- which is what it measures, from the first use of the clock
+# to the last: there is no "time of day" record here. The reason is measured
+# in docs/ENGINEERING-NOTES.md: on this machine the WSL wall clock sat 82.5 s behind the host
+# and resynced, so `time.time()` jumped in both directions. On a turn that
+# straddles the jump, `time.time() - t0` reads 82.3 s (the deadline expires
+# at once) and, on a backward jump, it is NEGATIVE -- the deadline becomes
+# 82 s in the future and the read hangs. The web path had already been
+# converted along with the measurement; this file had been left behind, with
+# the same 22 uses of the wrong clock.
 import time
 import warnings
 from pathlib import Path
 
-# `selprotopy/` mora na raiz do projeto (irmao de `pacct/`). Quando esse
-# modulo eh rodado via `python -m pacct.cli.runner` ou pelo app.py launcher
-# a partir da raiz, o sys.path ja inclui PROJECT_ROOT. Garantimos isso aqui
-# pra casos em que o cwd seja outro.
+# `selprotopy/` lives at the project root (a sibling of `pacct/`). When this
+# module is run via `python -m pacct.cli.runner` or by the app.py launcher
+# from the root, sys.path already includes PROJECT_ROOT. We make sure of it
+# here for the cases where the cwd is somewhere else.
 from pacct.paths import PROJECT_ROOT, ensure_config_file
 
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-# Python 3.13+ removeu `telnetlib` da stdlib. `selprotopy` faz `import
-# telnetlib` direto, entao o shim precisa vir ANTES do import dele.
+# Python 3.13+ removed `telnetlib` from the stdlib. `selprotopy` does a plain
+# `import telnetlib`, so the shim has to come BEFORE importing it.
 from pacct.compat import ensure_telnetlib
 
 ensure_telnetlib()
 
-# Importar selprotopy ANTES de telnetlib para aplicar o patch de bytes nulos
-import selprotopy  # noqa: F401,E402  (efeito colateral: patch telnetlib)
+# Import selprotopy BEFORE telnetlib so the null-byte patch is applied
+import selprotopy  # noqa: F401,E402  (side effect: patches telnetlib)
 from selprotopy import exceptions as sel_exceptions
 from selprotopy.client.base import SELClient
 from selprotopy.client.serial import SerialSELClient
 from selprotopy.protocol import commands, parser
 
-# Leitura da regiao TARGET (Relay Word completo)
+# Reading of the TARGET region (the full Relay Word)
 from pacct.core.relay_conn import drain_login_banner
 from pacct.core.target_region import AsciiTargetReader, get_target_reader
 
-# Suprime DeprecationWarning do telnetlib (Python 3.12)
+# Suppress telnetlib's DeprecationWarning (Python 3.12)
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="telnetlib")
 
-# Resolvido pelo ensure_telnetlib() acima (stdlib ou backport do telnetlib3).
+# Resolved by ensure_telnetlib() above (stdlib or the telnetlib3 backport).
 import telnetlib  # noqa: E402
 
 
 def load_config(path: Path) -> configparser.ConfigParser:
-    # `config/config.ini` nao e' versionado -- e' o arquivo onde se digitam as
-    # senhas ACC/2AC reais do rele -- entao num clone limpo ele nao existe.
-    # Semeia do modelo versionado em vez de morrer na primeira execucao; se nem
-    # o modelo existir, ai sim para, dizendo o que falta.
+    # `config/config.ini` is not versioned -- it is the file where the
+    # relay's real ACC/2AC passwords are typed -- so on a clean clone it does
+    # not exist. Seed it from the versioned model instead of dying on the
+    # first run; if not even the model exists, then it does stop, saying what
+    # is missing.
     try:
         ensure_config_file(path, logging.getLogger("selprotopy_example"))
     except FileNotFoundError as exc:
@@ -106,12 +108,12 @@ def connect(cfg: configparser.ConfigParser, logger: logging.Logger,
         ip = cfg.get("tcp", "ip_address")
         port = cfg.getint("tcp", "port", fallback=23)
         logger.info(f"Conectando via Telnet a {ip}:{port}...")
-        # Usa telnetlib (com patch de bytes nulos aplicado pelo selprotopy)
-        # em vez de socket raw, pois reles SEL geralmente esperam negociacao
-        # Telnet na porta 23.
+        # Uses telnetlib (with the null-byte patch applied by selprotopy)
+        # instead of a raw socket, because SEL relays usually expect Telnet
+        # negotiation on port 23.
         tn = telnetlib.Telnet(ip, port, timeout=10)
-        # Sem isso, um banner de login com mais de ~5 linhas estoura as
-        # tentativas de verificacao do selprotopy e a conexao falha.
+        # Without this, a login banner longer than ~5 lines exhausts
+        # selprotopy's verification attempts and the connection fails.
         drain_login_banner(tn, logger)
         return SELClient(
             connApi=tn,
@@ -139,18 +141,18 @@ def connect(cfg: configparser.ConfigParser, logger: logging.Logger,
 
 def run_autoconfig(client, logger, verbose: bool, skip_fast_operate: bool = True):
     """
-    Versao defensiva do autoconfig().
+    Defensive version of autoconfig().
 
-    Chama cada subpasso individualmente com numero limitado de tentativas
-    e pula partes que falharem (em vez de retentar para sempre). Isso
-    contorna problemas conhecidos da v0.1.4 do selprotopy com certos
-    modelos de rele (ex.: parse incompleto do Fast Operate config block).
+    Calls each substep individually with a limited number of attempts and
+    skips the parts that fail (instead of retrying forever). This works
+    around known problems of selprotopy v0.1.4 with certain relay models
+    (e.g. incomplete parse of the Fast Operate config block).
     """
-    # 1. Definicao do rele (obrigatorio)
+    # 1. Relay definition (mandatory)
     logger.info("  -> Lendo Relay Definition Block...")
     client.autoconfig_relay_definition(attempts=3, verbose=verbose)
 
-    # 2. Fast Meter (obrigatorio para polling)
+    # 2. Fast Meter (mandatory for polling)
     if client.fast_meter_supported:
         logger.info("  -> Lendo Fast Meter Config Block...")
         try:
@@ -158,7 +160,7 @@ def run_autoconfig(client, logger, verbose: bool, skip_fast_operate: bool = True
         except sel_exceptions.MalformedByteArray as e:
             logger.error(f"     Falha no Fast Meter: {e}")
 
-    # 3. Fast Meter Demand (opcional)
+    # 3. Fast Meter Demand (optional)
     if client.fast_meter_demand_supported:
         logger.info("  -> Lendo Fast Meter Demand Config Block...")
         try:
@@ -166,7 +168,7 @@ def run_autoconfig(client, logger, verbose: bool, skip_fast_operate: bool = True
         except sel_exceptions.MalformedByteArray as e:
             logger.warning(f"     Pulando Fast Meter Demand: {e}")
 
-    # 4. Fast Meter Peak Demand (opcional)
+    # 4. Fast Meter Peak Demand (optional)
     if client.fast_meter_peak_demand_supported:
         logger.info("  -> Lendo Fast Meter Peak Demand Config Block...")
         try:
@@ -174,7 +176,7 @@ def run_autoconfig(client, logger, verbose: bool, skip_fast_operate: bool = True
         except sel_exceptions.MalformedByteArray as e:
             logger.warning(f"     Pulando Fast Meter Peak Demand: {e}")
 
-    # 5. Fast Operate (opcional, desligado por padrao por causar problemas)
+    # 5. Fast Operate (optional, off by default because it causes trouble)
     if client.fast_operate_supported and not skip_fast_operate:
         logger.info("  -> Lendo Fast Operate Config Block...")
         try:
@@ -184,7 +186,7 @@ def run_autoconfig(client, logger, verbose: bool, skip_fast_operate: bool = True
     elif client.fast_operate_supported and skip_fast_operate:
         logger.info("  -> Pulando Fast Operate config (skip_fast_operate=True)")
 
-    # 6. DNA (nomes dos sinais digitais) e ID (metadados do rele)
+    # 6. DNA (digital signal names) and ID (relay metadata)
     if client.access_level()[0] == 0:
         client.access_level_1()
 
@@ -214,10 +216,10 @@ def run_autoconfig(client, logger, verbose: bool, skip_fast_operate: bool = True
 
 def _drain_connection(conn, quiet_period: float = 0.08, max_drain: float = 0.5):
     """
-    Consome tudo que esta no buffer ate ficar quieto por `quiet_period`.
+    Consume everything in the buffer until it stays quiet for `quiet_period`.
 
-    Garante que nenhum byte residual de respostas anteriores fica para tras.
-    Otimizado para baixa latencia (cadence 5ms).
+    Guarantees that no residual byte from earlier responses is left behind.
+    Optimised for low latency (cadence 5ms).
     """
     deadline = time.monotonic() + max_drain
     last_data = time.monotonic()
@@ -237,24 +239,24 @@ def _drain_connection(conn, quiet_period: float = 0.08, max_drain: float = 0.5):
 def pipelined_poll(client, target_reader, logger,
                    timeout: float = 3.0) -> tuple[dict, bytes | None]:
     """
-    Envia o comando Fast Meter (`\\xa5\\xd1`) E o `VIEW 1:TARGET` em pipeline,
-    sem esperar a primeira resposta antes de mandar a segunda. Le ambas as
-    respostas do mesmo stream. Economiza ~50-80ms de RTT.
+    Sends the Fast Meter command (`\\xa5\\xd1`) AND `VIEW 1:TARGET` pipelined,
+    without waiting for the first response before sending the second. Reads
+    both responses from the same stream. Saves ~50-80ms of RTT.
 
-    Retorna (fast_meter_data, target_raw_bytes_or_None).
+    Returns (fast_meter_data, target_raw_bytes_or_None).
     """
     from pacct.core.target_region import _RE_HEX_BYTE, _RE_TARGET_BYTES
 
     fm_marker = client.fm_command_1
     min_plausible_len = 100
 
-    # Drain so se nao soubermos que esta limpo
+    # Drain only if we do not know that it is clean
     if not getattr(client, "_buffer_clean", False):
         _drain_connection(client.conn, quiet_period=0.05, max_drain=0.3)
 
     client._buffer_clean = False
 
-    # Envia AMBOS em sequencia, sem esperar
+    # Send BOTH back to back, without waiting
     client._write(fm_marker + commands.CR)
     client._write(b"VIEW 1:TARGET\r\n")
 
@@ -274,7 +276,7 @@ def pipelined_poll(client, target_reader, logger,
             buf += chunk
             last_data = time.monotonic()
 
-        # 1. Procura frame Fast Meter
+        # 1. Look for the Fast Meter frame
         if fm_frame is None:
             idx = buf.find(fm_marker, search_start)
             if idx >= 0 and len(buf) - idx >= 3:
@@ -284,7 +286,7 @@ def pipelined_poll(client, target_reader, logger,
                 elif len(buf) - idx >= declared_len:
                     fm_frame = bytes(buf[idx:idx + declared_len])
 
-        # 2. Procura resposta de VIEW 1:TARGET
+        # 2. Look for the VIEW 1:TARGET response
         if target_bytes is None:
             m = _RE_TARGET_BYTES.search(buf)
             if m:
@@ -293,10 +295,10 @@ def pipelined_poll(client, target_reader, logger,
                 if len(hex_bytes) >= 500:
                     target_bytes = bytes(int(h, 16) for h in hex_bytes[:500])
 
-        # Saimos quando tem ambos
+        # We leave once we have both
         if fm_frame is not None and target_bytes is not None:
             break
-        # Ou quando o stream esfria com pelo menos o FM
+        # Or when the stream goes cold with at least the FM
         if not chunk and time.monotonic() - last_data > 0.15 and fm_frame is not None:
             break
         time.sleep(0.005)
@@ -319,31 +321,32 @@ def pipelined_poll(client, target_reader, logger,
 
 def robust_poll_fast_meter(client, logger, timeout: float = 5.0):
     """
-    Polling de Fast Meter robusto que le o frame binario completo.
+    Robust Fast Meter polling that reads the complete binary frame.
 
-    O metodo `client.poll_fast_meter()` da biblioteca termina a leitura cedo
-    quando ve um prompt `\\r=`, mesmo que o frame binario nao tenha chegado
-    completo. Aqui lemos ate ter o frame inteiro (length declarado no byte 3
-    do cabecalho A5), validando que o tamanho declarado bate com o esperado.
+    The library's `client.poll_fast_meter()` method ends the read early when
+    it sees a `\\r=` prompt, even if the binary frame has not arrived in
+    full. Here we read until we have the whole frame (length declared in
+    byte 3 of the A5 header), checking that the declared size matches what
+    was expected.
     """
-    fm_marker = client.fm_command_1  # ex: b'\xa5\xd1'
-    # O frame de resposta tem comprimento >= 100 bytes (FM real tem 252,
-    # frames truncados/lixo costumam ter <20). Use isso para filtrar
-    # falsos positivos em vez de confiar no msglen do config block.
+    fm_marker = client.fm_command_1  # e.g. b'\xa5\xd1'
+    # The response frame is >= 100 bytes long (a real FM is 252; truncated
+    # frames/garbage are usually <20). Use that to filter out false
+    # positives instead of trusting the config block's msglen.
     min_plausible_len = 100
 
-    # 1. Drain so se buffer nao esta conhecidamente limpo
+    # 1. Drain only if the buffer is not known to be clean
     if not getattr(client, "_buffer_clean", False):
         _drain_connection(client.conn, quiet_period=0.05, max_drain=0.3)
 
-    # 2. Envia comando Fast Meter (sem pausa fixa)
+    # 2. Send the Fast Meter command (no fixed pause)
     client._buffer_clean = False
     client._write(fm_marker + commands.CR)
 
-    # 4. Le ate ter o frame valido (polling cadence 5ms)
+    # 4. Read until we have a valid frame (polling cadence 5ms)
     buf = b""
     deadline = time.monotonic() + timeout
-    search_start = 0  # onde reiniciar a busca por A5 (pula falsos positivos)
+    search_start = 0  # where to restart the A5 search (skips false hits)
 
     while time.monotonic() < deadline:
         try:
@@ -353,21 +356,21 @@ def robust_poll_fast_meter(client, logger, timeout: float = 5.0):
         if chunk:
             buf += chunk
 
-        # Procura cabecalho a partir de search_start
+        # Look for the header starting at search_start
         idx = buf.find(fm_marker, search_start)
         if idx >= 0 and len(buf) - idx >= 3:
             declared_len = buf[idx + 2]
 
-            # Filtra falsos positivos (lixo residual com tamanhos pequenos)
+            # Filter out false positives (residual garbage, small sizes)
             if declared_len < min_plausible_len:
                 search_start = idx + 2
                 continue
 
-            # Tamanho valido: espera o frame todo chegar
+            # Valid size: wait for the whole frame to arrive
             if len(buf) - idx >= declared_len:
                 frame = bytes(buf[idx:idx + declared_len])
-                # Buffer ainda pode ter prompt residual (\r=>\x03); aguarda
-                # mais 30ms e drena pra deixar limpo.
+                # The buffer may still hold a residual prompt (\r=>\x03);
+                # waits another 30ms and drains it to leave it clean.
                 time.sleep(0.03)
                 try:
                     client.conn.read_very_eager()
@@ -409,14 +412,14 @@ def print_relay_info(client, relay_name: str, description: str, logger):
 
 
 def _parse_signal_list(raw: str) -> list[str]:
-    """Converte uma string CSV em lista de nomes (sem espacos, em maiusculas)."""
+    """Convert a CSV string into a list of names (no spaces, uppercased)."""
     if not raw:
         return []
     return [s.strip().upper() for s in raw.split(",") if s.strip()]
 
 
 def _format_analog(value, fmt: str) -> str:
-    """Formata um valor analogico conforme o modo escolhido (raw/phasor/both)."""
+    """Format an analog value in the chosen mode (raw/phasor/both)."""
     import cmath
     if isinstance(value, complex):
         mag = abs(value)
@@ -426,7 +429,7 @@ def _format_analog(value, fmt: str) -> str:
         if fmt == "phasor":
             return f"{mag:.4f} angulo {ang_deg:+.2f}graus"
         return f"{value}   |  {mag:.4f} angulo {ang_deg:+.2f}graus"
-    # Valor escalar
+    # Scalar value
     if isinstance(value, float):
         return f"{value:.6g}"
     return f"{value}"
@@ -434,8 +437,8 @@ def _format_analog(value, fmt: str) -> str:
 
 def _filter_signals(available: dict, wanted: list[str]) -> dict:
     """
-    Filtra um dict de sinais pela lista desejada (case-insensitive).
-    Lista vazia -> retorna tudo. Sinais nao encontrados ficam como None.
+    Filter a dict of signals by the wanted list (case-insensitive).
+    An empty list -> returns everything. Signals not found stay as None.
     """
     if not wanted:
         return dict(available)
@@ -463,7 +466,7 @@ def print_meter_data(data: dict, iteration: int, logger,
         else:
             logger.info("[DEBUG] Nenhum digital foi parseado (digitals_all vazio)")
 
-    # --- Analogicos -----------------------------------------------------------
+    # --- Analogs --------------------------------------------------------------
     analogs_show = _filter_signals(analogs_all, wanted_analogs)
     if analogs_show:
         logger.info("Analogicos:")
@@ -475,11 +478,11 @@ def print_meter_data(data: dict, iteration: int, logger,
     elif analogs_all:
         logger.info("(nenhum analogico configurado em [signals].analogs)")
 
-    # --- Digitais -------------------------------------------------------------
-    # "*"   -> mostra todos
-    # "*ON" -> mostra apenas os que estao ativos (= True/1)
-    # vazio -> nao mostra digitais
-    # lista -> mostra apenas os listados
+    # --- Digitals -------------------------------------------------------------
+    # "*"   -> shows everything
+    # "*ON" -> shows only the ones that are active (= True/1)
+    # empty -> shows no digitals
+    # list  -> shows only the listed ones
     if wanted_digitals == ["*"]:
         digitals_show = dict(digitals_all)
     elif wanted_digitals == ["*ON"]:
@@ -515,7 +518,7 @@ def maybe_send_fast_operate(client, cfg: configparser.ConfigParser, logger):
     logger.warning(f"!!! Enviando FAST OPERATE: {ctrl_type} {ctrl_point} {command} !!!")
     logger.warning("=" * 60)
 
-    # Fast Operate exige nivel 2AC
+    # Fast Operate requires level 2AC
     if not client.access_level_2(level_2_pass=cfg.get("auth", "ac2_password").encode()):
         logger.error("Falha ao subir para nivel 2AC. Comando cancelado.")
         return
@@ -553,11 +556,11 @@ def main():
 
     client = None
     try:
-        # 1. Conexao -----------------------------------------------------------
+        # 1. Connection --------------------------------------------------------
         client = connect(cfg, logger, verbose=verbose, debug=debug)
         logger.info("Conexao estabelecida com sucesso.")
 
-        # 2. Login (sobe para o nivel minimo configurado) ----------------------
+        # 2. Login (raises to the configured minimum level) --------------------
         min_lvl = cfg.getint("auth", "min_access_level", fallback=1)
         if min_lvl >= 1:
             ok = client.access_level_1(
@@ -570,7 +573,7 @@ def main():
             )
             logger.info(f"Login nivel 2 (2AC): {'OK' if ok else 'FALHOU'}")
 
-        # 3. Autoconfiguracao --------------------------------------------------
+        # 3. Autoconfiguration -------------------------------------------------
         logger.info("Executando autoconfiguracao do rele...")
         skip_fo_config = not cfg.getboolean(
             "fast_operate", "enabled", fallback=False
@@ -584,7 +587,7 @@ def main():
             logger.error("Rele nao suporta Fast Meter. Encerrando.")
             return
 
-        # 4. Polling de Fast Meter --------------------------------------------
+        # 4. Fast Meter polling -----------------------------------------------
         iterations = cfg.getint("polling", "iterations", fallback=5)
         interval = cfg.getfloat("polling", "interval_seconds", fallback=2.0)
 
@@ -600,9 +603,9 @@ def main():
         digitals_source = cfg.get(
             "signals", "digitals_source", fallback="ascii"
         ).strip().lower()
-        # Threshold de bits para usar TAR <bit> em vez de VIEW 1:TARGET
+        # Bit threshold for using TAR <bit> instead of VIEW 1:TARGET
         tar_threshold = cfg.getint("signals", "tar_threshold", fallback=2)
-        # Pipeline FM + VIEW 1:TARGET (so funciona se nao for TAR)
+        # FM + VIEW 1:TARGET pipeline (only works when it is not TAR)
         use_pipeline = cfg.getboolean("signals", "pipeline", fallback=True)
 
         if wanted_analogs:
@@ -615,14 +618,14 @@ def main():
         else:
             logger.info("Sinais digitais: (nenhum)")
 
-        # ---- Inicializa leitor de TARGET region se ha digitais para ler -----
+        # ---- Set up the TARGET region reader if digitals are wanted ---------
         target_reader = None
         if wanted_digitals and digitals_source != "fastmeter":
             logger.info("Inicializando leitor da regiao TARGET...")
             target_reader = get_target_reader(client, mode=digitals_source, logger=logger)
             if isinstance(target_reader, AsciiTargetReader):
                 target_reader.tar_threshold = tar_threshold
-                # Cache persistente (evita redescobrir bits a cada execucao)
+                # Persistent cache (avoids rediscovering bits on every run)
                 cache_enabled = cfg.getboolean(
                     "signals", "cache_enabled", fallback=True
                 )
@@ -639,10 +642,11 @@ def main():
 
                 need_discovery = True
                 if cache_loaded:
-                    # Verifica se todos os bits pedidos ja estao no cache
+                    # Check whether every requested bit is already cached
                     if wanted_digitals in (["*"], ["*ON"]):
-                        # Para "*" / "*ON" o cache cobre tudo (varremos todas as linhas)
-                        # Se ja temos linhas mapeadas, assumimos que esta completo
+                        # For "*" / "*ON" the cache covers everything (we
+                        # sweep every row). If rows are already mapped, we
+                        # assume it is complete
                         need_discovery = len(target_reader.layout.row_to_names) == 0
                     else:
                         missing = [
@@ -654,12 +658,12 @@ def main():
                                 f"  bits ausentes no cache: {', '.join(missing)}"
                             )
                             target_reader.discover_bits(missing)
-                            need_discovery = False  # ja foi feito acima
+                            need_discovery = False  # already done above
                         else:
                             need_discovery = False
 
                 if need_discovery:
-                    # Pre-descobre posicao dos bits pedidos (uma unica vez)
+                    # Pre-discover each requested bit's position (once only)
                     if wanted_digitals in (["*"], ["*ON"]):
                         logger.info("  varrendo todas as linhas da Relay Word (uma vez)...")
                         target_reader.discover_all_rows(max_rows=500)
@@ -677,24 +681,26 @@ def main():
                 if wanted_digitals not in (["*"], ["*ON"]):
                     logger.info(f"  {found}/{len(wanted_digitals)} bits localizados")
 
-                # Salva cache (pode incluir bits descobertos agora)
+                # Save the cache (may include bits discovered just now)
                 if cache_enabled:
                     target_reader.save_cache(
                         cache_path, fid=client.fid, devid=client.devid
                     )
 
-        # Determina estrategia de polling:
-        #   pipeline   -> FM + VIEW 1:TARGET juntos (sempre o mais rapido qdo disponivel)
-        #   tar        -> TAR <bit> por bit (so vale a pena sem pipeline e poucos bits)
-        #   sequential -> FM separado de VIEW 1:TARGET (fallback)
+        # Determines the polling strategy:
+        #   pipeline   -> FM + VIEW 1:TARGET together (always the fastest
+        #                 when available)
+        #   tar        -> TAR <bit> per bit (only worth it without pipeline
+        #                 and with few bits)
+        #   sequential -> FM separate from VIEW 1:TARGET (fallback)
         is_wildcard = wanted_digitals in (["*"], ["*ON"]) if wanted_digitals else False
         strategy = "sequential"
         if target_reader is not None and wanted_digitals:
             if use_pipeline:
-                # Pipeline e o melhor em todos os casos com VIEW
+                # The pipeline is best in every case that uses VIEW
                 strategy = "pipeline"
             elif not is_wildcard and len(wanted_digitals) <= tar_threshold:
-                # Sem pipeline, TAR e mais rapido para poucos bits
+                # Without the pipeline, TAR is faster for few bits
                 strategy = "tar"
             else:
                 strategy = "sequential"
@@ -706,11 +712,11 @@ def main():
             t_fm = t_tgt = 0.0
             try:
                 if strategy == "pipeline":
-                    # FM + VIEW 1:TARGET em pipeline (1 round-trip combinado)
+                    # FM + VIEW 1:TARGET pipelined (1 combined round-trip)
                     t0 = time.monotonic()
                     data, target_raw = pipelined_poll(client, target_reader, logger)
                     t_fm = time.monotonic() - t0
-                    # Extrai bits dos bytes ja recebidos
+                    # Extract the bits from the bytes already received
                     if target_raw is not None:
                         t0 = time.monotonic()
                         tgt_digitals = {}
@@ -741,7 +747,7 @@ def main():
                         data["digitals"] = tgt_digitals
                         t_tgt = time.monotonic() - t0
                 else:
-                    # Estrategia sequential ou tar
+                    # sequential or tar strategy
                     t0 = time.monotonic()
                     data = robust_poll_fast_meter(client, logger)
                     t_fm = time.monotonic() - t0
@@ -762,7 +768,7 @@ def main():
                                         if nm != "*":
                                             tgt_digitals[nm] = int(bool(bv & (1 << (7 - j))))
                             else:
-                                # read() escolhe TAR ou VIEW conforme threshold
+                                # read() picks TAR or VIEW by the threshold
                                 tgt_digitals = target_reader.read(wanted_digitals)
                             data["digitals"] = tgt_digitals
                             t_tgt = time.monotonic() - t0
@@ -782,13 +788,13 @@ def main():
                 )
             except Exception as e:
                 logger.warning(f"Leitura #{i} falhou: {e}")
-            # Sleep so o que falta pra completar o intervalo (nao adiciona em cima)
+            # Sleep only what is left of the interval (does not add on top)
             elapsed = time.monotonic() - t_start
             remaining = interval - elapsed
             if i < iterations and remaining > 0:
                 time.sleep(remaining)
 
-        # 5. Fast Operate (opcional) ------------------------------------------
+        # 5. Fast Operate (optional) ------------------------------------------
         maybe_send_fast_operate(client, cfg, logger)
 
     except KeyboardInterrupt:

@@ -112,8 +112,9 @@ def test_no_bit_of_that_ied_keeps_a_control_da_when_a_status_one_exists():
                and e.get("name") == "QPC1_LT2_UPC1")
     best: dict = {}
     for el in ied.iter():
-        # `parse_saddr` e nao `sa[3:]`: um endereco decorado enderaca varios
-        # nomes, e a conta so' fecha se este lado contar os mesmos.
+        # `parse_saddr` and not `sa[3:]`: a decorated address reaches
+        # several names, and the count only adds up if this side counts the
+        # same ones.
         spec = parse_saddr(el.get("sAddr") or "")
         if spec is None:
             continue
@@ -153,18 +154,19 @@ def test_the_tools_reuse_the_parser_instead_of_reimplementing_it():
         set(sel_short_addresses(SAMPLE)["QPC1_LT2_UPC1"])
 
 
-# -- os enderecos DECORADOS: um ponto 61850 que carrega dois bits -----------
+# -- the DECORATED addresses: one 61850 point that carries two bits ---------
 #
-# `sAddr="db:52A|52B?0:1:2:3"` num `Pos$stVal` e' um DPS: UM ponto cujo Dbpos
-# codifica DOIS bits da Relay Word. A gramatica e as alternativas vivem em
-# `pacct/core/mms_tables.py:parse_saddr`; aqui pinamos o que o WALK faz com
-# elas -- um `ScdPoint` por NOME, cada um com a regra do seu bit.
+# `sAddr="db:52A|52B?0:1:2:3"` on a `Pos$stVal` is a DPS: ONE point whose
+# Dbpos encodes TWO bits of the Relay Word. The grammar and the alternatives
+# live in `pacct/core/mms_tables.py:parse_saddr`; here we pin what the WALK
+# does with them -- one `ScdPoint` per NAME, each with its own bit's rule.
 #
-# Antes disto o nome do bit era `sa[3:].upper()`, ou seja, a chave virava a
-# string literal `52A|52B?0:1:2:3`, que nao casa com bit desenhado nenhum: a
-# forma inteira sumia calada. Medido nos 25 reles da subestacao contra os GLE
-# deles: 55 bits desenhados de 7.524 so' tem endereco decorado, e todos sao
-# `52A`, `89CL*` ou `89OPN*` -- posicao de disjuntor e de seccionadora.
+# Before this the bit's name was `sa[3:].upper()`, that is, the key became the
+# literal string `52A|52B?0:1:2:3`, which matches no drawn bit at all: the
+# whole form vanished silently. Measured on the substation's 25 relays against
+# their GLEs: 55 drawn bits out of 7.524 have only a decorated address, and
+# all of them are `52A`, `89CL*` or `89OPN*` -- breaker and disconnector
+# position.
 
 class TestDecoratedAddresses:
 
@@ -186,17 +188,18 @@ class TestDecoratedAddresses:
         assert bits["PLT01"].rule is None
 
     def test_a_plain_boolean_address_beats_a_decorated_one(self):
-        """`LOC` tem `LLN0$Loc$stVal` liso E `BKR1CSWI1$Health$stVal?3:1`.
-        Os dois sao `stVal`, entao sem o degrau do `da_rank` o desempate
-        seria ordem de documento. Medido em `QPC1_LT1_UPC1` do SCD da
-        subestacao: 10 dos 33 nomes decorados tambem tem endereco liso."""
+        """`LOC` has a plain `LLN0$Loc$stVal` AND `BKR1CSWI1$Health$stVal?3:1`.
+        Both are `stVal`, so without the `da_rank` step the tie-break would be
+        document order. Measured on `QPC1_LT1_UPC1` of the substation's SCD:
+        10 of the 33 decorated names also have a plain address."""
         bits = sel_short_addresses(FIXTURE)["REL_A"]
         assert bits["LOC"].ln == "LLN0"
         assert bits["LOC"].rule is None
 
     def test_a_malformed_decoration_is_dropped_whole(self):
-        """`?0:1:2` em dois nomes quebra `len(alt) == 2**n`, invariante que
-        vale em 5.025 de 5.025 no corpus. Chutar nela pinta bit errado."""
+        """`?0:1:2` on two names breaks `len(alt) == 2**n`, an invariant that
+        holds in 5.025 of 5.025 on the corpus. Guessing at it paints the wrong
+        bit."""
         bits = sel_short_addresses(FIXTURE)["REL_A"]
         assert "BADFORM" not in bits
         assert not any("?" in b or "|" in b for b in bits)
@@ -207,8 +210,8 @@ class TestDecoratedAddressesInTheRealScd:
     `52A|52B?0:1:2:3` entre eles."""
 
     def test_52a_and_52b_come_out_of_the_breaker_position_point(self):
-        """`QPC2_TR1_UPC1` e' o rele cujo GL1 abriu o assunto: o unico bit
-        desenhado dele que so' tem endereco decorado e' `52A`, em
+        """`QPC2_TR1_UPC1` is the relay whose GL1 opened the subject: its only
+        drawn bit that has nothing but a decorated address is `52A`, on
         `PRO/BKR1CSWI1$Pos$stVal`."""
         bits = sel_short_addresses(SAMPLE)["QPC2_TR1_UPC1"]
         assert (bits["52A"].ld_inst, bits["52A"].ln) == ("PRO", "BKR1CSWI1")
@@ -217,10 +220,10 @@ class TestDecoratedAddressesInTheRealScd:
         assert bits["52A"].rule.index == 0
 
     def test_the_other_half_of_the_pair_keeps_its_plain_address(self):
-        """`52B` do mesmo IED tambem esta no `db:52A|52B?0:1:2:3`, mas tem um
-        endereco liso em `ANN/PROGGIO37$Ind15$stVal` -- e o liso ganha. E' por
-        isso que este rele ganha UM bit e nao dois: 52A nao tem outro
-        endereco, 52B tem."""
+        """`52B` of the same IED is also in `db:52A|52B?0:1:2:3`, but it has a
+        plain address on `ANN/PROGGIO37$Ind15$stVal` -- and the plain one
+        wins. That is why this relay gains ONE bit and not two: 52A has no
+        other address, 52B has."""
         bits = sel_short_addresses(SAMPLE)["QPC2_TR1_UPC1"]
         assert (bits["52B"].ln, bits["52B"].do) == ("PROGGIO37", "Ind15")
         assert bits["52B"].rule is None
@@ -232,21 +235,21 @@ class TestDecoratedAddressesInTheRealScd:
         assert bits["52A"].rule is None
 
     def test_no_bit_name_keeps_the_decoration_in_it(self):
-        """A regressao original: a chave virava `52A|52B?0:1:2:3`."""
+        """The original regression: the key became `52A|52B?0:1:2:3`."""
         for points in sel_short_addresses(SAMPLE).values():
             assert not any("?" in b or "|" in b for b in points)
 
 
-# -- o FC, quando NAO ha um rele pra perguntar ------------------------------
+# -- the FC, when there is NO relay to ask ----------------------------------
 #
-# No caminho vivo o FC vem do rele (`GetLogicalDeviceDirectory`), e e' por isso
-# que `sel_short_addresses` nao o traz. Mas a tabela de fabrica em
-# `data/mms_map/` e' gerada OFFLINE, a partir dos ICD, e ali nao ha rele
-# nenhum: o FC tem que sair dos `DataTypeTemplates` do proprio arquivo.
+# On the live path the FC comes from the relay (`GetLogicalDeviceDirectory`),
+# which is why `sel_short_addresses` does not bring it. But the factory table
+# in `data/mms_map/` is generated OFFLINE, from the ICDs, and there is no
+# relay there: the FC has to come out of the file's own `DataTypeTemplates`.
 #
-# Medido nos 146 ICD do corpus: todos os 2.030 enderecos decorados caem em FC
-# `ST`. Resolver mesmo assim, em vez de gravar `ST` na marra, e' o que faz um
-# ICD futuro que discorde falhar alto em vez de gerar um item errado.
+# Measured on the corpus's 146 ICDs: all 2.030 decorated addresses fall on FC
+# `ST`. Resolving anyway, instead of hardcoding `ST`, is what makes a future
+# ICD that disagrees fail loudly instead of generating a wrong item.
 
 class TestDaFunctionalConstraints:
 
@@ -258,7 +261,7 @@ class TestDaFunctionalConstraints:
         assert fcs[("ANN", "BKR1CSWI1", "Dir", "dirGeneral")] == "ST"
 
     def test_a_control_da_keeps_its_own_fc(self):
-        """`Oper` e' `CO` no DOType, e o `ctlVal` desce por dentro dele."""
+        """`Oper` is `CO` on the DOType, and `ctlVal` descends inside it."""
         from selfiles.scl.read import sel_da_fcs
         fcs = sel_da_fcs(FIXTURE)["REL_A"]
         assert fcs[("ANN", "RBGGIO1", "SPCSO01", "Oper.ctlVal")] == "CO"
@@ -269,8 +272,8 @@ class TestDaFunctionalConstraints:
         assert ("ANN", "PLT1GGIO1", "Ind01", "naoExiste") not in fcs
 
     def test_the_decoy_saddr_in_the_templates_is_not_a_bit(self):
-        """`<DA name="q" fc="ST" sAddr="db:EN"/>` num DOType e' um default de
-        template, nao um mapeamento de instancia. So' o que esta sob o
-        `Server` do IED conta -- se os templates entrassem, `EN` viraria um
-        bit em todo rele do corpus."""
+        """`<DA name="q" fc="ST" sAddr="db:EN"/>` on a DOType is a template
+        default, not an instance mapping. Only what is under the IED's
+        `Server` counts -- if the templates got in, `EN` would become a bit on
+        every relay of the corpus."""
         assert "EN" not in sel_short_addresses(FIXTURE)["REL_A"]

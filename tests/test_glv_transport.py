@@ -121,7 +121,7 @@ def test_prepare_bits_leaves_the_poll_thread_alone_when_nobody_asks_it_to_pause(
     assert link.transport.polled.wait(timeout=5.0)
     thread = link._poll_thread
     assert link.prepare_bits({"LT01", "LT02"}) == 0
-    assert link._poll_thread is thread          # a mesma thread, nao outra
+    assert link._poll_thread is thread          # the same thread, not another
     assert link.transport.calls.count("poll") == 1
     link.close()
 
@@ -183,7 +183,7 @@ def test_a_wedged_link_refuses_the_next_discovery_instead_of_scrambling_it(
     with caplog.at_level(logging.WARNING):
         with pytest.raises(PollingWedged):
             link.prepare_bits({"PLT02"})      # 2a: recusa
-    assert transport.calls.count("discover") == 1     # nao falou com o rele
+    assert transport.calls.count("discover") == 1     # it never talked to the relay
     assert "ainda nao terminou" in caplog.text
 
     transport.release.set()

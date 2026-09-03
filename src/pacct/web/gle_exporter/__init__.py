@@ -1,20 +1,21 @@
 """
-GLE Variable Comment Exporter: extrai a lista de SYMBOL instances de cada GLE
-de um RDB e exporta como Excel pra edicao em bulk. O usuario edita os
-comentarios das portas (input/output) e reimporta o Excel pra gerar um RDB
-atualizado.
+GLE Variable Comment Exporter: extracts the list of SYMBOL instances of each
+GLE in an RDB and exports it as Excel for bulk editing. The user edits the
+port (input/output) comments and reimports the Excel to produce an updated
+RDB.
 
-Fluxo:
-  1. Usuario faz upload de um RDB.
-  2. App lista os reles do RDB com selecao de GLE por rele.
-  3. Botao "Exportar Excel" gera um xlsx com uma aba por (rele, GLE)
-     selecionado, contendo todas as instancias de SYMBOL daquele GLE.
-  4. Usuario edita as celulas "Input Comment"/"Output Comment".
-  5. Botao "Importar Excel" aplica as alteracoes ao RDB e baixa um novo RDB.
+Flow:
+  1. The user uploads an RDB.
+  2. The app lists the RDB's relays with a per-relay GLE selection.
+  3. The "Exportar Excel" button builds an xlsx with one sheet per selected
+     (relay, GLE), holding every SYMBOL instance of that GLE.
+  4. The user edits the "Input Comment"/"Output Comment" cells.
+  5. The "Importar Excel" button applies the changes to the RDB and
+     downloads a new RDB.
 
-Cada SYMBOL no GLE eh uma "instancia" identificada por (page, element_id). Um
-mesmo nome (ex.: TMB1A) pode aparecer varias vezes em paginas diferentes;
-cada ocorrencia eh uma linha no Excel.
+Each SYMBOL in the GLE is an "instance" identified by (page, element_id). The
+same name (e.g. TMB1A) can appear several times on different pages; each
+occurrence is one row in the Excel.
 
     templates/  landing.html
 """
@@ -57,31 +58,31 @@ def load_template(name: str) -> str:
 _XLSX_MAX_BYTES = 50 * 1024 * 1024
 
 
-# Marcadores: identificam que um xlsx veio do export desta ferramenta.
+# Markers: they identify an xlsx as coming from this tool's export.
 _XLSX_RELAY_MARKER = "Relay:"
 _XLSX_GLE_MARKER = "GLE:"
-# Header da linha 4 (cada coluna = uma celula nesse cabecalho).
+# Row 4 header (each column = one cell in this header).
 _XLSX_HEADERS = (
     "Page", "Element ID", "Type", "Variable", "Side", "Port", "Label", "Comment",
 )
-# Coluna 1-based de cada campo (estavel pra parser e tests).
+# 1-based column of each field (stable for the parser and the tests).
 _COL_PAGE, _COL_EID, _COL_TYPE, _COL_VAR, _COL_SIDE, _COL_PORT, _COL_LABEL, _COL_CMT = range(1, 9)
 
-# Diretorio de saida dos xlsx (reusa o sandbox de /download).
-# Uploads e saidas vivem em cache/sessions/<sid>/ (ver pacct.web.session);
-# nao ha mais diretorio compartilhado entre usuarios.
+# Output directory for the xlsx (reuses the /download sandbox).
+# Uploads and outputs live in cache/sessions/<sid>/ (see pacct.web.session);
+# there is no directory shared between users any more.
 
 
 # -----------------------------------------------------------------------------
 # Extractor: GLE.xml -> [PortInstance]
 # -----------------------------------------------------------------------------
 
-# Tipos XML do GLE com `physical_instance_name` que queremos exportar. Inclui:
-#   - SYMBOL (variaveis IO, Relay Word bits): 1 in + 1 out, sem rotulos fixos.
-#   - blocos stateful do 4xx/7xx: PLT, ALT, PCNDTIMER, PCN, AST, PSV, LATCH,
-#     TIMER, COUNTER. Rotulos das portas vem do relay_model JSON.
-# Gates puros (AND/OR/NOT/EQ/...) ficam de fora -- nao tem nome instancia
-# editavel e o comment das portas nao tem semantica de comissionamento.
+# GLE XML types with a `physical_instance_name` that we want to export:
+#   - SYMBOL (IO variables, Relay Word bits): 1 in + 1 out, no fixed labels.
+#   - 4xx/7xx stateful blocks: PLT, ALT, PCNDTIMER, PCN, AST, PSV, LATCH,
+#     TIMER, COUNTER. Port labels come from the relay_model JSON.
+# Pure gates (AND/OR/NOT/EQ/...) are left out -- they have no editable
+# instance name and their port comments carry no commissioning meaning.
 _EXPORTABLE_XML_TYPES = frozenset({
     "SYMBOL",
     "PLT", "ALT", "PCNDTIMER", "PCN", "AST", "PSV",
@@ -91,30 +92,30 @@ _EXPORTABLE_XML_TYPES = frozenset({
 
 @dataclass(frozen=True)
 class PortInstance:
-    """Uma porta concreta (em um element do GLE) com seu rotulo fixo e o
-    comment livre do usuario."""
+    """One concrete port (in a GLE element) with its fixed label and the
+    user's free-form comment."""
     page: str
     element_id: str
-    xml_type: str        # type do <element>: SYMBOL, PLT, LATCH, ...
+    xml_type: str        # type of the <element>: SYMBOL, PLT, LATCH, ...
     name: str            # physical_instance_name (ex.: VB203, _PLT06, TMB1A)
-    side: str            # "input" ou "output"
-    port_index: int      # `index` atributo da <port> (0, 1, 2, ...)
-    label: str           # rotulo fixo do pin (S/R/Q/in/PU/...) ou "" se ausente
-    comment: str         # texto livre do usuario; "" se <comment/> vazio
+    side: str            # "input" or "output"
+    port_index: int      # the <port>'s `index` attribute (0, 1, 2, ...)
+    label: str           # fixed pin label (S/R/Q/in/PU/...) or "" if absent
+    comment: str         # free text from the user; "" if <comment/> is empty
 
 
 def extract_port_instances_from_gle(
     gle_path: Path, relay_model=None,
 ) -> list[PortInstance]:
-    """Le um GLE.xml e devolve uma lista de PortInstance, uma por porta de
-    cada element exportavel.
+    """Read a GLE.xml and return a list of PortInstance, one per port of
+    each exportable element.
 
-    Convencao do GLE: dentro de cada `<logic_element>` ha (na ordem) dois
-    blocos `<ports>` -- o 1o eh o lado de input (esquerda), o 2o eh o lado
-    de output (direita). Cada `<port>` tem um `index` numerico (0, 1, 2).
+    GLE convention: inside each `<logic_element>` there are (in order) two
+    `<ports>` blocks -- the 1st is the input side (left), the 2nd is the
+    output side (right). Each `<port>` has a numeric `index` (0, 1, 2).
 
-    Se `relay_model` for fornecido, os rotulos dos pins (S/R/Q/...) sao
-    resolvidos via `relay_model.port_label`. Sem o modelo, label fica "".
+    If `relay_model` is given, the pin labels (S/R/Q/...) are resolved via
+    `relay_model.port_label`. Without the model, label stays "".
     """
     out: list[PortInstance] = []
     try:
@@ -160,15 +161,15 @@ def extract_port_instances_from_gle(
 
 
 # -----------------------------------------------------------------------------
-# Writer: edita os comments do GLE em bytes (mantem tamanho do stream OLE)
+# Writer: edits the GLE comments in bytes (keeps the OLE stream size)
 # -----------------------------------------------------------------------------
 
-# Casa um <element id="N" type="TIPO" ...> ... </element>. Usamos grupos
-# nomeados pra nao depender de indices (com a adicao de `type` os indices
-# numericos shiftam, o que ja foi fonte de bug).
-# Non-greedy no corpo: `<element>` nao aninha, e `</logic_element>` (que esta
-# DENTRO) nao casa com `</element>` literal -- entao o primeiro `</element>`
-# encontrado eh sempre o do bloco externo.
+# Matches an <element id="N" type="TIPO" ...> ... </element>. We use named
+# groups so as not to depend on indices (adding `type` shifts the numeric
+# ones, which has already been a source of bugs).
+# Non-greedy on the body: `<element>` does not nest, and `</logic_element>`
+# (which is INSIDE) does not match a literal `</element>` -- so the first
+# `</element>` found is always the outer block's.
 _GLE_ELEMENT_RE = re.compile(
     rb'(?P<open><element\s+id="(?P<id>\d+)"\s+type="(?P<type>[^"]+)"[^>]*>)'
     rb'(?P<body>.*?)'
@@ -176,20 +177,20 @@ _GLE_ELEMENT_RE = re.compile(
     re.DOTALL,
 )
 
-# Casa um bloco <ports>...</ports> OU <ports/> (self-closing) dentro do
-# logic_element. Tambem non-greedy: `<ports>` nao aninha.
+# Matches a <ports>...</ports> block OR <ports/> (self-closing) inside the
+# logic_element. Also non-greedy: `<ports>` does not nest.
 _PORTS_BLOCK_RE = re.compile(
     rb'<ports\s*/>|<ports\b[^>]*>.*?</ports>',
     re.DOTALL,
 )
 
-# Dentro de um <ports>...</ports>, casa o comment do <port index="N"> (N
-# vira por substituicao do {idx}). Dois formatos de comment no GLE:
-#   <comment />                  (self-closing, vazio)
-#   <comment>TEXT</comment>      (com ou sem texto)
-# group(1) = abertura do port + abertura do <comment;
-# group(2) = corpo do comment;
-# group(3) = fechamento do port.
+# Inside a <ports>...</ports>, matches the comment of <port index="N"> (N
+# arrives by substituting {idx}). Two comment shapes in the GLE:
+#   <comment />                  (self-closing, empty)
+#   <comment>TEXT</comment>      (with or without text)
+# group(1) = the port opening + the opening of <comment;
+# group(2) = the comment body;
+# group(3) = the port closing.
 def _port_by_index_re(idx: int) -> re.Pattern[bytes]:
     pat = (
         rb'(<port\s+index="' + str(int(idx)).encode("ascii") + rb'"[^>]*>\s*<comment)'
@@ -200,14 +201,14 @@ def _port_by_index_re(idx: int) -> re.Pattern[bytes]:
 
 
 def _xml_text_escape(s: str) -> str:
-    """Escapa caracteres especiais para conteudo de texto XML."""
+    """Escape special characters for XML text content."""
     return (s.replace("&", "&amp;")
              .replace("<", "&lt;")
              .replace(">", "&gt;"))
 
 
 def _build_comment_node(new_comment: str) -> bytes:
-    """Monta o novo no <comment...> em bytes latin-1.
+    """Build the new <comment...> node as latin-1 bytes.
     Empty -> self-closing ` />`; non-empty -> `>TEXT</comment>`.
     """
     if not new_comment:
@@ -219,9 +220,9 @@ def _build_comment_node(new_comment: str) -> bytes:
 def _set_port_comment(
     ports_block: bytes, port_index: int, new_comment: str,
 ) -> tuple[bytes, bool]:
-    """Em um <ports>...</ports>, substitui o comment de <port index=port_index>.
-    Retorna (novos_bytes, foi_atualizado). False se o bloco for self-closing
-    (sem porta) ou nao tiver uma porta com aquele index."""
+    """In a <ports>...</ports>, replace the <port index=port_index> comment.
+    Returns (new_bytes, was_updated). False when the block is self-closing
+    (no port) or has no port with that index."""
     replacement = _build_comment_node(new_comment)
     pat = _port_by_index_re(port_index)
 
@@ -239,17 +240,17 @@ PortUpdates = dict[str, dict[tuple[str, int], str]]
 def update_port_comments_in_gle_bytes(
     raw: bytes, updates: PortUpdates,
 ) -> tuple[bytes, dict]:
-    """Atualiza comments de portas especificas por (element_id, side, port_index)
-    em um GLE.
+    """Update the comments of specific ports by (element_id, side,
+    port_index) in a GLE.
 
     `updates`: { element_id -> { (side, port_index) -> new_comment } }.
-    `side` ∈ {"input","output"}. String vazia = forca <comment /> self-closing.
+    `side` ∈ {"input","output"}. Empty string = force <comment /> self-closing.
 
-    Retorna (novos_bytes, stats). stats tem chaves:
-      - elements_touched: # de elements que tiveram pelo menos uma porta tocada
-      - ports_updated:    # total de port-comments substituidos
-      - ports_skipped:    pedidos de update que nao acharam a porta esperada
-      - elements_missing: ids em `updates` que nao foram encontrados no GLE
+    Returns (new_bytes, stats). stats has the keys:
+      - elements_touched: # of elements with at least one port touched
+      - ports_updated:    # total of port-comments replaced
+      - ports_skipped:    update requests that did not find the expected port
+      - elements_missing: ids in `updates` that were not found in the GLE
     """
     stats = {"elements_touched": 0, "ports_updated": 0,
              "ports_skipped": 0, "elements_missing": 0}
@@ -265,9 +266,9 @@ def update_port_comments_in_gle_bytes(
         body = m.group("body")
         tail = m.group("close")
 
-        # Localiza os <ports>...</ports> blocos (no maximo 2: input e output).
+        # Locate the <ports>...</ports> blocks (at most 2: input and output).
         port_matches = list(_PORTS_BLOCK_RE.finditer(body))
-        # Agrupa updates por side pra processar block-by-block.
+        # Group updates by side to process them block-by-block.
         by_side: dict[str, dict[int, str]] = {"input": {}, "output": {}}
         for (side, idx), new_cmt in upd.items():
             if side in by_side:
@@ -295,7 +296,7 @@ def update_port_comments_in_gle_bytes(
             last_end = pm.end()
         out_parts.append(body[last_end:])
 
-        # Updates direcionadas a um side cujo <ports> nao existe -> skipped.
+        # Updates aimed at a side whose <ports> does not exist -> skipped.
         for i in range(len(port_matches), 2):
             side = "input" if i == 0 else "output"
             stats["ports_skipped"] += len(by_side.get(side, {}))
@@ -310,7 +311,7 @@ def update_port_comments_in_gle_bytes(
 
 
 # -----------------------------------------------------------------------------
-# Fit XML to a target byte size (mesmo padrao do vb_updater)
+# Fit XML to a target byte size (same pattern as the vb_updater)
 # -----------------------------------------------------------------------------
 # Excel I/O
 # -----------------------------------------------------------------------------
@@ -318,18 +319,18 @@ def update_port_comments_in_gle_bytes(
 def build_xlsx_for_selections(
     selections: list[dict],
 ) -> bytes:
-    """Gera um .xlsx (bytes) com uma aba por selecao.
+    """Build an .xlsx (bytes) with one sheet per selection.
 
-    Cada `selection` eh um dict {relay, gle, gle_path, relay_model}. A aba
-    contem:
+    Each `selection` is a dict {relay, gle, gle_path, relay_model}. The sheet
+    holds:
       A1: "Relay:"      B1: <relay_name>
       A2: "GLE:"        B2: <gle_name>
-      Linha 3: branco
-      Linha 4: cabecalhos [Page, Element ID, Type, Variable, Side, Port, Label, Comment]
-      Linha 5+: uma linha por porta de cada elemento exportavel.
+      Row 3: blank
+      Row 4: headers [Page, Element ID, Type, Variable, Side, Port, Label, Comment]
+      Row 5+: one row per port of each exportable element.
 
-    `relay_model` (opcional) habilita os rotulos fixos das portas (S/R/Q/...);
-    sem ele, a coluna Label fica vazia mas a tabela continua valida.
+    `relay_model` (optional) enables the fixed port labels (S/R/Q/...);
+    without it the Label column stays empty but the table is still valid.
     """
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Font, PatternFill
@@ -376,7 +377,7 @@ def build_xlsx_for_selections(
             ws.cell(row=i, column=_COL_LABEL, value=p.label)
             ws.cell(row=i, column=_COL_CMT,   value=p.comment)
 
-        # Larguras: dimensiona aproximadamente pra exibir sem cortar.
+        # Widths: sized roughly so nothing shows up cut off.
         widths = {
             _COL_PAGE: 28, _COL_EID: 10, _COL_TYPE: 12, _COL_VAR: 18,
             _COL_SIDE: 8,  _COL_PORT: 6, _COL_LABEL: 10, _COL_CMT: 60,
@@ -393,23 +394,23 @@ def build_xlsx_for_selections(
     return buf.getvalue()
 
 
-# Tipo retornado pelo parser do xlsx:
+# Type returned by the xlsx parser:
 #   {(relay, gle) -> {element_id -> {(side, port_index) -> new_comment}}}
 XlsxUpdates = dict[tuple[str, str], PortUpdates]
 
 
 def parse_xlsx_to_updates(xlsx_bytes: bytes) -> XlsxUpdates:
-    """Le um xlsx gerado por `build_xlsx_for_selections` (possivelmente editado)
-    e retorna a estrutura de updates port-a-port.
+    """Read an xlsx built by `build_xlsx_for_selections` (possibly edited)
+    and return the port-by-port updates structure.
 
-    Regras:
-      - Aba precisa ter A1='Relay:' e A2='GLE:' (marcadores). Outras abas
-        sao silenciosamente ignoradas.
-      - Linhas com Element ID vazio ou Side desconhecido sao puladas.
-      - Se a celula Comment for None (cell apagada/nunca preenchida no export
-        original), NAO entra em updates -> nao toca a porta.
-      - Comment "" explicito = pedido pra zerar o comment (vira <comment />).
-      - Side eh normalizado pra "input"/"output" (aceita case insensitive).
+    Rules:
+      - A sheet must have A1='Relay:' and A2='GLE:' (the markers). Other
+        sheets are silently ignored.
+      - Rows with an empty Element ID or an unknown Side are skipped.
+      - If the Comment cell is None (cell erased/never filled in the
+        original export), it does NOT enter updates -> the port is untouched.
+      - An explicit "" Comment = a request to clear it (becomes <comment />).
+      - Side is normalised to "input"/"output" (case insensitive).
     """
     from openpyxl import load_workbook
 
@@ -456,7 +457,7 @@ def parse_xlsx_to_updates(xlsx_bytes: bytes) -> XlsxUpdates:
                 except (TypeError, ValueError):
                     continue
                 if cmt is None:
-                    continue  # cell vazia (nao editada) -> nao tocar
+                    continue  # empty cell (not edited) -> do not touch
                 entry = per_gle.setdefault(eid_str, {})
                 entry[(side, port_idx)] = str(cmt).strip()
     finally:
@@ -467,7 +468,7 @@ def parse_xlsx_to_updates(xlsx_bytes: bytes) -> XlsxUpdates:
 def diff_updates_against_gle(
     gle_path: Path, updates: PortUpdates, relay_model=None,
 ) -> PortUpdates:
-    """Filtra updates removendo (side, port_index) ja iguais ao GLE atual."""
+    """Filter updates, dropping (side, port_index) already equal in the GLE."""
     if not updates:
         return {}
     current: dict[str, dict[tuple[str, int], str]] = {}
@@ -477,8 +478,8 @@ def diff_updates_against_gle(
     out: PortUpdates = {}
     for eid, ports in updates.items():
         if eid not in current:
-            # element_id nao existe no GLE atual -- mantem pra contabilizar
-            # como missing no writer.
+            # element_id does not exist in the current GLE -- kept so the
+            # writer can count it as missing.
             out[eid] = dict(ports)
             continue
         cur = current[eid]
@@ -492,7 +493,7 @@ def diff_updates_against_gle(
 
 
 # -----------------------------------------------------------------------------
-# Orquestrador: aplica edits do xlsx ao RDB e gera novo RDB
+# Orchestrator: applies the xlsx edits to the RDB and produces a new RDB
 # -----------------------------------------------------------------------------
 
 def apply_xlsx_updates_to_rdb(
@@ -502,29 +503,30 @@ def apply_xlsx_updates_to_rdb(
     output_path: Path,
     job=None,
 ) -> dict:
-    """Aplica as alteracoes do xlsx ao RDB e gera `output_path`.
+    """Apply the xlsx changes to the RDB and produce `output_path`.
 
     `xlsx_updates`: (relay, gle) -> {element_id: {(side, port_idx): comment}}.
 
-    Duas passadas, e a ordem importa. A PRIMEIRA so le: resolve cada
-    (rele, GLE) pro seu stream no OLE e calcula os bytes novos, sem tocar em
-    disco. So se TODAS derem certo a segunda passada grava, de uma vez, via
-    `rdb_write.write_streams` -- que usa `write_stream` quando cada stream
-    mantem o tamanho e reconstroi o container quando nao mantem, sempre
-    atomicamente sobre o destino.
+    Two passes, and the order matters. The FIRST one only reads: it resolves
+    each (relay, GLE) to its stream in the OLE and computes the new bytes,
+    without touching disk. Only if ALL of them succeed does the second pass
+    write, in one go, via `rdb_write.write_streams` -- which uses
+    `write_stream` when every stream keeps its size and rebuilds the
+    container when one does not, always atomically onto the destination.
 
-    E' tudo-ou-nada de proposito. Antes, cada selecao era gravada no RDB de
-    saida assim que ficava pronta: se a terceira falhava, as duas primeiras ja
-    estavam no arquivo, a resposta ainda dizia `ok: True`, e esse RDB
-    meio-aplicado ia pro acervo do projeto igual a um completo. Um arquivo de
-    ajustes pela metade e' indistinguivel de um inteiro depois que sai daqui.
+    It is all-or-nothing on purpose. Before, each selection was written into
+    the output RDB as soon as it was ready: if the third failed, the first
+    two were already in the file, the response still said `ok: True`, and
+    that half-applied RDB went into the project library just like a complete
+    one. A half-written settings file is indistinguishable from a whole one
+    once it leaves here.
 
-    Retorna {ok, output_path, results, succeeded, failed, totals, method}.
-    Com `ok: False`, NENHUM arquivo foi escrito e `output_path` nao existe.
+    Returns {ok, output_path, results, succeeded, failed, totals, method}.
+    With `ok: False`, NO file was written and `output_path` does not exist.
     """
     from selfiles.models import relay_models as _rm
 
-    # Cache do RelayModel por nome (resolve so uma vez por relay).
+    # RelayModel cache by name (resolved only once per relay).
     model_cache: dict[str, object] = {}
     def _model_for(relay_name: str):
         if relay_name in model_cache:
@@ -541,7 +543,7 @@ def apply_xlsx_updates_to_rdb(
               "ports_skipped": 0, "elements_missing": 0}
     streams: dict[tuple[str, ...], bytes] = {}
 
-    # -- passada 1: so leitura ------------------------------------------------
+    # -- pass 1: read only ----------------------------------------------------
     if job:
         job.stage("Conferindo os GLEs alterados", 10)
     for (relay, gle), elem_updates in xlsx_updates.items():
@@ -553,7 +555,7 @@ def apply_xlsx_updates_to_rdb(
             results.append(entry)
             continue
 
-        # Filtra updates que ja batem com o conteudo atual.
+        # Filter out updates that already match the current content.
         delta = diff_updates_against_gle(
             gle_entry.fs_path, elem_updates,
             relay_model=_model_for(relay),
@@ -574,8 +576,8 @@ def apply_xlsx_updates_to_rdb(
             results.append(entry)
             continue
 
-        # A leitura vem do arquivo EXTRAIDO, nao do OLE: e' o mesmo conteudo,
-        # e assim a passada 1 nao abre o RDB nenhuma vez.
+        # The read comes from the EXTRACTED file, not from the OLE: it is
+        # the same content, and this way pass 1 never opens the RDB.
         original = gle_entry.fs_path.read_bytes()
         updated, stats = update_port_comments_in_gle_bytes(original, delta)
         streams[tuple(stream_parts)] = updated
@@ -599,16 +601,16 @@ def apply_xlsx_updates_to_rdb(
             "totals": totals,
         }
 
-    # -- passada 2: uma gravacao ---------------------------------------------
+    # -- pass 2: one write ---------------------------------------------------
     output_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         if streams:
             method = rdb_write.write_streams(rdb_info.rdb_path, output_path,
                                              streams, job=job)
         else:
-            # Todas as selecoes eram no-op. O usuario ainda recebe o RDB (era
-            # o que acontecia antes, quando a copia vinha primeiro), so que
-            # sem nenhum stream reescrito.
+            # Every selection was a no-op. The user still gets the RDB
+            # (which is what happened before, when the copy came first),
+            # only with no stream rewritten.
             rdb_write.copy_only(rdb_info.rdb_path, output_path)
             method = "copy"
     except rdb_write.RdbWriteError as e:
@@ -633,7 +635,7 @@ def apply_xlsx_updates_to_rdb(
 
 
 # -----------------------------------------------------------------------------
-# Estado da sessao
+# Session state
 # -----------------------------------------------------------------------------
 
 @dataclass
@@ -670,7 +672,7 @@ def _state_payload(st: _SessionState) -> dict:
 
 LANDING_HTML = load_template("landing.html")
 
-# A navegacao numerada e' a mesma das nove telas -- mora em theme.py.
+# The numbered navigation is the same on the nine screens -- lives in theme.py.
 
 
 # -----------------------------------------------------------------------------
@@ -678,11 +680,12 @@ LANDING_HTML = load_template("landing.html")
 # -----------------------------------------------------------------------------
 
 def build_gle_exporter_handler(logger: logging.Logger, sessions) -> type:
-    """Devolve a classe de handler do GLE Variable Comment Exporter.
+    """Return the GLE Variable Comment Exporter handler class.
 
-    Nao sobe servidor: quem serve e' o dispatcher unico de `pacct.web.mount`,
-    que monta esse handler em `/gle-exporter/`. Estado e arquivos ficam por
-    sessao (`self.sess()` / `self.sdir()`), nao por processo.
+    Opens no server: serving is done by the single dispatcher of
+    `pacct.web.mount`, which mounts this handler at `/gle-exporter/`. State
+    and files are per session (`self.sess()` / `self.sdir()`), not per
+    process.
     """
 
     class Handler(SessionHandler):
@@ -710,9 +713,9 @@ def build_gle_exporter_handler(logger: logging.Logger, sessions) -> type:
                     self._send(400, "missing 'file' param", "text/plain")
                     return
                 target = Path(file_param).resolve()
-                # `rdbs` saiu: os uploads agora vao pro cache por conteudo,
-                # que e' compartilhado -- deixa-lo entrar no sandbox daria a um
-                # visitante o arquivo derivado gerado por outro.
+                # `rdbs` is gone: uploads now go to the content cache,
+                # which is shared -- letting it into the sandbox would hand
+                # one visitor the derived file generated by another.
                 if not is_within(target, (self.sdir("out"), self.sdir("xlsx"))):
                     self._send(403, "path outside allowed roots", "text/plain")
                     return
@@ -748,8 +751,9 @@ def build_gle_exporter_handler(logger: logging.Logger, sessions) -> type:
                 length = 0
 
             if path == "/select-rdb":
-                # O corpo do antigo /rdb-upload, do `process_upload` pra
-                # frente: o arquivo ja foi recebido e extraido em /files/.
+                # The body of the old /rdb-upload, from `process_upload`
+                # onward: the file was already received and extracted in
+                # /files/.
                 body = self._read_json_body()
                 sha = (body.get("sha256") or "").strip()
                 lib = filelib.library_for(sessions, self.session)
@@ -835,7 +839,7 @@ def build_gle_exporter_handler(logger: logging.Logger, sessions) -> type:
                 except OSError as e:
                     self._send_json(500, {"error": f"falha ao salvar xlsx: {e}"})
                     return
-                # Conta portas exportadas pra mostrar no resumo.
+                # Count the exported ports to show in the summary.
                 total_ports = 0
                 for sel in resolved:
                     total_ports += len(extract_port_instances_from_gle(
@@ -845,10 +849,10 @@ def build_gle_exporter_handler(logger: logging.Logger, sessions) -> type:
                     "[gle-exporter] export: %d aba(s), %d porta(s) -> %s",
                     len(resolved), total_ports, out_name,
                 )
-                # A planilha tambem entra no acervo: nenhuma ferramenta a
-                # seleciona (ninguem pede `?kind=xlsx`), mas assim ela pode
-                # ser rebaixada depois de um lugar so, em vez de so da aba que
-                # por acaso a gerou.
+                # The spreadsheet enters the library too: no tool selects
+                # it (nobody asks for `?kind=xlsx`), but this way it can be
+                # downloaded again later from one single place, instead of
+                # only from the tab that happened to generate it.
                 project = self.publish_output(out_path, "GLE Exporter",
                                               job=job, logger=logger)
                 job.finish("Planilha gerada")
@@ -892,8 +896,8 @@ def build_gle_exporter_handler(logger: logging.Logger, sessions) -> type:
                                  "(verifique A1='Relay:' e A2='GLE:' em cada aba)",
                     })
                     return
-                # O RDB de origem mora no cache por conteudo, que e'
-                # compartilhado; a saida derivada e' desta sessao.
+                # The source RDB lives in the content cache, which is
+                # shared; the derived output belongs to this session.
                 out_path = self.sdir("out") / _with_suffix_before_ext(
                     Path(rdb.display_name), "_gle_comments_updated",
                 ).name
@@ -907,16 +911,16 @@ def build_gle_exporter_handler(logger: logging.Logger, sessions) -> type:
                     self._send_json(500, {"error": str(e)})
                     return
                 if not result.get("ok"):
-                    # Tudo-ou-nada: nenhuma selecao foi gravada, entao nao ha
-                    # arquivo pra baixar nem pra publicar no acervo.
+                    # All-or-nothing: no selection was written, so there
+                    # is no file to download nor to publish into the library.
                     msg = result.get("error") or "Falha ao aplicar as alterações."
                     job.fail(msg)
                     logger.warning("[gle-exporter] import abortado: %s", msg)
                     self._send_json(400, result)
                     return
                 out_abs = Path(result["output_path"]).resolve()
-                # O RDB com os comentarios aplicados e' entrada da proxima
-                # ferramenta: entra no acervo do projeto, ja extraido.
+                # The RDB with the comments applied is the next tool's
+                # input: it enters the project library, already extracted.
                 result["project_file"] = self.publish_output(
                     out_abs, "GLE Exporter", job=job, logger=logger)
                 job.finish("RDB atualizado")

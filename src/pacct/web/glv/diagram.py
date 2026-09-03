@@ -1,13 +1,13 @@
-"""Um diagrama aberto: um GLE renderizado que pode ou nao estar conectado.
+"""One open diagram: a rendered GLE that may or may not be connected.
 
-E' o que antes eram os atributos de CLASSE do `DashboardHandler` -- um
-diagrama por processo. Agora sao N, cada um com o seu par (GLE + rele).
+It is what used to be the CLASS attributes of `DashboardHandler` -- one
+diagram per process. Now there are N, each with its own pair (GLE + relay).
 
-Um diagrama nasce desconectado: `build_diagram()` nao toca na rede. Conectar
-e' `connect_async()`, que dispara uma thread porque a descoberta de bits do
-`AsciiTargetReader` num FID sem cache leva minutos e nao pode segurar a
-resposta HTTP. Falha de conexao NAO derruba o diagrama: ele continua aberto e
-desconectado, com o motivo no badge.
+A diagram is born disconnected: `build_diagram()` never touches the network.
+Connecting is `connect_async()`, which fires a thread because the bit
+discovery of the `AsciiTargetReader` on an uncached FID takes minutes and
+cannot hold the HTTP response. A failed connection does NOT bring the diagram
+down: it stays open and disconnected, with the reason on the badge.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ from pacct.web.glv.state import LiveState
 from pacct.web.glv.transport import SCAN_MMS, SCAN_TELNET, pick_transport
 from pacct.web.progress import REGISTRY, JobReporter
 
-# Status de um diagrama, o que a bolinha da aba mostra.
+# Status of a diagram, what the dot on the tab shows.
 IDLE = "idle"
 CONNECTING = "connecting"
 LIVE = "live"
@@ -39,7 +39,7 @@ ERROR = "error"
 
 
 class GlvDiagram:
-    """Um GLE renderizado + notas + (talvez) um RelayLink."""
+    """A rendered GLE + notes + (maybe) a RelayLink."""
 
     def __init__(self, diagram_id: str, *, relay_name: str, gle_name: str,
                  gle_path, ip: str, port: int, relay_model, logger,
@@ -54,27 +54,28 @@ class GlvDiagram:
         self.relay_model = relay_model
         self.logger = logger
         self.title = f"{relay_name} · {gle_name}"
-        # Modo de leitura escolhido na tela de selecao, por diagrama -- e' o
-        # que permite comparar telnet e MMS lado a lado no mesmo rele. `scd_sha`
-        # e' o que o cliente mandou; `scd_path` (resolvido pelo handler, que
-        # tem a sessao e a biblioteca do projeto na mao -- este objeto nao
-        # tem) e' o caminho de verdade que o transporte MMS usa pra ler o SCD.
+        # Read mode chosen on the selection screen, per diagram -- it is what
+        # allows telnet and MMS to be compared side by side on the same relay.
+        # `scd_sha` is what the client sent; `scd_path` (resolved by the
+        # handler, which has the session and the project library in hand --
+        # this object does not) is the real path the MMS transport reads the
+        # SCD from.
         self.scan_mode = scan_mode
         self.scd_sha = scd_sha
         self.scd_path = scd_path
-        # Override explicito de periodo, pedido via `/period`. Guardado
-        # independente do link estar vivo: e' o que faz um pedido feito
-        # "conectando" (ou ja desconectado) valer no proximo connect() em vez
-        # de ser descartado em silencio -- `_poll_interval` le isto primeiro.
+        # Explicit period override, asked for through `/period`. Kept whether
+        # or not the link is alive: it is what makes a request issued while
+        # "conectando" (or already disconnected) count on the next connect()
+        # instead of being dropped silently -- `_poll_interval` reads it first.
         self._interval_ms: int | None = None
 
         self.pages_meta: list = []
-        # A pagina que este diagrama esta mostrando. Mora AQUI e nao no
-        # navegador porque a lista de diagramas ja e' do servidor: trocar de
-        # aba busca `/meta?d=` e re-renderiza, e sem isto `meta()` devolvia
-        # sempre a pagina inicial -- quem estava na pagina 7 de um GLE de 12
-        # voltava pra primeira a cada ida e volta entre dois reles. Guardado
-        # por diagrama, entao vale tambem depois de um F5.
+        # The page this diagram is showing. It lives HERE and not in the
+        # browser because the diagram list is already the server's: switching
+        # tabs fetches `/meta?d=` and re-renders, and without this `meta()`
+        # always returned the initial page -- whoever was on page 7 of a
+        # 12-page GLE came back to the first one on every trip between two
+        # relays. Kept per diagram, so it holds after an F5 as well.
         self.open_page: str = ""
         self.svgs: dict = {}
         self.bits_per_page: dict = {}
@@ -82,73 +83,74 @@ class GlvDiagram:
         self.analog_groups_meta: dict = {}
         self.var_index: dict = {}
         self.all_wanted_bits: set = set()
-        # As redes de conector do GLE inteiro (`label -> ConnectorNet`). Um
-        # conector nao e' uma aresta no XML: e' um NOME que duas pontas
-        # compartilham, e sem isto o sinal morre nele. Ver `connectors.py`.
+        # The connector networks of the whole GLE (`label -> ConnectorNet`).
+        # A connector is not an edge in the XML: it is a NAME that two ends
+        # share, and without this the signal dies on it. See `connectors.py`.
         self.connectors: dict = {}
 
         self.notes = NOTES.get(note_key(relay_name))
-        # O que se ve desconectado: vazio, ou com o motivo da ultima falha.
+        # What you see disconnected: empty, or the reason of the last failure.
         self.idle = LiveState()
         self.link = None
         self.status = IDLE
         self.error = ""
-        # Um job por diagrama. Antes era um id fixo ("glv-session"), com o
-        # comentario "existe uma sessao GLV so".
+        # One job per diagram. It used to be a fixed id ("glv-session"), with
+        # the comment "there is only one GLV session".
         self.job_id = f"glv-connect-{diagram_id}"
         self._lock = threading.RLock()
-        # Geracao da tentativa de conexao. Desconectar ou fechar incrementa,
-        # o que invalida a tentativa que estiver em voo: sem isso, fechar o
-        # diagrama enquanto ele conecta deixaria a thread terminar e prender
-        # a conexao pra sempre -- o `self.link` ainda e' None nessa janela,
-        # entao `disconnect()` nao tem o que soltar.
+        # Generation of the connection attempt. Disconnecting or closing
+        # increments it, which invalidates whichever attempt is in flight:
+        # without it, closing the diagram while it connects would let the
+        # thread finish and hold the connection forever -- `self.link` is
+        # still None in that window, so `disconnect()` has nothing to release.
         self._gen = 0
 
-    # -- estado exibido -----------------------------------------------------
+    # -- displayed state ----------------------------------------------------
 
     @property
     def state(self) -> LiveState:
-        """O LiveState que a tela deve mostrar.
+        """The LiveState the screen should show.
 
-        Conectado, e' o do RelayLink (compartilhado com os outros diagramas do
-        mesmo rele). Desconectado, e' o `idle`, que esta vazio -- e' assim que
-        desconectar devolve tudo a indeterminado sem limpar dicionario nenhum.
+        Connected, it is the RelayLink's (shared with the other diagrams on
+        the same relay). Disconnected, it is `idle`, which is empty -- that is
+        how disconnecting puts everything back to indeterminate without
+        clearing a single dictionary.
         """
         link = self.link
         return link.state if link is not None else self.idle
 
     @property
     def connected(self) -> bool:
-        """Ha' link E ele ainda esta lendo.
+        """There IS a link AND it is still reading.
 
-        As duas metades importam. Um link que DESISTIU (a leitura terminou
-        sozinha -- uma associacao MMS caida nao volta por conta propria -- e o
-        `_poll_gave_up` marcou o link como nao-conectado) continua pendurado
-        aqui, porque solta-lo e' com o pool e o pool esta com quem tem o
-        `pool` em maos. Enquanto isto respondia so' `self.link is not None`, a
-        aba seguia LIVE com "Desconectar" depois do erro, e a unica saida era
-        desconectar antes de reconectar.
+        Both halves matter. A link that GAVE UP (the reading ended on its own
+        -- a dropped MMS association does not come back by itself -- and
+        `_poll_gave_up` marked the link as not connected) is still hanging
+        here, because releasing it is the pool's business and the pool is with
+        whoever holds `pool`. While this answered just `self.link is not
+        None`, the tab stayed LIVE with "Desconectar" after the error, and the
+        only way out was to disconnect before reconnecting.
         """
         link = self.link
         return link is not None and link.connected
 
-    # -- conexao ------------------------------------------------------------
+    # -- connection ---------------------------------------------------------
 
     def connect_async(self, pool, defaults) -> str:
-        """Dispara a conexao numa thread e devolve o id do job.
+        """Fires the connection on a thread and returns the job id.
 
-        Nao pode bloquear a resposta: num FID sem cache o AsciiTargetReader
-        leva minutos montando o mapa nome -> (linha, bit). Quem acompanha e' a
-        barra de progresso, pelo job `glv-connect-<id>`.
+        It cannot block the response: on an uncached FID the AsciiTargetReader
+        takes minutes building the name -> (row, bit) map. What follows it is
+        the progress bar, through the job `glv-connect-<id>`.
         """
         dead = None
         with self._lock:
             link = self.link
             if link is not None and not link.connected:
-                # Um link que desistiu nao pode barrar a reconexao: ele nao
-                # esta lendo nada. Sem isto o botao dizia "Conectar" (porque
-                # `connected` ja fala a verdade) e nao fazia nada, e o usuario
-                # tinha que passar por Desconectar pra voltar.
+                # A link that gave up cannot block a reconnection: it is not
+                # reading anything. Without this the button said "Conectar"
+                # (because `connected` already tells the truth) and did
+                # nothing, and the user had to go through Desconectar first.
                 dead, self.link = link, None
             elif link is not None or self.status == CONNECTING:
                 return self.job_id
@@ -158,7 +160,7 @@ class GlvDiagram:
             self._gen += 1
             gen = self._gen
         if dead is not None:
-            # Fora do `_lock`: `release` pode fechar o link.
+            # Outside `_lock`: `release` may close the link.
             pool.release(dead, self.id)
             self.logger.info("[glv] diagrama %s: link %s tinha desistido; "
                              "soltei antes de reconectar", self.id, dead.key)
@@ -173,11 +175,11 @@ class GlvDiagram:
             return gen != self._gen
 
     def _poll_interval(self, defaults) -> float:
-        """Periodo inicial de polling: o override de `/period` se ja houver
-        um (pedido enquanto o diagrama ainda estava conectando, ou entre duas
-        conexoes -- nao pode ser descartado em silencio), senao o do modo MMS
-        ([web] glv_mms_interval_ms) pra um diagrama em MMS, senao o do telnet
-        de sempre."""
+        """Initial polling period: the `/period` override if there already is
+        one (asked for while the diagram was still connecting, or between two
+        connections -- it must not be dropped silently), otherwise the MMS
+        mode's ([web] glv_mms_interval_ms) for a diagram on MMS, otherwise the
+        usual telnet one."""
         if self._interval_ms is not None:
             return self._interval_ms / 1000
         if self.scan_mode == SCAN_MMS:
@@ -185,10 +187,10 @@ class GlvDiagram:
         return defaults.poll_interval
 
     def _make_transport(self, *, ip, port, acc_password, relay_model, logger):
-        """Fabrica que o `LinkPool` chama em `connect()`: o modo escolhido na
-        tela de selecao DESTE diagrama, e nao um default do processo -- e' o
-        que faz o mesmo rele poder ser observado por telnet e por MMS ao
-        mesmo tempo, em abas diferentes."""
+        """The factory `LinkPool` calls in `connect()`: the mode chosen on
+        THIS diagram's selection screen, and not a process-wide default -- it
+        is what lets the same relay be watched over telnet and over MMS at
+        the same time, in different tabs."""
         return pick_transport(self.scan_mode, ip=ip, port=port,
                               acc_password=acc_password,
                               relay_model=relay_model, logger=logger,
@@ -212,13 +214,13 @@ class GlvDiagram:
                                    job=job,
                                    setup_timeout=defaults.setup_timeout)
             else:
-                # Outro diagrama ja abriu (ou esta abrindo) este rele.
+                # Another diagram already opened (or is opening) this relay.
                 job.stage("Entrando na conexão existente...", 40)
-            # Esperar em `ready` (e nao chamar connect direto) e' o que permite
-            # desconectar ou fechar no meio: esta thread nunca fica presa
-            # dentro do selprotopy. A espera nao tem prazo porque a descoberta
-            # de bits num FID sem cache leva minutos de propria vontade -- quem
-            # tem prazo e' o setup, pelo watchdog do link.
+            # Waiting on `ready` (instead of calling connect directly) is what
+            # allows disconnecting or closing halfway: this thread never gets
+            # stuck inside selprotopy. The wait has no deadline because bit
+            # discovery on an uncached FID takes minutes of its own accord --
+            # what has a deadline is the setup, through the link's watchdog.
             while not link.ready.wait(timeout=2.0):
                 if self._cancelled(gen):
                     self._abandon(link, pool, job)
@@ -234,11 +236,11 @@ class GlvDiagram:
                 return
             job.stage("Localizando bits do diagrama...", 70)
             link.ensure_bits(self.all_wanted_bits, job=job)
-            # A descoberta leva minutos num FID sem cache: olha de novo.
+            # Discovery takes minutes on an uncached FID: look again.
             if self._cancelled(gen):
                 self._abandon(link, pool, job)
                 return
-            # Primeira conexao: adota o que ficou gravado pelo DEVID.
+            # First connection: adopt whatever was written under the DEVID.
             self.notes.adopt_devid(link.devid, self.logger)
             with self._lock:
                 if gen != self._gen:
@@ -251,13 +253,13 @@ class GlvDiagram:
             job.finish(f"Conectado ({link.fid or link.key})")
             self.logger.info("[glv] diagrama %s ao vivo em %s (modo %s)",
                              self.id, link.key, link.mode)
-        except Exception as e:      # nunca derruba a thread nem o diagrama
+        except Exception as e:      # never takes the thread or diagram down
             if link is not None:
                 pool.release(link, self.id)
             self._fail(f"falha ao conectar: {e}", job, gen)
 
     def _abandon(self, link, pool, job) -> None:
-        """O usuario desconectou ou fechou enquanto isto conectava."""
+        """The user disconnected or closed while this was connecting."""
         pool.release(link, self.id)
         job.finish("Conexão cancelada")
         REGISTRY.drop(self.job_id)
@@ -267,31 +269,31 @@ class GlvDiagram:
     def _fail(self, reason: str, job=None, gen: int | None = None) -> None:
         with self._lock:
             if gen is not None and gen != self._gen:
-                # Ja desconectaram: nao pinta de vermelho um diagrama que o
-                # usuario deixou em repouso de proposito.
+                # Already disconnected: do not paint red a diagram the user
+                # deliberately left at rest.
                 self.logger.info("[glv] diagrama %s: %s (ignorado, tentativa "
                                  "abandonada)", self.id, reason)
                 return
             self.link = None
             self.status = ERROR
             self.error = reason
-            # O badge le values.error e pinta vermelho com prefixo "ERRO:".
+            # The badge reads values.error and paints it red, prefix "ERRO:".
             self.idle.error = reason
         if job:
             job.fail(reason)
         self.logger.warning("[glv] diagrama %s: %s", self.id, reason)
 
     def disconnect(self, pool) -> None:
-        """Solta o link e devolve o diagrama a indeterminado."""
+        """Releases the link and puts the diagram back to indeterminate."""
         with self._lock:
             link, self.link = self.link, None
             self.status = IDLE
             self.error = ""
-            # Invalida a tentativa em voo, se houver: e' o que faz a thread de
-            # conexao soltar a referencia em vez de anexa-la a um diagrama que
-            # o usuario ja mandou parar.
+            # Invalidates the attempt in flight, if any: it is what makes the
+            # connection thread release the reference instead of attaching it
+            # to a diagram the user has already told to stop.
             self._gen += 1
-            # A tela nunca pode continuar mostrando a leitura antiga.
+            # The screen can never keep showing the old reading.
             self.idle.clear()
         if link is not None:
             pool.release(link, self.id)
@@ -300,26 +302,26 @@ class GlvDiagram:
         REGISTRY.drop(self.job_id)
 
     def close(self, pool) -> None:
-        """Fecha o diagrama: solta a conexao e larga os SVGs."""
+        """Closes the diagram: releases the connection and drops the SVGs."""
         self.disconnect(pool)
         self.svgs.clear()
         self.logger.info("[glv] diagrama %s fechado", self.id)
 
     def _current_interval_ms(self, defaults=None) -> int:
-        """O periodo em vigor agora, ou o que entraria em vigor no proximo
-        connect(): o do link vivo se houver, senao o ultimo override desta
-        sessao, senao -- quando `defaults` e' passado -- o mesmo calculo de
-        `_poll_interval(defaults)` (o default do modo MMS ou o de telnet de
-        sempre), e so' na ausencia de tudo isso, 0.
+        """The period in force now, or the one that would take effect on the
+        next connect(): the live link's if there is one, otherwise this
+        session's last override, otherwise -- when `defaults` is passed -- the
+        same computation as `_poll_interval(defaults)` (the MMS mode default
+        or the usual telnet one), and only in the absence of all that, 0.
 
-        O `defaults=None` importa: `set_interval_ms` chama isto pra' devolver
-        o periodo numa RECUSA (telnet) sem tocar em nada, e nesse caminho o
-        valor nunca chega na tela (o controle nem existe pra telnet). Ja
-        `tab()`/`meta()` chamam com `defaults` em maos, porque um diagrama
-        MMS ainda sem override nenhum tambem precisa de um numero verdadeiro
-        no campo -- 0 ali seria um placeholder mentindo que nao ha periodo
-        nenhum, quando na verdade ha' um (o default do modo) que vai valer
-        assim que a leitura começar."""
+        The `defaults=None` matters: `set_interval_ms` calls this to return
+        the period on a REFUSAL (telnet) without touching anything, and on
+        that path the value never reaches the screen (the control does not
+        even exist for telnet). `tab()`/`meta()`, on the other hand, call it
+        with `defaults` in hand, because an MMS diagram with no override at
+        all also needs a true number in the field -- a 0 there would be a
+        placeholder lying that there is no period at all, when in fact there
+        is one (the mode default) that will apply as soon as reading starts."""
         link = self.link
         if link is not None:
             return int(round(link.poll_interval * 1000))
@@ -328,34 +330,34 @@ class GlvDiagram:
         return self._interval_ms if self._interval_ms is not None else 0
 
     def set_interval_ms(self, ms: int) -> dict:
-        """Aplica (ou adia, ou recusa) um periodo de polling novo.
+        """Applies (or defers, or refuses) a new polling period.
 
-        A rota e' so' do MMS. No MMS o laco e' uma leitura em lote sincrona
-        por volta e o proprio ciclo faz o ritmo (ver
-        `transport.mms.effective_interval`), entao qualquer periodo pedido --
-        inclusive 0 -- no maximo encosta o laco na velocidade do rele. Os
-        modos telnet nao tem essa garantia escrita nem bancada pra medi-la
-        agora: 4xx e 7xx conversam por Fast Message em varias idas e vindas
-        por volta, e o 3xx trava em 1.5 s dentro do proprio transporte porque
-        um `TAR <linha>` custa ~200 ms NO RELE. Apertar isso as cegas por uma
-        caixa de texto e' o tipo de coisa que so' aparece como rele lento em
-        comissionamento. Por isso um diagrama telnet e' RECUSADO, e devolve o
-        periodo que ja estava em vigor, sem tocar em nada.
+        The route is MMS only. On MMS the loop is one synchronous batched read
+        per turn and the cycle itself sets the pace (see
+        `transport.mms.effective_interval`), so any period asked for --
+        including 0 -- at most pushes the loop up against the relay's speed.
+        The telnet modes have no such guarantee written down, nor a bench to
+        measure it now: 4xx and 7xx talk Fast Message over several round trips
+        per turn, and the 3xx floors at 1.5 s inside its own transport because
+        a `TAR <row>` costs ~200 ms ON THE RELAY. Tightening that blind from a
+        text box is the kind of thing that only shows up as a slow relay
+        during commissioning. So a telnet diagram is REFUSED, and gets back
+        the period that was already in force, with nothing touched.
 
-        As tres respostas possiveis, pro cliente distinguir:
-          "aplicado"  -- havia leitura rodando agora, e ela ja usa o novo
-                         periodo a partir do proximo ciclo.
-          "adiado"    -- MMS, mas sem leitura rodando AGORA (conectando,
-                         desconectado, ou leitura zumbi que ainda nao morreu
-                         -- ver `RelayLink.set_poll_interval`). O valor fica
-                         guardado (`self._interval_ms`) e `_poll_interval`
-                         o usa no proximo connect() ou reinicio; nao e'
-                         descartado em silencio.
-          "recusado"  -- nao e' MMS. Nada mudou.
+        The three possible answers, for the client to tell apart:
+          "aplicado"  -- there was a reading running now, and it already uses
+                         the new period from the next cycle on.
+          "adiado"    -- MMS, but with no reading running NOW (connecting,
+                         disconnected, or a zombie reading that has not died
+                         yet -- see `RelayLink.set_poll_interval`). The value
+                         is kept (`self._interval_ms`) and `_poll_interval`
+                         uses it on the next connect() or restart; it is not
+                         dropped silently.
+          "recusado"  -- not MMS. Nothing changed.
 
-        O unico ajuste feito no valor pedido e' o corte em 0: periodo
-        negativo nao quer dizer nada, e viraria um `sleep` negativo la' na
-        frente.
+        The only adjustment made to the value asked for is the cut at 0: a
+        negative period means nothing, and would become a negative `sleep`
+        further down the line.
         """
         if self.scan_mode != SCAN_MMS:
             return {
@@ -377,25 +379,25 @@ class GlvDiagram:
                      "leitura",
         }
 
-    # -- payloads pro cliente ------------------------------------------------
+    # -- payloads for the client ---------------------------------------------
 
     def tab(self, defaults=None) -> dict:
-        """O que a faixa de abas precisa saber.
+        """What the tab strip needs to know.
 
-        `defaults` e' opcional (default None preserva quem ainda chama sem
-        ele) mas o handler sempre tem um em maos e deve passa-lo: e' o que
-        faz `interval_ms` ser o periodo REAL desta aba -- incluindo o default
-        do modo MMS/telnet quando ainda nao houve nenhum /period nem conexao
-        -- em vez de 0, que mentiria "sem periodo nenhum". Sem isto, trocar
-        de aba entre dois diagramas MMS com periodos diferentes deixava o
-        campo mostrando o valor da aba anterior."""
+        `defaults` is optional (the None default keeps whoever still calls
+        without it) but the handler always has one in hand and should pass it:
+        it is what makes `interval_ms` the REAL period of this tab --
+        including the MMS/telnet mode default when there has been no /period
+        and no connection yet -- instead of 0, which would lie "no period at
+        all". Without it, switching between two MMS diagrams with different
+        periods left the field showing the previous tab's value."""
         link = self.link
         status, error = self.status, self.error
         if link is not None and not link.connected:
-            # A leitura parou sozinha. `self.status` ainda diz LIVE porque
-            # quem descobriu foi a thread de polling, que nao mexe no
-            # diagrama -- entao a traducao acontece aqui, na hora de contar
-            # pra tela, e o motivo vem do link.
+            # The reading stopped on its own. `self.status` still says LIVE
+            # because what found out was the polling thread, which does not
+            # touch the diagram -- so the translation happens here, when
+            # telling the screen, and the reason comes from the link.
             status = ERROR
             error = link.error or "a leitura parou"
         return {
@@ -415,27 +417,28 @@ class GlvDiagram:
         }
 
     def default_page(self) -> str:
-        """A pagina de quem nunca abriu nenhuma: a SEGUNDA, quando existe.
+        """The page for whoever never opened one: the SECOND, when it exists.
 
-        A primeira pagina de um GLE do QuickSet e' capa/indice em quase todo
-        arquivo do corpo; a segunda e' a primeira que tem logica desenhada.
+        The first page of a QuickSet GLE is a cover/index in almost every file
+        of the corpus; the second is the first one with logic drawn on it.
         """
         if len(self.pages_meta) > 1:
             return self.pages_meta[1][1]
         return self.pages_meta[0][1] if self.pages_meta else ""
 
     def remember_page(self, safe_id: str) -> None:
-        """Anota qual pagina o visitante abriu. Uma atribuicao de string, sem
-        `_lock`: nao ha estado composto pra manter coerente aqui."""
+        """Records which page the visitor opened. A string assignment, with no
+        `_lock`: there is no composite state to keep coherent here."""
         if safe_id and safe_id in self.svgs:
             self.open_page = safe_id
 
     def meta(self, defaults=None) -> dict:
-        """Tudo o que a troca de aba precisa pra re-renderizar sem recarregar."""
+        """All a tab switch needs to re-render without reloading the page."""
         d = self.tab(defaults)
-        # A pagina aberta vence a inicial -- e' o que faz a aba voltar onde
-        # estava. Uma pagina anotada que nao existe mais (GLE trocado sob o
-        # mesmo diagrama) cai na inicial em vez de abrir vazia.
+        # The open page beats the initial one -- it is what brings the tab
+        # back where it was. A recorded page that no longer exists (GLE
+        # swapped under the same diagram) falls back to the initial one
+        # instead of opening empty.
         initial = (self.open_page if self.open_page in self.svgs
                    else self.default_page())
         d.update({
@@ -448,38 +451,39 @@ class GlvDiagram:
         return d
 
     def values(self, page: str) -> dict:
-        """Snapshot filtrado pela pagina aberta (era o /values do handler)."""
+        """Snapshot filtered by the open page (was the handler's /values)."""
         snap = self.state.snapshot()
         if page and page in self.bits_per_page:
             wanted = set(self.bits_per_page[page])
-            # Os bits que ACIONAM os conectores desta pagina. A ponta que
-            # emite pode estar numa pagina e o acionamento na outra (medido:
-            # 9 redes do corpus atravessam pagina), e ai nada nesta pagina
-            # pede esses bits -- o conector ficaria indeterminado pra sempre.
-            # Custa <=10 bits por conector (mediana 10, maximo 10 no corpus),
-            # e eles JA estao em `all_wanted_bits`, entao o mapa MMS ja os
-            # cobre: o que faltava era o filtro por pagina os estreitar.
+            # The bits that DRIVE this page's connectors. The emitting end
+            # may be on one page and the drive on another (measured: 9
+            # networks of the corpus cross pages), and then nothing on this
+            # page asks for those bits -- the connector would stay
+            # indeterminate forever. It costs <=10 bits per connector (median
+            # 10, maximum 10 in the corpus), and they are ALREADY in
+            # `all_wanted_bits`, so the MMS map covers them: what was missing
+            # was the per-page filter narrowing them back down.
             page_nets = connectors_on_page(self.connectors, page)
             for net in page_nets.values():
                 wanted |= set(net.bits)
-            # Modo TAR (3xx): diz ao poll o que vale a pena ler. Com dois
-            # diagramas no mesmo rele, o link publica a UNIAO dos dois.
+            # TAR mode (3xx): tells the poll what is worth reading. With two
+            # diagrams on the same relay, the link publishes their UNION.
             link = self.link
             if link is not None:
                 link.set_wanted_bits(self.id, wanted)
             else:
                 self.idle.set_wanted_bits(wanted)
-            # Index case-insensitive dos bits que temos do rele
+            # Case-insensitive index of the bits we have from the relay
             ci_digitals = {k.upper(): v for k, v in snap["digitals"].items()}
-            # Retorna TODOS os bits da pagina: valor 0/1 se conhecido, ou null
-            # (indeterminado) se nao esta no mapa do rele.
+            # Returns ALL the page's bits: value 0/1 when known, or null
+            # (indeterminate) when it is not in the relay's map.
             snap["digitals"] = {
                 bit: ci_digitals.get(bit, None) for bit in sorted(wanted)
             }
             snap["page"] = page
-            # Estrutura, nao valor: quem AVALIA a arvore e' o `evaluatePage`,
-            # com as mesmas primitivas que ja usa pros blocos desenhados.
-            # Avaliar aqui poria NOT/RTRIG/latch em duas linguagens.
+            # Structure, not value: what EVALUATES the tree is `evaluatePage`,
+            # with the same primitives it already uses for the drawn blocks.
+            # Evaluating here would put NOT/RTRIG/latch in two languages.
             snap["connectors"] = {
                 label: {"label": net.label, "equation": net.equation,
                         "tree": net.tree, "bits": sorted(net.bits),
@@ -489,25 +493,27 @@ class GlvDiagram:
             snap["page_bits_total"] = len(wanted)
             snap["page_bits_known"] = sum(
                 1 for v in snap["digitals"].values() if v is not None)
-            # Cobertura da PAGINA aberta. Quem responde e' o transporte, pela
-            # costura -- antes daqui saia um `getattr(link.transport, "_map")`,
-            # que e' o diagrama metendo a mao no privado de um transporte que
-            # ele nem sabe qual e'. O telnet devolve None e o cliente esconde o
-            # badge, em vez de mostrar zero (que soaria como "nada mapeado"
-            # quando o certo e' "nao se aplica").
+            # Coverage of the open PAGE. What answers is the transport,
+            # through the seam -- this used to be a
+            # `getattr(link.transport, "_map")`, which is the diagram reaching
+            # into the private of a transport it does not even know which is.
+            # Telnet returns None and the client hides the badge, instead of
+            # showing zero (which would read as "nothing mapped" when the
+            # right answer is "does not apply").
             transport = getattr(link, "transport", None) if link else None
             snap["coverage"] = (transport.coverage_for(wanted)
                                 if transport is not None else None)
-        # Analogs: se a pagina tiver mapa de analogs (relay_model com
-        # analog_groups configurados), entregamos { NAME: {value, group} },
-        # onde value=null indica "rele nao expoe esse canal" (renderizado como
-        # N/A). Senao deixamos o snap["analogs"] cru pra preservar
-        # compatibilidade com modelos sem analog_groups.
+        # Analogs: if the page has an analog map (a relay_model with
+        # analog_groups configured), we deliver { NAME: {value, group} },
+        # where value=null means "the relay does not expose that channel"
+        # (rendered as N/A). Otherwise we leave snap["analogs"] raw to keep
+        # compatibility with models that have no analog_groups.
         if page and page in self.analogs_per_page:
             wanted_an = self.analogs_per_page[page]
             ci_analogs = {k.upper(): v for k, v in snap["analogs"].items()}
-            # Resolve alias quando o rele expoe o canal sob outro nome no Fast
-            # Meter (ex.: SEL-487E: IAS -> IA1). Sem aliases, e' identidade.
+            # Resolves the alias when the relay exposes the channel under
+            # another name in the Fast Meter (e.g. SEL-487E: IAS -> IA1).
+            # With no aliases, it is the identity.
             resolve = (self.relay_model.resolve_analog_name
                        if self.relay_model is not None else (lambda nm: nm))
             snap["analogs"] = {
@@ -520,18 +526,18 @@ class GlvDiagram:
         return snap
 
     def unreachable(self) -> dict:
-        """As variaveis do DESENHO INTEIRO que esta conexao nao alcanca.
+        """The variables of the WHOLE DRAWING this connection cannot reach.
 
-        Do desenho inteiro, e nao da pagina aberta -- ao contrario da
-        cobertura da faixa de status, que e' por pagina de proposito. Os dois
-        numeros respondem perguntas diferentes: a cobertura diz o quanto do
-        que esta na tela esta vivo, e esta lista existe pra montar o modelo do
-        servidor do IED, onde percorrer pagina por pagina pra juntar os nomes
-        e' justamente o trabalho que ela evita.
+        Of the whole drawing, and not of the open page -- unlike the coverage
+        on the status strip, which is per page on purpose. The two numbers
+        answer different questions: the coverage says how much of what is on
+        screen is live, and this list exists to build the IED's server model,
+        where walking page by page to collect the names is exactly the work it
+        saves.
 
-        `available: False` quando nao da pra saber (desconectado, sem mapa,
-        sem DNA): um `0` numa tela que ninguem conectou leria como "esta tudo
-        no rele".
+        `available: False` when there is no way to know (disconnected, no map,
+        no DNA): a `0` on a screen nobody connected would read as "it is all
+        on the relay".
         """
         total = len(self.all_wanted_bits)
         link = self.link
@@ -547,8 +553,8 @@ class GlvDiagram:
                 "scan_mode": self.scan_mode}
 
     def debug_analogs(self) -> dict:
-        """Nomes/valores crus que o rele expoe via Fast Meter, sem filtro por
-        pagina e sem alias. Use pra batear contra analog_name_aliases."""
+        """Raw names/values the relay exposes over Fast Meter, with no page
+        filter and no alias. Use it to check against analog_name_aliases."""
         raw = self.state.snapshot().get("analogs", {})
         resolved = {}
         if self.relay_model is not None:
@@ -571,9 +577,11 @@ def build_diagram(diagram_id: str, gle_path, relay_name: str, gle_name: str,
                   ip: str, port: int, relay_model, logger, *,
                   scan_mode: str = SCAN_TELNET, scd_sha: str | None = None,
                   scd_path=None) -> GlvDiagram:
-    """Monta um diagrama SEM tocar na rede: parse, render, indices, notas.
+    """Builds a diagram WITHOUT touching the network: parse, render, indexes,
+    notes.
 
-    Roda em ~1 s. Conectar e' outra coisa, e vem depois, quando o usuario pedir.
+    Runs in ~1 s. Connecting is another matter, and comes later, when the user
+    asks for it.
     """
     d = GlvDiagram(diagram_id, relay_name=relay_name, gle_name=gle_name,
                    gle_path=gle_path, ip=ip, port=port,
@@ -593,13 +601,13 @@ def build_diagram(diagram_id: str, gle_path, relay_name: str, gle_name: str,
     d.analogs_per_page = collect_analog_symbols_per_page(gle_root, relay_model)
     gle_bits = collect_bit_names(gle_root, relay_model=relay_model)
 
-    # Coleta TAMBEM os outputs derivados (PLT04, PCT03Q, AST01Q, ...). Os
-    # patterns vem do JSON do modelo:
+    # Collects the derived outputs TOO (PLT04, PCT03Q, AST01Q, ...). The
+    # patterns come from the model JSON:
     #   LATCH (PLT)  -> "PLT{instance:02d}"   -> PLT04
     #   TIMER (PCT)  -> "PCT{instance:02d}Q"  -> PCT03Q
     #   AST          -> "AST{instance:02d}Q"  -> AST01Q
     #   PSV          -> "PSV{instance:02d}"   -> PSV05
-    # Sem modelo carregado, nao geramos bits derivados.
+    # With no model loaded, we generate no derived bits.
     derived_bits: set = set()
     if relay_model is not None:
         for p in gle_root.findall(".//page"):
@@ -618,9 +626,9 @@ def build_diagram(diagram_id: str, gle_path, relay_name: str, gle_name: str,
                     derived_bits.add(bit)
     d.all_wanted_bits = set(b.upper() for b in gle_bits) | derived_bits
 
-    # As redes de conector. Nao acrescentam bit nenhum a `all_wanted_bits`:
-    # o que aciona um conector ja e' desenhado em ALGUMA pagina do GLE, entao
-    # ja esta ali. O que elas mudam e' o filtro por pagina aberta, em
+    # The connector networks. They add no bit at all to `all_wanted_bits`:
+    # what drives a connector is already drawn on SOME page of the GLE, so it
+    # is already there. What they change is the filter by open page, in
     # `values()`.
     d.connectors = extract_connectors(gle_root, relay_model=relay_model)
     if d.connectors:
@@ -632,9 +640,9 @@ def build_diagram(diagram_id: str, gle_path, relay_name: str, gle_name: str,
     if relay_model is not None and relay_model.analog_groups:
         d.analog_groups_meta = {g.key: g.label for g in relay_model.analog_groups}
 
-    # Indice global de variaveis -> paginas, usado pelo search box do header:
-    # digital (bits + outputs derivados) e analogica (canais FM). Chave em
-    # UPPER; valor: lista ordenada de safe_page_ids onde a variavel aparece.
+    # Global index of variables -> pages, used by the header's search box:
+    # digital (bits + derived outputs) and analog (FM channels). Key in
+    # UPPER; value: ordered list of safe_page_ids where the variable appears.
     var_index: dict = {}
     for safe_id, names in d.bits_per_page.items():
         for nm in names:
@@ -643,8 +651,8 @@ def build_diagram(diagram_id: str, gle_path, relay_name: str, gle_name: str,
                 ent["pages"].append(safe_id)
     for safe_id, names_map in d.analogs_per_page.items():
         for nm in names_map.keys():
-            # Se ja existia como bit (raro: nome reusado), mantem como bit mas
-            # registra a pagina; senao fica analog.
+            # If it already existed as a bit (rare: a reused name), keep it as
+            # a bit but record the page; otherwise it stays analog.
             ent = var_index.setdefault(nm, {"kind": "analog", "pages": []})
             if safe_id not in ent["pages"]:
                 ent["pages"].append(safe_id)

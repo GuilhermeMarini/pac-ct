@@ -1,20 +1,21 @@
-"""O loop de polling MMS, movido a bytes gravados de um rele.
+"""The MMS polling loop, driven by bytes recorded from a relay.
 
-A leitura e' UMA Read nomeando todas as folhas da pagina (`read_refs` da
-py61850). O que os testes aqui defendem e' o que essa mudanca poe em risco:
-um acesso que falha volta `{"error": ...}` NO LUGAR do valor, e
-`int(bool({...}))` e' 1 -- um bit ligado que ninguem leu, na tela de quem esta
-comissionando.
+The read is ONE Read naming every leaf of the page (py61850's `read_refs`).
+What the tests here defend is what that change puts at risk: a failed access
+comes back as `{"error": ...}` IN PLACE of the value, and `int(bool({...}))`
+is 1 -- a bit painted on that nobody read, on the screen of the person doing
+the commissioning.
 
-Os fixtures em `tests/fixtures/mms/` sao uma captura REAL do SEL-451-5 R331 da
-bancada (ver o `provenance` deles e `test_mms_fixtures_provenance.py`),
-embrulhados em `{"provenance": ..., "<chave>": payload}`. Eles sao ANTERIORES
-ao lote: guardam a resposta de uma Read de container inteiro mais a definicao
-que descreve a ordem dos filhos. `_capture_values` anda essa definicao uma vez
-e vira a tabela `item -> valor` que o `read_refs` de verdade devolve -- o
-mesmo valor pelos dois caminhos, que e' o que a bancada mediu no 751 (1053 de
-1055 bits identicos; os 2 restantes oscilam entre duas voltas do MESMO
-caminho). Nada aqui fixa tamanho de fixture nem quais containers ele traz.
+The fixtures in `tests/fixtures/mms/` are a REAL capture from the bench
+SEL-451-5 R331 (see their `provenance` and `test_mms_fixtures_provenance.py`),
+wrapped in `{"provenance": ..., "<key>": payload}`. They are OLDER than the
+batch: they hold the answer to a whole-container Read plus the definition that
+describes the order of the children. `_capture_values` walks that definition
+once and turns it into the `item -> value` table the real `read_refs` returns
+-- the same value by both paths, which is what the bench measured on the 751
+(1053 of 1055 bits identical; the remaining 2 oscillate between two turns of
+the SAME path). Nothing here fixes the fixture's size nor which containers it
+brings.
 """
 from __future__ import annotations
 
@@ -26,10 +27,10 @@ from pathlib import Path
 
 import pytest
 
-# `py61850` e' a unica dependencia do projeto que nao vem do PyPI (ver
-# requirements.txt). Sem esta guarda o modulo inteiro deixa de ser COLETAVEL
-# numa maquina sem ela, e a suite toda para -- inclusive as centenas de testes
-# que nao tem nada com MMS.
+# `py61850` is the only project dependency that does not come from PyPI (see
+# requirements.txt). Without this guard the whole module stops being
+# COLLECTABLE on a machine without it, and the entire suite stops -- including
+# the hundreds of tests that have nothing to do with MMS.
 pytest.importorskip("py61850")
 
 from py61850.errors import Iec61850Error, MmsError  # noqa: E402
@@ -62,7 +63,7 @@ def ann_directory():
 
 
 def _walk(node_type, value):
-    """A mesma caminhada posicional que o rele descreve na definicao."""
+    """The same positional walk the relay describes in the definition."""
     structure = (node_type.get("structure")
                  if isinstance(node_type, dict) else None)
     if structure and isinstance(value, (list, tuple)):
@@ -74,12 +75,12 @@ def _walk(node_type, value):
 
 
 def _capture_values(defs, reads):
-    """`LN$FC$DO$folha -> valor`, tirado da captura por container.
+    """`LN$FC$DO$leaf -> value`, taken from the per-container capture.
 
-    Este passo mora aqui, e nao no `transport/mms.py`, porque e' a CAPTURA que
-    e' por container: o polling nao le mais container nenhum. Andar a
-    definicao uma vez transforma os bytes gravados na tabela que o `read_refs`
-    de verdade devolve, sem inventar valor nenhum.
+    This step lives here, and not in `transport/mms.py`, because it is the
+    CAPTURE that is per container: the polling no longer reads any container.
+    Walking the definition once turns the recorded bytes into the table the
+    real `read_refs` returns, without inventing any value.
     """
     out = {}
     for container, definition in defs.items():
@@ -103,8 +104,8 @@ def _capture_values(defs, reads):
 
 
 def test_the_capture_carries_the_leaves_the_poll_asks_for(recorded):
-    """Guarda-corpo dos fixtures: sem folha booleana gravada, todo teste
-    abaixo passaria lendo `{"error": ...}` de um capture vazio."""
+    """Guard-rail for the fixtures: with no boolean leaf recorded, every test
+    below would pass reading `{"error": ...}` from an empty capture."""
     defs, reads, expected = recorded
     values = _capture_values(defs, reads)
     assert values, "a captura nao decodificou nenhuma folha"
@@ -114,11 +115,11 @@ def test_the_capture_carries_the_leaves_the_poll_asks_for(recorded):
 
 
 class FakeClient:
-    """Responde `read_refs` a partir da captura; guarda o que foi pedido.
+    """Answers `read_refs` from the capture; records what was asked for.
 
-    Um item que a captura nao traz volta `{"error": ...}` NO LUGAR do valor,
-    que e' como um rele responde um nome que ele nao serve: `read_refs` so'
-    levanta excecao quando o servico inteiro falha.
+    An item the capture does not bring comes back as `{"error": ...}` IN PLACE
+    of the value, which is how a relay answers a name it does not serve:
+    `read_refs` only raises when the whole service fails.
     """
 
     def __init__(self, defs, reads):
@@ -195,19 +196,19 @@ def test_poll_writes_bits_into_live_state_and_honours_stop(recorded):
     for i in range(1, 5):
         bit, child = f"PLT{i:02d}", f"Ind{i:02d}"
         assert snap[bit] == int(bool(expected["PLT1GGIO1$ST"][child])), bit
-    # um LOTE por volta, nomeando os quatro bits -- nao uma requisicao por
-    # bit e nem uma por container: e' o ponto todo do `read_refs`.
+    # one BATCH per turn, naming the four bits -- not one request per bit
+    # and not one per container: that is the whole point of `read_refs`.
     assert t._client.reads_made >= 1
     assert [item for _, item in t._client.asked[0]] == [
         f"PLT1GGIO1$ST$Ind{i:02d}$stVal" for i in range(1, 5)]
 
 
 def test_poll_asks_only_for_the_bits_the_open_page_wants(recorded):
-    """`wanted_bits` estreita o plano; vazio quer dizer o mapa inteiro.
+    """`wanted_bits` narrows the plan; empty means the whole map.
 
-    Mesma regra do `poll_loop_tar`. O filtro agora e' por BIT e nao por
-    container: com a leitura por `LN$FC`, pedir um bit arrastava junto os
-    outros 30 do container dele, e nenhum deles estava na tela.
+    Same rule as `poll_loop_tar`. The filter is now per BIT and not per
+    container: with the `LN$FC` read, asking for one bit dragged in the other
+    30 of its container, and none of them was on the screen.
     """
     defs, reads, _ = recorded
     from pacct.web.glv.mms_map import MmsPoint
@@ -226,23 +227,24 @@ def test_poll_asks_only_for_the_bits_the_open_page_wants(recorded):
     snap = state.snapshot()["digitals"]
     assert "IN101" not in snap, "leu um bit que a pagina aberta nao pediu"
     assert set(snap) == {"PLT01", "PLT02"}
-    # e nao foi so' o payload que ficou menor: o pedido tambem
+    # and it was not only the payload that got smaller: the request too
     assert [item for _, item in t._client.asked[0]] == [
         "PLT1GGIO1$ST$Ind01$stVal", "PLT1GGIO1$ST$Ind02$stVal"]
 
 
 def test_poll_says_so_when_the_relay_refuses_every_point(recorded):
-    """Leitura parcial nao pode parecer "o rele nao sabe".
+    """A partial read must not look like "the relay does not know".
 
-    Mesma regra do `poll_loop_tar`: um bit que nao veio some do payload e o
-    diagrama o pinta indeterminado, que em comissionamento e' outra coisa.
+    Same rule as `poll_loop_tar`: a bit that did not arrive disappears from
+    the payload and the diagram paints it indeterminate, which when
+    commissioning is another thing.
     """
     defs, reads, _ = recorded
     t = _plt_transport(defs, reads)
     t._client.unreadable = tuple(p.item for p in t._plan)
 
     state = LiveState()
-    state.digitals = {"PLT01": 1}       # a leitura anterior, que já não vale
+    state.digitals = {"PLT01": 1}       # the previous reading, now stale
     _run_until_read(t, state)
     snap = state.snapshot()
     assert snap["digitals"] == {}, "manteve na tela um valor que não foi lido"
@@ -250,13 +252,13 @@ def test_poll_says_so_when_the_relay_refuses_every_point(recorded):
 
 
 def _polarised(defs, reads):
-    """Um container gravado com uma folha booleana VERDADEIRA e uma FALSA.
+    """A recorded container with one TRUE boolean leaf and one FALSE.
 
-    Varrido da captura em vez de fixado: uma recaptura mantem os nomes e troca
-    todos os valores. As duas polaridades sao exatamente o que os testes
-    abaixo precisam -- uma leitura que devolvesse a mesma coisa pra tudo (o
-    `{"error": ...}` virando 1, por exemplo) da' 1 em todo bit, e so' um bit
-    cujo valor verdadeiro e' 0 separa isso de uma leitura correta.
+    Swept from the capture instead of hardcoded: a recapture keeps the names
+    and changes all the values. The two polarities are exactly what the tests
+    below need -- a read that returned the same thing for everything (the
+    `{"error": ...}` becoming 1, for example) gives 1 on every bit, and only a
+    bit whose true value is 0 separates that from a correct read.
     """
     values = _capture_values(defs, reads)
     for container in defs:
@@ -277,11 +279,11 @@ def _polarised(defs, reads):
 
 
 def _renamed_leaf(values, old, new):
-    """A mesma tabela com a folha booleana chamada `new` em vez de `old`.
+    """The same table with the boolean leaf called `new` instead of `old`.
 
-    E' a forma de um ponto de ACD/ACT -- cujo booleano e' `general` e nao
-    `stVal` -- sobre valores que o rele mandou de verdade. 43 dos 222 bits
-    enderecaveis do LT2_UPC1 rastreado tem essa forma, o `TRIP` entre eles.
+    It is the shape of an ACD/ACT point -- whose boolean is `general` and not
+    `stVal` -- over values the relay really sent. 43 of the 222 addressable
+    bits of the tracked LT2_UPC1 have that shape, `TRIP` among them.
     """
     return {(k[:-len(old)] + new if k.endswith("$" + old) else k): v
             for k, v in values.items()}
@@ -308,13 +310,13 @@ def _point(bit, container, child, leaf):
 
 
 def test_poll_keeps_each_value_with_the_bit_that_asked_for_it(recorded):
-    """O `zip` entre os pontos e o que o `read_refs` devolveu.
+    """The `zip` between the points and what `read_refs` returned.
 
-    E' o contrato do `read_refs`: uma resposta por par pedido, na ordem em que
-    foram pedidos. Se ele deslizar -- ou se alguem filtrar a lista de valores
-    e nao a de pontos -- os bits trocam de valor entre si, calados. Por isso
-    as duas polaridades: um deslize num container quase todo ligado devolve
-    1 pra tudo e passaria despercebido.
+    It is `read_refs`'s contract: one answer per pair asked for, in the order
+    they were asked. If it slips -- or if someone filters the list of values
+    and not the list of points -- the bits swap values with each other,
+    silently. Hence the two polarities: a slip in a container that is almost
+    all on returns 1 for everything and would go unnoticed.
     """
     defs, reads, _ = recorded
     container, on, off = _polarised(defs, reads)
@@ -327,12 +329,12 @@ def test_poll_keeps_each_value_with_the_bit_that_asked_for_it(recorded):
 
 
 def test_poll_never_paints_a_failed_access_as_a_bit_on(recorded):
-    """O risco que o lote traz: `{"error": ...}` no LUGAR do valor.
+    """The risk the batch brings: `{"error": ...}` IN PLACE of the value.
 
-    Um nome que o rele nao serve nao levanta excecao -- vem um dict na
-    posicao dele. `int(bool({...}))` e' 1: um bit LIGADO que ninguem leu, na
-    tela de quem esta comissionando. Tem que sumir do payload, que e' como o
-    diagrama pinta indeterminado.
+    A name the relay does not serve does not raise -- a dict comes in its
+    position. `int(bool({...}))` is 1: a bit ON that nobody read, on the
+    screen of the person doing the commissioning. It has to disappear from the
+    payload, which is how the diagram paints it indeterminate.
     """
     defs, reads, _ = recorded
     container, on, off = _polarised(defs, reads)
@@ -351,13 +353,13 @@ def test_poll_never_paints_a_failed_access_as_a_bit_on(recorded):
 
 def test_poll_reads_a_general_leaf_and_leaves_the_wrong_leaf_indeterminate(
         recorded):
-    """Um bit cujo booleano e' `general` e' lido, e um ponto que pede uma folha
-    que o rele nao serve fica FORA do payload.
+    """A bit whose boolean is `general` is read, and a point asking for a leaf
+    the relay does not serve stays OUT of the payload.
 
-    As duas metades importam: a primeira e' o caso 43-de-222 que a leitura por
-    folha existe pra cobrir, e a segunda e' o que mantem "nao consegui ler"
-    diferente de "o rele diz zero" -- um bit ausente e' pintado indeterminado,
-    nunca 0.
+    Both halves matter: the first is the 43-of-222 case the per-leaf read
+    exists to cover, and the second is what keeps "I could not read it"
+    different from "the relay says zero" -- an absent bit is painted
+    indeterminate, never 0.
     """
     defs, reads, _ = recorded
     container, on, off = _polarised(defs, reads)
@@ -390,27 +392,27 @@ def test_poll_reports_a_relay_error_and_stops(recorded):
 
 def test_effective_period_has_no_floor_but_never_beats_the_cycle():
     t = MmsTransport("192.0.2.10", 102, relay_model=None, logger=None)
-    # Sem piso: o que se pede e' o que vale, inclusive 0.
+    # No floor: what is asked for is what counts, 0 included.
     assert t.effective_interval(0.005, last_cycle=0.001) == pytest.approx(0.005)
     assert t.effective_interval(0.0, last_cycle=0.0) == 0.0
     # a page that costs more than the period: the loop runs flat out
     assert t.effective_interval(0.100, last_cycle=0.250) == pytest.approx(0.250)
     assert t.effective_interval(0.0, last_cycle=0.250) == pytest.approx(0.250)
-    # Um periodo negativo nunca vira um sleep negativo.
+    # A negative period never becomes a negative sleep.
     assert t.effective_interval(-1.0, last_cycle=0.0) == 0.0
 
 
 def test_period_zero_never_puts_two_reads_on_the_link_at_once(recorded):
-    """A guarda que substituiu o piso: pedir 0 ms nao afoga a comunicacao.
+    """The guard that replaced the floor: asking 0 ms does not flood the link.
 
-    O laco e' sincrono e le UMA vez por volta, entao a proxima requisicao so'
-    parte depois da resposta anterior -- no maximo uma leitura em voo, e no
-    maximo uma por RTT, por mais rapido que se peca.
+    The loop is synchronous and reads ONCE per turn, so the next request only
+    leaves after the previous answer -- at most one read in flight, and at
+    most one per RTT, however fast it is asked for.
     """
     defs, reads, _ = recorded
     t = _plt_transport(defs, reads)
     client = t._client
-    rtt = 0.02                       # o "RTT" deste rele de mentira
+    rtt = 0.02                       # this pretend relay's "RTT"
     answer = client.read_refs
     lock = threading.Lock()
     inflight = [0]
@@ -443,15 +445,15 @@ def test_period_zero_never_puts_two_reads_on_the_link_at_once(recorded):
     assert not th.is_alive(), "a thread de polling ignorou o stop"
     assert not overlapped, "duas leituras em voo no mesmo link"
     assert client.reads_made >= 2, "o laco nem chegou a repetir a leitura"
-    # +1 pela volta que ja estava a caminho quando o cronometro comecou.
+    # +1 for the turn that was already on its way when the clock started.
     assert client.reads_made <= elapsed / rtt + 1, (
         f"{client.reads_made} leituras em {elapsed:.3f}s -- mais de uma por RTT")
 
 
 def test_a_cycle_that_reads_nothing_does_not_spin(recorded):
-    """A pagina aberta nao tem nenhum bit mapeado: nao ha resposta do rele pra
-    esperar, entao periodo 0 seria um laco quente queimando CPU sem tocar na
-    rede. E' o unico periodo minimo que sobrou (`IDLE_INTERVAL`)."""
+    """The open page has no mapped bit: there is no relay answer to wait for,
+    so period 0 would be a hot loop burning CPU without touching the network.
+    It is the only minimum period left (`IDLE_INTERVAL`)."""
     defs, reads, _ = recorded
     t = _plt_transport(defs, reads)
     state = LiveState()
@@ -486,8 +488,8 @@ class FakeMmsClient:
         self.connected = False
         self.closed = False
         self.values = _capture_values(defs, self.reads) if self.reads else {}
-        # Tudo que o transporte PERGUNTOU ao rele, em ordem. E' o que prova
-        # que o `prepare_bits` deixou de falar com ele.
+        # Everything the transport ASKED the relay, in order. It is what
+        # proves `prepare_bits` stopped talking to it.
         self.calls = []
 
     def connect(self):
@@ -587,20 +589,21 @@ def test_prepare_bits_refuses_a_diagram_it_cannot_read(fake_relay):
     with pytest.raises(MmsSetupError) as e:
         t.prepare_bits(["NAO_EXISTE_1", "NAO_EXISTE_2"])
     assert "nenhum" in str(e.value).lower()
-    # nao e' erro de protocolo: a py61850 respondeu tudo. Dizer o contrario
-    # manda o usuario procurar rede onde o problema e' arquivo de projeto.
+    # not a protocol error: py61850 answered everything. Saying otherwise
+    # sends the user hunting the network when the problem is a project file.
     assert not isinstance(e.value, Iec61850Error)
 
 
 def test_prepare_bits_never_stops_the_reader_because_it_never_asks_the_relay(
         fake_relay):
-    """O `pause` existe pelo contrato do `Transport` e nao e' usado aqui.
+    """`pause` exists because of the `Transport` contract and is not used here.
 
-    O cliente da py61850 e' um socket e um contador de invoke, entao duas
-    threads nele embaralham as respostas -- por isso um segundo diagrama
-    parava o leitor pra buscar a estrutura dos containers novos. Com a leitura
-    por folha nao ha' estrutura a buscar: o mapa sai do diretorio ja' lido no
-    connect, e o leitor nem fica sabendo que outro diagrama entrou.
+    py61850's client is a socket and an invoke counter, so two threads on it
+    scramble the answers -- which is why a second diagram used to stop the
+    reader to fetch the structure of the new containers. With the per-leaf
+    read there is no structure to fetch: the map comes from the directory
+    already read at connect, and the reader never even learns that another
+    diagram came in.
     """
     import contextlib
 
@@ -617,7 +620,7 @@ def test_prepare_bits_never_stops_the_reader_because_it_never_asks_the_relay(
     assert t.prepare_bits(["PLT01"], pause=pause) == 1
     assert entered == [], "parou o leitor sem ter o que perguntar ao rele"
     assert len(t._client.calls) == talked, "falou com o rele no prepare_bits"
-    # ja resolvido: segue sem pausa e sem requisicao
+    # already resolved: it goes on with no pause and no request
     assert t.prepare_bits(["PLT01"], pause=pause) == 0
     assert entered == []
     assert len(t._client.calls) == talked
@@ -688,14 +691,15 @@ def test_close_drops_the_client(fake_relay):
 # ---- what makes a diagram live-but-blank -----------------------------------
 
 def test_the_map_only_carries_names_the_relay_itself_listed(fake_relay):
-    """A recusa que sumiu, e o que ficou no lugar dela.
+    """The refusal that went away, and what took its place.
 
-    Enquanto o polling lia container, `prepare_bits` pedia a ESTRUTURA de cada
-    `LN$FC` e precisava recusar o diagrama quando o firmware nao descrevia
-    nenhuma -- senao o diagrama subia LIVE com tudo indeterminado e sem erro
-    na tela. Lendo por folha nao existe esse pedido nem esse modo de falhar: o
-    que entra no mapa e' so' o que o proprio diretorio do rele nomeou (ver
-    `resolve_map`), e o que sobra e' a recusa por cobertura zero.
+    While the polling read containers, `prepare_bits` asked for the STRUCTURE
+    of each `LN$FC` and had to refuse the diagram when the firmware described
+    none -- otherwise the diagram came up LIVE with everything indeterminate
+    and no error on the screen. Reading per leaf, neither that request nor
+    that failure mode exists: what enters the map is only what the relay's own
+    directory named (see `resolve_map`), and what is left is the refusal for
+    zero coverage.
     """
     t = MmsTransport("192.0.2.10", 102, relay_model=None, logger=None)
     t.connect()
@@ -713,15 +717,15 @@ def test_the_refusal_is_judged_on_the_bits_this_diagram_asked_for(fake_relay):
     t.prepare_bits(["PLT01"])                   # diagrama A: mapeia
     with pytest.raises(MmsSetupError):
         t.prepare_bits(["NAO_EXISTE_1", "NAO_EXISTE_2"])   # diagrama B: nada
-    # o que o diagrama A pediu segue mapeado -- a recusa de B nao desfaz A
+    # what diagram A asked for stays mapped -- B's refusal does not undo A
     assert t.coverage_for({"PLT01"})["mapped"] == 1
     assert t.coverage_for({"NAO_EXISTE_1"})["mapped"] == 0
 
 
 def test_a_second_diagram_reaches_the_next_cycle_without_a_reconnect(fake_relay):
-    """Nada pausa e a thread de polling nunca reinicia, entao ela tem que ver
-    o plano NOVO: se o plano for capturado antes do laco, os bits de B ficam
-    indeterminados ate' alguem reconectar."""
+    """Nothing pauses and the polling thread never restarts, so it has to see
+    the NEW plan: if the plan is captured before the loop, B's bits stay
+    indeterminate until somebody reconnects."""
     t = MmsTransport("192.0.2.10", 102, relay_model=None, logger=None)
     t.connect()
     t.prepare_bits(["PLT01"])
@@ -740,7 +744,8 @@ def test_a_second_diagram_reaches_the_next_cycle_without_a_reconnect(fake_relay)
 
         before = len(t._client.calls)
         assert t.prepare_bits(["PLT02"]) == 1
-        # nada a perguntar ao rele: o plano novo sai do diretorio ja lido
+        # nothing to ask the relay: the new plan comes from the directory
+        # already read
         assert len(t._client.calls) == before
 
         for _ in range(200):
@@ -860,7 +865,7 @@ def test_without_a_model_the_refusal_falls_back_to_the_fid(fake_relay):
     t = MmsTransport("192.0.2.10", 102, relay_model=None, logger=None)
     t.connect()
     t.fid = "SEL-9999-1-R100-V0-Z000000-D20250101"
-    # sem tabela pra essa peca e sem SCD
+    # no table for this part and no SCD
     with pytest.raises(MmsSetupError) as e:
         t.prepare_bits(["PLT01"])
     assert t.fid in str(e.value)
@@ -878,7 +883,7 @@ def test_the_refusal_says_WHICH_of_the_two_files_is_missing(fake_relay, tmp_path
     class Model:
         model = "SEL-9999"                 # sem tabela de fabrica
 
-    # (a) nenhum SCD escolhido
+    # (a) no SCD chosen
     t = MmsTransport("192.0.2.10", 102, relay_model=Model(), logger=None)
     t.connect()
     with pytest.raises(MmsSetupError) as e:
@@ -887,7 +892,7 @@ def test_the_refusal_says_WHICH_of_the_two_files_is_missing(fake_relay, tmp_path
     assert "nenhum SCD do projeto foi associado" in sem_scd
     assert "Informe o SCD" in sem_scd
 
-    # (b) um SCD escolhido que nao diz nada sobre este IED
+    # (b) a chosen SCD that says nothing about this IED
     scd = tmp_path / "subestacao.scd"
     scd.write_text("<SCL></SCL>", encoding="utf-8")
     t2 = MmsTransport("192.0.2.10", 102, relay_model=Model(), logger=None,
@@ -903,12 +908,12 @@ def test_the_refusal_says_WHICH_of_the_two_files_is_missing(fake_relay, tmp_path
     assert "SEL-9999" in com_scd          # a recusa ainda nomeia o modelo
 
 
-# ---- o que falta no modelo do servidor do IED ------------------------------
+# ---- what is missing from the IED's server model ---------------------------
 #
-# Um bit sem ponto no mapa nunca vai ser lido, e a tela so' dizia
-# "indeterminado" -- o mesmo que ela diz pra um bit que ainda nao chegou.
-# Quem pode dizer que a diferenca e' "adicione no modelo do IED" e' o
-# transporte, que e' quem tem o mapa.
+# A bit with no point in the map will never be read, and the screen only said
+# "indeterminate" -- the same thing it says for a bit that has not arrived
+# yet. The one that can say the difference is "add it to the IED model" is the
+# transport, which is the one that has the map.
 
 def test_unreachable_names_the_bits_the_relay_does_not_serve(fake_relay):
     t = MmsTransport("192.0.2.10", 102, relay_model=None, logger=None)
@@ -920,20 +925,21 @@ def test_unreachable_names_the_bits_the_relay_does_not_serve(fake_relay):
 
 
 def test_unreachable_cannot_tell_before_there_is_a_map():
-    """Sem mapa, `[]` diria "o IED serve tudo" -- e' o oposto do que se sabe."""
+    """With no map, `[]` would say "the IED serves everything" -- the
+    opposite of what is known."""
     t = MmsTransport("192.0.2.10", 102, relay_model=None, logger=None)
     assert t.unreachable({"PLT01"}) is None
 
 
-# -- pontos decorados: um item que carrega dois bits ------------------------
+# -- decorated points: one item that carries two bits -----------------------
 #
-# `db:52A|52B?0:1:2:3` num `Pos$stVal`: o Dbpos codifica os dois contatos
-# auxiliares do disjuntor. A py61850 devolve um BIT-STRING como a STRING
-# "10", e `bool("00")` e' True -- ler isso com `int(bool(...))` pinta TODO
-# disjuntor como fechado, sempre.
+# `db:52A|52B?0:1:2:3` on a `Pos$stVal`: the Dbpos encodes the breaker's two
+# auxiliary contacts. py61850 returns a BIT-STRING as the STRING "10", and
+# `bool("00")` is True -- reading that with `int(bool(...))` paints EVERY
+# breaker as closed, always.
 
 def _dbpos_transport(value, alternatives=(0, 1, 2, 3), nbits=2):
-    """Dois bits (`52A`, `52B`) no mesmo item, que responde `value`."""
+    """Two bits (`52A`, `52B`) on the same item, which answers `value`."""
     from selfiles.scl.mms_tables import BitRule
 
     from pacct.web.glv.mms_map import MmsMap, MmsPoint
@@ -975,8 +981,8 @@ def test_poll_splits_a_dbpos_into_the_two_auxiliary_contacts():
 
 
 def test_poll_reads_the_open_breaker_as_the_other_way_round():
-    """Dbpos 1 (`"01"`), aberto. Sem a regra os dois sairiam 1, porque
-    `bool("01")` e `bool("10")` sao os dois True."""
+    """Dbpos 1 (`"01"`), open. Without the rule both would come out 1, because
+    `bool("01")` and `bool("10")` are both True."""
     t = _dbpos_transport("01")
     state = LiveState()
     _run_until_read(t, state)
@@ -984,10 +990,10 @@ def test_poll_reads_the_open_breaker_as_the_other_way_round():
 
 
 def test_poll_never_paints_a_dbpos_as_a_bit_on_by_truthiness():
-    """Dbpos 0 (`"00"`, intermediate): os dois contatos abertos. Este e' o
-    caso que `int(bool(valor))` acertaria por acaso em 52B e erraria em 52A --
-    e' a prova de que a leitura passa pela regra e nao pela verdade do
-    Python."""
+    """Dbpos 0 (`"00"`, intermediate): both contacts open. This is the case
+    `int(bool(value))` would get right by accident on 52B and wrong on 52A --
+    it is the proof that the reading goes through the rule and not through
+    Python's truthiness."""
     t = _dbpos_transport("00")
     state = LiveState()
     _run_until_read(t, state)
@@ -995,9 +1001,9 @@ def test_poll_never_paints_a_dbpos_as_a_bit_on_by_truthiness():
 
 
 def test_poll_leaves_a_value_outside_the_alternatives_indeterminate():
-    """Um Dbpos 3 (bad-state) contra um ponto `?1:2` nao e' 0 nem 1: o bit
-    some do payload e o desenho o pinta indeterminado, como um acesso que
-    falha. E o `state.error` tem que dizer que a leitura foi parcial."""
+    """A Dbpos 3 (bad-state) against a `?1:2` point is neither 0 nor 1: the
+    bit disappears from the payload and the drawing paints it indeterminate,
+    like a failed access. And `state.error` has to say the read was partial."""
     t = _dbpos_transport("11", alternatives=(1, 2), nbits=1)
     state = LiveState()
     _run_until_read(t, state)
@@ -1007,9 +1013,9 @@ def test_poll_leaves_a_value_outside_the_alternatives_indeterminate():
 
 
 def test_poll_asks_for_a_shared_item_once_and_not_once_per_bit():
-    """Os dois bits saem do MESMO `LN$FC$DO$DA`. Pedir o nome duas vezes no
-    lote gasta banda do TPDU sem trazer nada: o plano e' de FOLHAS, e a folha
-    e' uma so'."""
+    """Both bits come out of the SAME `LN$FC$DO$DA`. Asking for the name twice
+    in the batch spends TPDU bandwidth and brings nothing: the plan is of
+    LEAVES, and the leaf is only one."""
     t = _dbpos_transport("10")
     state = LiveState()
     _run_until_read(t, state)
@@ -1018,8 +1024,8 @@ def test_poll_asks_for_a_shared_item_once_and_not_once_per_bit():
 
 
 def test_a_plain_boolean_point_is_untouched_by_the_rule_path(recorded):
-    """A regra e' opcional e o caminho booleano nao mudou: `rule is None`
-    continua lendo `int(bool(valor))`."""
+    """The rule is optional and the boolean path did not change: `rule is
+    None` still reads `int(bool(value))`."""
     defs, reads, expected = recorded
     t = _plt_transport(defs, reads)
     assert all(p.rule is None for p in t._plan)
@@ -1029,16 +1035,17 @@ def test_a_plain_boolean_point_is_untouched_by_the_rule_path(recorded):
         int(bool(expected["PLT1GGIO1$ST"]["Ind01"]))
 
 
-# ---- relogio de parede que salta -------------------------------------------
+# ---- a wall clock that jumps -----------------------------------------------
 
 class _JumpyClock:
-    """Um `time` cujo relogio de PAREDE salta, como o do WSL.
+    """A `time` whose WALL clock jumps, like WSL's.
 
-    Medido na maquina de desenvolvimento: `time.time()` do WSL 82,5 s atras do
-    relogio do Windows, e o log do GLV com carimbos ANDANDO PRA TRAS. Quem
-    mede duracao com esse relogio le um ciclo negativo, e
-    `sleep_for = periodo - ciclo` vira 82 s de sono -- a "leitura travada" com
-    o Wireshark limpo. O monotonico nao salta; e' com ele que o laco conta.
+    Measured on the development machine: WSL's `time.time()` 82,5 s behind the
+    Windows clock, and the GLV log with timestamps GOING BACKWARDS. Whoever
+    measures a duration with that clock reads a negative cycle, and
+    `sleep_for = period - cycle` becomes 82 s of sleep -- the "stuck reading"
+    with a clean Wireshark. The monotonic one does not jump; it is the one the
+    loop counts with.
     """
 
     def __init__(self, jump=-82.5, after=3):
@@ -1068,23 +1075,23 @@ def test_a_wall_clock_jump_does_not_stall_the_poll_loop(recorded, monkeypatch):
     th.join(timeout=3.0)
 
     assert not th.is_alive(), "a thread de polling ignorou o stop"
-    # Com o relogio de parede na conta, o salto de -82,5 s viraria um ciclo
-    # negativo e o laco dormiria 82 s: UMA leitura em 0,4 s.
+    # With the wall clock in the sum, the -82,5 s jump would become a
+    # negative cycle and the loop would sleep 82 s: ONE read in 0,4 s.
     assert t._client.reads_made >= 10, (
         f"{t._client.reads_made} leituras em 0,4 s a 10 ms -- o salto do "
         f"relogio parou o laco")
 
 
 def test_the_age_on_screen_comes_from_the_monotonic_clock(recorded):
-    """A tela recebe `age` pronto, e nao um carimbo pra subtrair do relogio
-    DELA: o navegador roda no Windows e o servidor no WSL."""
+    """The screen receives `age` ready-made, and not a timestamp to subtract
+    from ITS own clock: the browser runs on Windows and the server on WSL."""
     state = LiveState()
     assert state.snapshot()["age"] is None      # nada lido ainda
     with state.lock:
         state.mark_updated()
     snap = state.snapshot()
     assert snap["age"] is not None and snap["age"] < 1.0
-    # Um relogio de parede em qualquer epoca nao mexe na idade.
+    # A wall clock at any epoch does not affect the age.
     state.last_update_ts = 0.0
     assert state.snapshot()["age"] < 1.0
     state.clear()

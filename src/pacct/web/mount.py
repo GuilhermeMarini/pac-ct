@@ -263,7 +263,7 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
 
     class Dispatcher(BaseHTTPRequestHandler):
         def log_message(self, fmt, *args):
-            pass  # silencia stderr; cada tool loga o que interessa
+            pass  # silence stderr; each tool logs what matters
 
         def end_headers(self):
             """Emit the new session's `Set-Cookie`, exactly as `SessionHandler` does.
@@ -299,26 +299,27 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
             path = urlparse(self.path).path
             tail = self._strip_prefix(path)
 
-            # -- rotas de infraestrutura -------------------------------------
-            # Sao servidas ANTES de resolver a sessao, e de proposito: elas
-            # nao sao donas de identidade nenhuma. Uma folha de estilo, um
-            # .woff2 ou um poll da barra de progresso que chegue sem cookie
-            # nao pode inventar um visitante -- isso enchia o servidor de
-            # sessoes fantasma e, pior, cada resposta dessas passava a mandar
-            # um `selsid` novo, entao requisicoes concorrentes ficavam
-            # trocando a identidade do navegador entre si e o acervo do
-            # projeto parecia se apagar sozinho. Quem cria sessao e' so a
-            # pagina de uma ferramenta, que e' quem tem estado pra guardar.
+            # -- infrastructure routes ---------------------------------------
+            # They are served BEFORE the session is resolved, and on purpose:
+            # they own no identity at all. A stylesheet, a .woff2 or a
+            # progress-bar poll arriving without a cookie cannot invent a
+            # visitor -- that filled the server with phantom sessions and,
+            # worse, each of those responses started handing out a fresh
+            # `selsid`, so concurrent requests traded the browser's identity
+            # between them and the project's file list looked like it was
+            # erasing itself. Only a tool's own page creates a session, which
+            # is the one that has state to keep.
             #
-            # /progress vem primeiro porque precisa responder em paralelo ao
-            # POST de upload que ainda esta rodando (ThreadingHTTPServer da
-            # uma thread por requisicao).
+            # /progress comes first because it has to answer in parallel with
+            # the upload POST that is still running (ThreadingHTTPServer gives
+            # one thread per request).
             if path.endswith("/progress") or path == "/progress":
                 self._serve_progress()
                 return
-            # Tema e estaticos tambem sao de todo mundo. Aceitos com e sem
-            # prefixo: a pagina do VB Updater pede "/vb-updater/theme.css",
-            # a home pede "/theme.css", e as duas tem que responder.
+            # Theme and statics belong to everyone too. Accepted with and
+            # without a prefix: the VB Updater's page asks for
+            # "/vb-updater/theme.css", the home asks for "/theme.css", and
+            # both have to answer.
             if tail == "/theme.css":
                 self._serve_theme_css()
                 return
@@ -329,14 +330,15 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
                 self._serve_static(tail[len("/static/"):])
                 return
             if tail == "/library" and verb == "do_GET":
-                # Le a sessao se houver uma; sem cookie responde acervo vazio,
-                # que e' a verdade -- quem nao tem sessao nao tem arquivo.
+                # Reads the session if there is one; with no cookie it
+                # answers an empty library, which is the truth -- no session,
+                # no files.
                 if sessions is not None:
                     self.session = sessions.peek(cookie)
                 self._serve_library()
                 return
 
-            # -- daqui pra baixo, a pagina de uma ferramenta -----------------
+            # -- from here down, a tool's page -------------------------------
             if sessions is not None:
                 sess, is_new = sessions.resolve(cookie, path)
                 self.session = sess
@@ -345,13 +347,13 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
                     self._set_cookie = build_cookie(sess.sid, sessions.ttl)
             for m in prefixed:
                 if path == m.prefix:
-                    # "/vb-updater" -> "/vb-updater/", pra que caminhos
-                    # relativos na pagina resolvam dentro da ferramenta.
+                    # "/vb-updater" -> "/vb-updater/", so that relative
+                    # paths in the page resolve inside the tool.
                     self._redirect(m.prefix + "/")
                     return
                 if path.startswith(m.prefix + "/"):
-                    # Tira o prefixo preservando a query string. O handler da
-                    # ferramenta ve exatamente o que via antes.
+                    # Strips the prefix, preserving the query string. The
+                    # tool's handler sees exactly what it saw before.
                     self.path = self.path[len(m.prefix):]
                     self.__class__ = m.handler
                     getattr(self, verb)()
@@ -365,7 +367,7 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
             self.end_headers()
 
         def _strip_prefix(self, path: str) -> str:
-            """Caminho sem o prefixo de montagem, pras rotas comuns."""
+            """Path without the mount prefix, for the common routes."""
             for m in prefixed:
                 if path == m.prefix:
                     return "/"
@@ -377,20 +379,20 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
             body = themes.theme_css(self.theme).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/css; charset=utf-8")
-            # Sem cache enquanto o sistema de temas ainda esta em iteracao: o
-            # CSS e' gerado por Python, entao um reload tem que refletir a
-            # edicao sem o usuario limpar cache.
+            # No cache while the theme system is still being iterated on:
+            # the CSS is generated by Python, so a reload has to reflect the
+            # edit without the user clearing their cache.
             self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
 
         def _serve_theme_choice(self):
-            """POST /theme {"theme": "..."} -- grava o cookie e responde 204."""
+            """POST /theme {"theme": "..."} -- sets the cookie, answers 204."""
             try:
                 n = int(self.headers.get("Content-Length") or 0)
-                # `{"theme": "caderno"}` -- um corpo maior que isto nao e' a
-                # escolha de um tema, e o Content-Length e' do cliente.
+                # `{"theme": "caderno"}` -- a body bigger than this is not a
+                # theme choice, and the Content-Length comes from the client.
                 if n > 4096:
                     raise ValueError("corpo grande demais para /theme")
                 payload = json.loads(self.rfile.read(n) or b"{}")
@@ -405,8 +407,9 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
             self.send_header("Content-Length", "0")
             self.end_headers()
 
-        # Extensao -> Content-Type. Curto de proposito: aqui so moram as fontes
-        # embarcadas, as licencas OFL e o NOTICE que precisam acompanha-las.
+        # Extension -> Content-Type. Deliberately short: only the embedded
+        # fonts, the OFL licences and the NOTICE that has to travel with them
+        # live here.
         _STATIC_TYPES = {
             ".woff2": "font/woff2",
             ".woff": "font/woff",
@@ -419,8 +422,8 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
         def _serve_static(self, rel: str):
             from urllib.parse import unquote
             target = (STATIC_DIR / unquote(rel)).resolve()
-            # Sandbox igual ao do /download: um ".." no caminho nao pode sair
-            # de STATIC_DIR.
+            # Same sandbox as /download: a ".." in the path must not escape
+            # STATIC_DIR.
             if not is_within(target, (STATIC_DIR,)) or not target.is_file():
                 self.send_response(404)
                 self.send_header("Content-Length", "0")
@@ -432,7 +435,7 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
             self.send_response(200)
             self.send_header("Content-Type", ctype)
             if target.suffix.lower() in (".woff2", ".woff"):
-                # As fontes nao mudam: nome fixo, conteudo fixo.
+                # The fonts do not change: fixed name, fixed content.
                 self.send_header("Cache-Control",
                                  "public, max-age=31536000, immutable")
             else:
@@ -442,11 +445,11 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
             self.wfile.write(body)
 
         def _serve_library(self):
-            """O acervo do visitante, servido em QUALQUER prefixo.
+            """The visitor's library, served at ANY prefix.
 
-            Fica aqui, e nao numa ferramenta, pelo mesmo motivo de /progress e
-            /theme.css: as seis paginas precisam dele, e uma ferramenta nao e'
-            dona da lista de arquivos de outra.
+            It lives here, and not in a tool, for the same reason as /progress
+            and /theme.css: the six pages need it, and one tool does not own
+            another's file list.
             """
             from urllib.parse import parse_qs
 
@@ -454,10 +457,10 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
 
             kind = (parse_qs(urlparse(self.path).query).get("kind") or [""])[0]
             files = []
-            # `self.session` e' None quando a requisicao chegou sem cookie: o
-            # acervo de quem nao tem sessao e' vazio, e inventar uma sessao
-            # aqui so pra responder isso e' o que causava a troca de
-            # identidade descrita em `_dispatch`.
+            # `self.session` is None when the request arrived with no
+            # cookie: the library of someone with no session is empty, and
+            # inventing a session here just to answer that is what caused the
+            # identity swap described in `_dispatch`.
             if sessions is not None and getattr(self, "session", None) is not None:
                 lib = filelib.library_for(sessions, self.session)
                 with self.session.lock:
@@ -495,7 +498,7 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
 def serve(port: int, mounts: list[Mount], logger: logging.Logger,
           sessions=None, default_theme: str = themes.DEFAULT_THEME
           ) -> ThreadingHTTPServer:
-    """Sobe o servidor unico e devolve ele (ja servindo, em thread daemon)."""
+    """Start the single server and return it (serving, in a daemon thread)."""
     import threading
 
     srv = ThreadingHTTPServer(

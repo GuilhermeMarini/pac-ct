@@ -74,13 +74,13 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
                     parse_qs(urlparse(self.path).query).items()}
 
         def _rdb(self, key: str):
-            """O RdbInfo da chave, adotando do acervo se preciso.
+            """The RdbInfo for the key, adopting from the library if needed.
 
-            `st.rdbs` e' cache, nao portaria: um RDB que esta no acervo do
-            visitante vale para esta ferramenta sem etapa nenhuma (ver
-            `SessionHandler.library_entry`). O 404 sobrou so' para uma chave
-            que nao nomeia arquivo nenhum -- um link velho, de um arquivo que
-            saiu do projeto.
+            `st.rdbs` is a cache, not a gate: an RDB that is in the visitor's
+            library counts for this tool with no extra step (see
+            `SessionHandler.library_entry`). The 404 is left only for a key
+            that names no file at all -- an old link, to a file that left the
+            project.
             """
             st = self.sess()
             info = st.rdbs.get(key)
@@ -576,11 +576,12 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
                                       "error": "Nenhum destino selecionado."})
                 return
 
-            # `points` ausente = o mapa inteiro (e' o que `copy_session` faz).
-            # Presente, sao as chaves BASE que o passo 2 marcou; uma chave que
-            # nao e' ponto desta sessao e' recusada em vez de ignorada -- vinda
-            # da API, ela significa que o cliente esta falando de outro mapa,
-            # e copiar "o que sobrou" seria pior que nao copiar.
+            # `points` absent = the whole map (that is what `copy_session`
+            # does). Present, they are the BASE keys step 2 ticked; a key that
+            # is not a point of this session is refused rather than ignored --
+            # coming from the API it means the client is talking about a
+            # different map, and copying "what was left" would be worse than
+            # not copying.
             point_keys = None
             if body.get("points") is not None:
                 base = {p.key for p in parsed_src[src_session].points()}
@@ -664,10 +665,10 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
                                       "error": f"Falha inesperada ao exportar: {e}"})
                 return
 
-            # A saida entra no acervo do projeto: um RDB com o mapa DNP
-            # corrigido e' exatamente o RDB que as outras ferramentas querem
-            # abrir em seguida. Antes o unico caminho entre duas abas do mesmo
-            # servidor era baixar e subir de novo os mesmos 140 MB.
+            # The output enters the project's library: an RDB with the DNP
+            # map corrected is exactly the RDB the other tools want to open
+            # next. Before, the only path between two tabs of the same server
+            # was downloading and re-uploading the same 140 MB.
             project = self.publish_output(out_path, "DNP Map Editor",
                                           job=job, logger=logger)
             job.finish("Exportado")

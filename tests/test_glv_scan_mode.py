@@ -29,8 +29,9 @@ def test_pick_transport_returns_the_telnet_one_by_default():
 
 
 def test_pick_transport_returns_the_mms_one_when_asked():
-    # O ramo MMS importa `transport.mms`, que importa a py61850 -- a unica
-    # dependencia do projeto que nao vem do PyPI (ver requirements.txt).
+    # The MMS branch imports `transport.mms`, which imports py61850 -- the
+    # only project dependency that does not come from PyPI (see
+    # requirements.txt).
     pytest.importorskip("py61850")
     t = pick_transport(SCAN_MMS, ip="192.0.2.10", port=102,
                        acc_password="", relay_model=None, logger=None)

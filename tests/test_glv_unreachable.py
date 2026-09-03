@@ -1,17 +1,18 @@
-"""As variáveis do desenho que a conexão escolhida NÃO alcança.
+"""The drawing's variables that the chosen connection does NOT reach.
 
-O diagrama pinta de indeterminado tudo que não consegue ler, e até aqui um bit
-que o relé não serve era indistinguível de um bit que ainda não chegou. São
-coisas diferentes na hora de comissionar: um espera, o outro precisa ser
-adicionado ao modelo do servidor do IED (MMS) ou não existe nesta Relay Word
-(telnet). Quem sabe qual é qual é o TRANSPORTE, e é por isso que a resposta
-sai pela costura (`Transport.unreachable`) e não de um `getattr` no privado de
-um transporte que o diagrama nem sabe qual é -- o mesmo motivo do
+The diagram paints indeterminate everything it cannot read, and until now a
+bit the relay does not serve was indistinguishable from a bit that has not
+arrived yet. They are different things when commissioning: one waits, the
+other has to be added to the IED's server model (MMS) or does not exist in
+this Relay Word (telnet). The one that knows which is which is the TRANSPORT,
+and that is why the answer comes out through the seam
+(`Transport.unreachable`) and not from a `getattr` on the private of a
+transport the diagram does not even know which one is -- the same reason as
 `coverage_for`.
 
-`None` (e nunca `[]`) enquanto não dá pra saber: sem conexão, sem mapa, ou sem
-DNA lido, uma lista vazia diria "está tudo alcançável", que é a mentira mais
-cara das três.
+`None` (and never `[]`) while there is no way to know: with no connection, no
+map, or no DNA read, an empty list would say "everything is reachable", which
+is the most expensive lie of the three.
 """
 from __future__ import annotations
 
@@ -63,8 +64,8 @@ def test_a_disconnected_telnet_transport_cannot_tell_yet():
 
 
 def test_the_relay_word_lists_what_the_discovery_could_not_find():
-    """`not_findable` é a lista negra por FID: bits que já foram procurados
-    com `TAR <nome>` e não existem nesta Relay Word."""
+    """`not_findable` is the per-FID blacklist: bits that have already been
+    looked for with `TAR <name>` and do not exist in this Relay Word."""
     t = _telnet(MODE_TARGET,
                 client=_Client(),
                 reader=_Reader(_Layout(known=["PLT01"], not_findable=["PLT99"])))
@@ -74,17 +75,18 @@ def test_the_relay_word_lists_what_the_discovery_could_not_find():
 
 
 def test_a_goose_bit_is_unreachable_by_telnet_even_sem_ter_sido_procurado():
-    """`prepare_bits` pula `VB*` de propósito -- eles moram em outra região e
-    o Fast Message não os traz. Nunca entraram na lista negra, e mesmo assim
-    a tela nunca vai pintá-los: é exatamente o caso que manda o usuário pro
-    MMS, então tem que aparecer."""
+    """`prepare_bits` skips `VB*` on purpose -- they live in another region
+    and Fast Message does not bring them. They never entered the blacklist,
+    and even so the screen will never paint them: it is exactly the case that
+    sends the user to MMS, so it has to show up."""
     t = _telnet(MODE_TARGET, client=_Client(),
                 reader=_Reader(_Layout(known=["PLT01"])))
     assert t.unreachable({"PLT01", "VB001"})["names"] == ["VB001"]
 
 
 def test_the_constants_of_the_drawing_are_not_variables():
-    """Um GLE liga entradas a `0` e a `12`; não há o que adicionar no relé."""
+    """A GLE wires inputs to `0` and to `12`; there is nothing to add
+    to the relay."""
     t = _telnet(MODE_TARGET, client=_Client(),
                 reader=_Reader(_Layout(known=["PLT01"])))
     assert t.unreachable({"PLT01", "0", "12"})["names"] == []
@@ -104,8 +106,8 @@ def test_the_tar_mode_judges_by_the_relay_word_too():
 
 
 def test_the_fast_meter_mode_judges_by_the_dna():
-    """7xx: não há `AsciiTargetReader`; os digitais são o subconjunto que o
-    relé nomeia no DNA, e `*` é uma linha sem nome."""
+    """7xx: there is no `AsciiTargetReader`; the digitals are the subset the
+    relay names in the DNA, and `*` is an unnamed row."""
     t = _telnet(MODE_FAST_METER,
                 client=_Client(dna=[["LT01", "LT02", "*", "*"],
                                     ["IN101", "*", "*", "*"]]))
@@ -115,23 +117,23 @@ def test_the_fast_meter_mode_judges_by_the_dna():
 
 
 def test_a_fast_meter_relay_that_never_answered_the_dna_cannot_tell():
-    """Sem DNA, dizer que os 400 bits do desenho estão fora do relé seria
-    inventar; a resposta honesta é que ainda não se sabe."""
+    """Without DNA, saying the drawing's 400 bits are outside the relay would
+    be making it up; the honest answer is that it is not known yet."""
     t = _telnet(MODE_FAST_METER, client=_Client(dna=[]))
     assert t.unreachable({"LT01"}) is None
 
 
 def test_unreachable_answers_while_something_holds_the_transport():
-    """`prepare_bits` segura o `_lock` do transporte durante a descoberta
-    INTEIRA -- ~90 s numa varredura TAR fria de 3xx. E o painel se atualiza
-    justamente quando a conexão muda, que é quando essa varredura está
-    rodando: pedir o mesmo lock deixaria a requisição pendurada nela, e a
-    resposta é só um diagnóstico de dois dicionários que já estão na memória.
+    """`prepare_bits` holds the transport's `_lock` for the WHOLE discovery --
+    ~90 s on a cold 3xx TAR sweep. And the panel refreshes precisely when the
+    connection changes, which is when that sweep is running: asking for the
+    same lock would leave the request hanging on it, and the answer is only a
+    diagnostic of two dictionaries that are already in memory.
     """
     t = _telnet(MODE_TARGET, client=_Client(),
                 reader=_Reader(_Layout(known=["PLT01"], not_findable=["PLT99"])))
     out: list = []
-    with t._lock:                      # o lock da descoberta, de outra thread
+    with t._lock:                      # the discovery lock, from another thread
         worker = threading.Thread(
             target=lambda: out.append(t.unreachable({"PLT01", "PLT99"})),
             daemon=True)
@@ -141,7 +143,7 @@ def test_unreachable_answers_while_something_holds_the_transport():
         "a rota ficou esperando a descoberta terminar"
 
 
-# --- diagrama --------------------------------------------------------------
+# --- diagram ---------------------------------------------------------------
 
 class _FakeTransport:
     mode = "fake"
@@ -169,16 +171,17 @@ def _diagram(bits, link=None):
 
 
 def test_a_disconnected_diagram_says_it_cannot_tell_instead_of_zero():
-    """Zero leria como "está tudo no relé" numa tela que ninguém conectou."""
+    """Zero would read as "it is all in the relay" on a screen nobody
+    connected."""
     out = _diagram({"PLT01"}).unreachable()
     assert out["available"] is False
     assert out["names"] == []
 
 
 def test_the_diagram_asks_about_every_page_and_not_only_the_open_one():
-    """A lista existe pra montar o modelo do servidor do IED; página por
-    página, o usuário teria que percorrer o desenho inteiro pra saber o que
-    falta. (A cobertura da faixa de status continua sendo por página.)"""
+    """The list exists to build the IED's server model; page by page, the user
+    would have to walk the whole drawing to know what is missing. (The status
+    strip's coverage is still per page.)"""
     t = _FakeTransport({"names": ["VB001", "PLT99"], "reason": "relay_word"})
     d = _diagram({"PLT01", "PLT99", "VB001"}, link=_FakeLink(t))
     out = d.unreachable()
@@ -195,14 +198,14 @@ def test_a_transport_that_cannot_tell_yet_leaves_the_diagram_unavailable():
     assert d.unreachable()["available"] is False
 
 
-# --- rotas -----------------------------------------------------------------
+# --- routes ----------------------------------------------------------------
 #
-# `GET /unreachable` fica FORA do `/values`: a lista e' do diagrama inteiro e
-# so' muda quando a conexao muda, entao mandar as centenas de nomes junto de
-# um polling de 500 ms seria pagar o pior dos dois lados.
+# `GET /unreachable` stays OUT of `/values`: the list is the whole diagram's
+# and only changes when the connection changes, so sending the hundreds of
+# names along with a 500 ms poll would be paying the worst of both sides.
 
 def _handler(tmp_path, diagram, path):
-    """Um Handler montado pra exatamente um GET, sem socket nenhum."""
+    """A Handler assembled for exactly one GET, with no socket at all."""
     from pacct.web.glv.handler import GlvDefaults, build_glv_handler
     from pacct.web.session import SessionManager
 
@@ -244,9 +247,9 @@ def test_the_route_answers_the_whole_diagram_payload(tmp_path):
 
 
 def test_the_txt_download_carries_one_name_per_line_and_names_the_relay(tmp_path):
-    """O arquivo vai ser colado num editor de modelo de IED; o cabecalho diz
-    de qual rele e de qual desenho ele saiu, comentado com `#` pra nao virar
-    um nome por engano."""
+    """The file is going to be pasted into an IED model editor; the header
+    says which relay and which drawing it came from, commented with `#` so it
+    does not become a name by mistake."""
     t = _FakeTransport({"names": ["VB001", "PLT99"], "reason": "relay_word"})
     d = _diagram({"PLT01", "PLT99", "VB001"}, link=_FakeLink(t))
     h = _handler(tmp_path, d, "/unreachable.txt?d=d1")

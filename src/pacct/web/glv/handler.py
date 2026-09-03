@@ -1,16 +1,17 @@
-"""As rotas do GLV.
+"""The GLV routes.
 
-Uma pagina so (`/glv/`), com uma faixa de abas: um diagrama por aba, cada um
-com o seu rele. Trocar de aba nao recarrega -- o cliente busca `/meta?d=` e
-re-renderiza a faixa de paginas e o viewer.
+One page only (`/glv/`), with a tab strip: one diagram per tab, each with its
+own relay. Switching tabs does not reload -- the client fetches `/meta?d=` and
+re-renders the page strip and the viewer.
 
-A lista de diagramas e' da SESSAO do visitante (cookie `selsid`), como as
-outras quatro ferramentas. A conexao com o rele nao: e' do processo e contada
-por referencia (ver `link.py`), porque o rele e' um so e aceita poucas sessoes
-simultaneas.
+The list of diagrams belongs to the visitor's SESSION (cookie `selsid`), like
+the other four tools. The connection to the relay does not: it belongs to the
+process and is refcounted (see `link.py`), because there is only one relay and
+it accepts few simultaneous sessions.
 
-Nao ha mais `GlvMount.active` nem thread de sessao bloqueada num Event: o
-seletor de GLE virou a pagina `/novo`, e conectar virou `POST /connect?d=`.
+There is no more `GlvMount.active` and no session thread blocked on an Event:
+the GLE selector became the page `/novo`, and connecting became
+`POST /connect?d=`.
 """
 
 from __future__ import annotations
@@ -34,9 +35,9 @@ from pacct.web.project_files import library as filelib
 from pacct.web.session import SessionHandler
 
 DASHBOARD_HTML = load_template("dashboard.html")
-# O `<!--NAV:glv-->` dentro de `.shell` e' resolvido por requisicao em
-# `mount.py:_resolve_markup()`, com o tema do visitante na mao. Nao substituir
-# aqui: as tres direcoes nao compartilham a marcacao da navegacao.
+# The `<!--NAV:glv-->` inside `.shell` is resolved per request in
+# `mount.py:_resolve_markup()`, with the visitor's theme in hand. Do not
+# substitute it here: the three directions do not share the nav markup.
 LANDING_HTML = load_template("landing.html")
 
 _IP_RE = re.compile(r"^\d{1,3}(?:\.\d{1,3}){3}$")
@@ -50,10 +51,10 @@ def _valid_ipv4(s: str) -> bool:
 
 @dataclass(frozen=True)
 class GlvDefaults:
-    """Valores padrao lidos do config.ini UMA vez, no boot.
+    """Default values read from config.ini ONCE, at boot.
 
-    Antes o `setup_relay` lia o cfg direto e a tela de selecao escrevia nele --
-    com dois diagramas, abrir o segundo reescrevia o IP do primeiro.
+    `setup_relay` used to read the cfg directly and the selection screen wrote
+    into it -- with two diagrams, opening the second rewrote the first's IP.
     """
 
     ip: str = ""
@@ -65,31 +66,31 @@ class GlvDefaults:
     no_relay: bool = False           # --no-relay: sem botao Conectar
     max_links: int = 4
     max_diagrams: int = 8
-    setup_timeout: float = 60.0      # teto do login+autoconfig, nao da descoberta
+    setup_timeout: float = 60.0      # caps login+autoconfig, not discovery
     mms_interval_ms: int = 100       # periodo inicial do modo MMS
     scan_mode: str = "telnet"        # padrao da tela de selecao
 
 
 class _GlvSession:
-    """Os diagramas abertos de um visitante."""
+    """The diagrams a visitor has open."""
 
     def __init__(self):
         self.diagrams: dict = {}
         self.order: list = []
         self.active: str | None = None
         self.counter: int = 0
-        self.rdb = None              # ultimo RDB do seletor
+        self.rdb = None              # the picker's most recent RDB
 
 
 def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
-    """Devolve a classe de handler do GLV, montada em `/glv/` pelo dispatcher."""
+    """Return the GLV handler class, mounted at `/glv/` by the dispatcher."""
 
     pool = LinkPool(logger, max_links=defaults.max_links)
 
     def _new_session():
         st = _GlvSession()
         if defaults.gle_file:
-            # `--gle`: abre esse arquivo direto, sem passar pelo seletor.
+            # `--gle`: opens that file directly, skipping the selector.
             path = resolve_gle_path(defaults.gle_file)
             if path.is_file():
                 _open_diagram(st, path, defaults.relay_name, path.stem,
@@ -112,7 +113,7 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
         return d
 
     def _close_session(sess):
-        """Sessao expirada: solta as conexoes antes do rmtree do diretorio."""
+        """Session expired: drop the connections before the dir rmtree."""
         st = sess.data.get("glv")
         if st is None:
             return
@@ -166,11 +167,12 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
                 "no_relay_default": defaults.no_relay,
                 "no_relay_locked": defaults.no_relay,
                 "open_diagrams": len(st.diagrams),
-                # Padrao de cada linha da tela de selecao. A landing trazia
-                # 'telnet' fixo no HTML e sempre mandava um modo explicito no
-                # POST, entao `[web] glv_scan_mode` so' valia como fallback pra
-                # um cliente que nao dissesse nada -- e este cliente sempre diz.
-                # Configurar `mms` no config.ini nao mudava nada na tela.
+                # Default for every row of the selection screen. The landing
+                # hardcoded 'telnet' in the HTML and always sent an explicit
+                # mode in the POST, so `[web] glv_scan_mode` was only a
+                # fallback for a client that said nothing -- and this client
+                # always says. Setting `mms` in config.ini changed nothing on
+                # the screen.
                 "scan_mode": defaults.scan_mode,
                 "max_diagrams": defaults.max_diagrams,
             }
@@ -196,7 +198,7 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
             if path in ("/", "/index.html"):
                 st = self.sess()
                 if not st.order:
-                    # Casca sem aba nenhuma nao tem o que mostrar.
+                    # A shell with no tabs at all has nothing to show.
                     self._redirect(f"{self.mount_prefix}/novo")
                     return
                 did = (qs.get("d") or [""])[0]
@@ -244,10 +246,10 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
                 if svg is None:
                     self._send(404, "not found", "text/plain")
                 else:
-                    # E' aqui que se sabe qual pagina o visitante abriu: este
-                    # GET e' o unico caminho pro SVG, e passa por ele tanto o
-                    # clique na faixa de paginas quanto a navegacao da busca
-                    # de variaveis. Ver `GlvDiagram.remember_page`.
+                    # This is where we learn which page the visitor opened:
+                    # this GET is the only path to the SVG, and both the page
+                    # strip click and the variable search's navigation go
+                    # through it. See `GlvDiagram.remember_page`.
                     d.remember_page(safe_id)
                     self._send(200, svg, "image/svg+xml")
                 return
@@ -298,10 +300,10 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
             self._send(404, "not found", "text/plain")
 
         def _send_unreachable_txt(self, d) -> None:
-            """A mesma lista como arquivo, pra ser colada no editor do modelo
-            do IED. Trezentos nomes nao se copiam da tela, e o cabecalho
-            comentado com `#` diz de qual rele e de qual desenho eles sairam
-            sem virar um nome por engano."""
+            """The same list as a file, to be pasted into the IED model's
+            editor. Three hundred names do not copy off the screen, and the
+            header commented with `#` says which relay and which drawing they
+            came from without becoming a name by accident."""
             out = d.unreachable()
             head = [
                 f"# GLV — variáveis fora do alcance da leitura {out['scan_mode']}",
@@ -316,7 +318,7 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
-            # RFC 5987: nome de rele leva acento (ver `project_files/handler`).
+            # RFC 5987: relay names have accents (see `project_files/handler`).
             self.send_header("Content-Disposition",
                              "attachment; filename*=UTF-8''"
                              + quote(name, safe=""))
@@ -405,10 +407,10 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
         # -- escolha do RDB e criacao ---------------------------------------
 
         def _select_rdb(self):
-            """O corpo do antigo /rdb-upload, do `process_upload` pra frente.
+            """The body of the old /rdb-upload, from `process_upload` on.
 
-            O arquivo ja entrou no projeto em `/files/` e ja foi extraido
-            uma vez; aqui so se aponta pra ele.
+            The file already entered the project at `/files/` and has already
+            been extracted once; here we only point at it.
             """
             body, _ = self._body()
             try:
@@ -430,16 +432,16 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
             self._send_json(200, self._landing_state())
 
         def _resolve_scd_path(self, scd_sha: str | None):
-            """SCD escolhido pra este diagrama MMS, pela mesma biblioteca do
-            `/files/`. Resolvido AQUI, na requisicao, porque este handler e'
-            o unico lugar com a sessao (`self.session`) na mao -- o diagrama e'
-            montado sem tocar na rede e conecta numa thread propria que so tem
-            o que este metodo guardou nele.
+            """SCD chosen for this MMS diagram, from the same library as
+            `/files/`. Resolved HERE, in the request, because this handler is
+            the only place with the session (`self.session`) in hand -- the
+            diagram is built without touching the network and connects in a
+            thread of its own that has only what this method stored on it.
 
-            Ausencia (sha vazio, arquivo saiu do projeto, ou nao e' um SCD)
-            nao e' erro: o transporte MMS ainda tem a tabela de fabrica como
-            segunda fonte, e um diagrama sem SCD e' um caso valido, so' menos
-            coberto.
+            Absence (empty sha, file left the project, or not an SCD) is not
+            an error: the MMS transport still has the factory table as a
+            second source, and a diagram without an SCD is a valid case, just
+            less covered.
             """
             if not scd_sha:
                 return None
@@ -454,12 +456,12 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
             return entry.scd_path
 
         def _resolve_gle(self, st, relay: str, gle: str, ip_raw: str):
-            """Valida um par (rele, GLE) + IP e resolve o modelo do rele.
+            """Validate a (relay, GLE) pair + IP and resolve the relay model.
 
-            Devolve `((caminho, modelo, ip), None)` ou `(None, (status, msg))`.
-            E' o unico lugar onde essas checagens moram: `/diagrams` abre um e
-            `/diagrams/batch` abre varios, e os dois tem que recusar pelas
-            mesmas razoes.
+            Returns `((path, model, ip), None)` or `(None, (status, msg))`.
+            It is the only place these checks live: `/diagrams` opens one and
+            `/diagrams/batch` opens several, and both have to refuse for the
+            same reasons.
             """
             info = st.rdb
             if info is None:
@@ -475,8 +477,8 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
                 # e' melhor dizer agora do que deixar o botao morto na tela.
                 return None, (400, f"IP do relé {relay} é obrigatório")
 
-            # Resolve o modelo do rele (governa derived_bits, layout e modo de
-            # leitura). Sem JSON em relay_models/, seguimos com defaults.
+            # Resolve the relay model (governs derived_bits, layout and read
+            # mode). With no JSON in relay_models/, we carry on with defaults.
             relay_model = None
             rel = next((r for r in info.relays if r.name == relay), None)
             if rel is not None and rel.model:
@@ -513,13 +515,13 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
                 self._send_json(err[0], {"error": err[1]})
                 return
             gle_path, relay_model, ip = resolved
-            # So' o MMS troca a porta. `DEFAULT_PORTS.get(scan_mode, ...)`
-            # devolvia 23 pro modo telnet e passava por cima do `[tcp] port`
-            # do config.ini -- uma subestacao atras de terminal server ou de
-            # port-forward (`port = 2001`) passava a conectar em 23, em
-            # silencio. O paradoxo denunciava o acidente: um scan_mode
-            # DESCONHECIDO respeitava o config.ini e o "telnet" documentado
-            # nao.
+            # Only MMS overrides the port. `DEFAULT_PORTS.get(scan_mode, ...)`
+            # returned 23 for telnet mode and rode over config.ini's
+            # `[tcp] port` -- a substation behind a terminal server or a
+            # port-forward (`port = 2001`) started connecting on 23, in
+            # silence. The paradox gave the accident away: an UNKNOWN
+            # scan_mode honoured config.ini and the documented "telnet" did
+            # not.
             port = (DEFAULT_PORTS[SCAN_MMS] if scan_mode == SCAN_MMS
                     else defaults.port)
             scd_path = self._resolve_scd_path(scd_sha)
@@ -532,12 +534,12 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
             self._send_json(200, {"id": d.id, **self._tabs_payload(st)})
 
         def _create_diagrams_batch(self):
-            """Abre varios GLEs de uma vez, marcados no seletor.
+            """Open several GLEs at once, ticked in the selector.
 
-            Valida a lista INTEIRA antes de abrir qualquer coisa: um lote pela
-            metade e' pior que lote nenhum -- ninguem sabe o que entrou sem
-            contar as abas. Passada a validacao, so uma falha de renderizacao
-            derruba um item, e os outros seguem abrindo.
+            Validates the WHOLE list before opening anything: a half-done
+            batch is worse than no batch -- nobody knows what got in without
+            counting the tabs. Past validation, only a render failure drops
+            one item, and the others keep opening.
             """
             body, _ = self._body()
             try:
@@ -590,7 +592,7 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
                     d = _open_diagram(st, gle_path, relay, gle, ip, port,
                                       relay_model, scan_mode=scan_mode,
                                       scd_sha=scd_sha, scd_path=scd_path)
-                except Exception as e:   # um GLE ruim nao leva o lote junto
+                except Exception as e:   # one bad GLE must not take the batch with it
                     logger.exception("[glv] falha ao abrir %s / %s", relay, gle)
                     errors.append(f"{relay} / {gle}: {e}")
                     continue
@@ -600,8 +602,8 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
                             ip or "(sem IP)", port, scan_mode)
             job.finish(f"{len(ids)} diagrama(s) aberto(s)")
             if ids:
-                # `_open_diagram` deixou o ultimo ativo; a aba que o cliente
-                # abre e' a primeira do lote, entao e' essa que fica.
+                # `_open_diagram` left the last one active; the tab the client
+                # opens is the batch's first, so that is the one that stays.
                 st.active = ids[0]
             self._send_json(200, {"ids": ids, "errors": errors,
                                   **self._tabs_payload(st)})

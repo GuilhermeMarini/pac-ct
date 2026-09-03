@@ -1,26 +1,27 @@
 """
-VLAN Mapper: a partir de um SCD, lista as VLANs que cada rele (IED) precisa
-ter habilitadas na porta do switch.
+VLAN Mapper: from an SCD, list the VLANs each relay (IED) needs enabled
+on its switch port.
 
-Por IED, computamos dois conjuntos:
-  - RX: VLAN-IDs dos GSE Control Blocks que o IED assina via
+Per IED, we compute two sets:
+  - RX: VLAN-IDs of the GSE Control Blocks the IED subscribes to via
         <ExtRef serviceType="GOOSE" iedName="<publisher>" srcCBName="..."
-                srcLDInst="..."> -- resolvidos contra os <GSE> de
-        <ConnectedAP iedName="<publisher>"> no <Communication>.
-  - TX: VLAN-IDs dos <GSE> do PROPRIO IED no <Communication> (i.e., GOOSE
-        que este rele publica).
+                srcLDInst="..."> -- resolved against the <GSE> of
+        <ConnectedAP iedName="<publisher>"> in <Communication>.
+  - TX: VLAN-IDs of the IED'S OWN <GSE> in <Communication> (i.e., GOOSE
+        this relay publishes).
 
-Saida: pagina HTML com uma linha por IED, colunas =
+Output: HTML page with one row per IED, columns =
   IED | tipo/desc | IP | VLANs (chips) | #RX / #TX
 
-Fluxo:
-  1. Usuario faz upload do SCD.
-  2. App parseia e mostra a tabela.
-  3. Botao "<- Menu" no header volta pra home (mesma convencao do VB Updater).
+Flow:
+  1. The user uploads the SCD.
+  2. The app parses it and shows the table.
+  3. The "<- Menu" button in the header goes home (same convention as the
+     VB Updater).
 
-Compartilha as utilidades de pagina (LANDING + escape + dropzone) com o
-VB Updater, mas mantida em modulo separado pra simplificar o estado da sessao
-(so SCD aqui, sem RDB nem matcher).
+Shares the page utilities (LANDING + escape + dropzone) with the
+VB Updater, but kept in a separate module to keep the session state simple
+(SCD only here, no RDB and no matcher).
 
     templates/  landing.html
 """
@@ -48,21 +49,21 @@ def load_template(name: str) -> str:
 
 
 # -----------------------------------------------------------------------------
-# Estado da sessao
+# Session state
 # -----------------------------------------------------------------------------
 
 @dataclass
 class _Session:
     scd_path: Path | None = None
     scd_name: str | None = None
-    # Cache do payload calculado (revalidado a cada upload).
+    # Cache of the computed payload (revalidated on every upload).
     payload: dict | None = None
 
 
 
 
 # -----------------------------------------------------------------------------
-# Computacao do mapa IED -> VLANs
+# Computing the IED -> VLANs map
 # -----------------------------------------------------------------------------
 
 @dataclass(frozen=True)
@@ -71,23 +72,23 @@ class IedVlanRow:
     ip: str | None
     relay_type: str | None
     description: str | None
-    rx_vlans: list[str]   # VLAN-IDs distintos (ordenados) que o IED recebe
-    tx_vlans: list[str]   # VLAN-IDs distintos (ordenados) que o IED publica
-    # vlan_id -> lista (ordenada) de IEDs publishers que originam GOOSE
-    # naquele VLAN e que sao assinados por este IED. So inclui o lado RX --
-    # pro TX o publisher e o proprio IED (rendering trata como "self").
+    rx_vlans: list[str]   # distinct VLAN-IDs (sorted) the IED receives
+    tx_vlans: list[str]   # distinct VLAN-IDs (sorted) the IED publishes
+    # vlan_id -> (sorted) list of publisher IEDs that originate GOOSE on
+    # that VLAN and are subscribed to by this IED. RX side only -- for TX
+    # the publisher is the IED itself (rendering treats it as "self").
     publishers_by_vlan: dict[str, list[str]]
-    rx_count: int         # numero total de assinaturas GOOSE (mesmo vlan repetido conta)
-    tx_count: int         # numero de GSE controls publicados
-    unresolved: list[str] # GSEs assinados mas sem entrada em <Communication>
+    rx_count: int         # total number of GOOSE subscriptions (a repeated vlan counts)
+    tx_count: int         # number of GSE controls published
+    unresolved: list[str] # GSEs subscribed but with no entry in <Communication>
 
 
 def _sort_vlans(values: set[str]) -> list[str]:
-    """Ordena VLAN-IDs textualmente, com prioridade pra ordem numerica quando
-    todos sao parseaveis como int (em base 10 ou 16)."""
+    """Sort VLAN-IDs as text, preferring numeric order when all of them
+    parse as int (in base 10 or 16)."""
     def key(v: str):
         s = v.strip()
-        # Tenta hex primeiro (VLAN-IDs em SCDs frequentemente vem em hex).
+        # Try hex first (VLAN-IDs in SCDs often come in hex).
         for base in (16, 10):
             try:
                 return (0, int(s, base))
@@ -98,12 +99,12 @@ def _sort_vlans(values: set[str]) -> list[str]:
 
 
 def compute_ied_vlan_rows(scd_path: Path) -> list[IedVlanRow]:
-    """Cruza IEDs + GSE communication + GOOSE subscriptions e retorna uma
-    lista de linhas (uma por IED conhecido) com RX/TX VLANs.
+    """Cross IEDs + GSE communication + GOOSE subscriptions and return a
+    list of rows (one per known IED) with RX/TX VLANs.
 
-    IEDs sem nenhuma subscricao e sem GSE proprio sao incluidos mesmo assim
-    (a porta de switch ainda recebe trafego MMS/Reports/etc., mas pelo escopo
-    desta ferramenta as VLANs ficarao vazias).
+    IEDs with no subscription and no GSE of their own are included anyway
+    (the switch port still carries MMS/Reports/etc. traffic, but within the
+    scope of this tool their VLANs come out empty).
     """
     ieds: list[IedInfo] = scd_loader.load_scd(scd_path)
     gse_map: dict[tuple[str, str, str], GseAddress] = (
@@ -113,14 +114,14 @@ def compute_ied_vlan_rows(scd_path: Path) -> list[IedVlanRow]:
         scd_loader.extract_goose_subscriptions_by_ied(scd_path)
     )
 
-    # Indexa GSE por publisher pra calcular TX rapido.
+    # Index GSE by publisher for a fast TX lookup.
     gse_by_publisher: dict[str, list[GseAddress]] = {}
     for addr in gse_map.values():
         gse_by_publisher.setdefault(addr.publisher_ied, []).append(addr)
 
     rows: list[IedVlanRow] = []
     for ied in ieds:
-        # RX: resolve cada subscription -> VLAN-ID via gse_map.
+        # RX: resolve each subscription -> VLAN-ID via gse_map.
         rx_set: set[str] = set()
         rx_publishers: dict[str, set[str]] = {}  # vlan_id -> {publisher_ied}
         rx_count = 0
@@ -130,8 +131,8 @@ def compute_ied_vlan_rows(scd_path: Path) -> list[IedVlanRow]:
             key = (sub.publisher_ied, sub.src_ld_inst, sub.src_cb_name)
             addr = gse_map.get(key)
             if addr is None and sub.src_ld_inst:
-                # Algumas ferramentas omitem ldInst no GSE mas mantem no ExtRef
-                # (ou vice-versa). Tenta um fallback so com (publisher, cbName).
+                # Some tools omit ldInst in the GSE but keep it in the ExtRef
+                # (or the reverse). Fall back to (publisher, cbName) alone.
                 for cand in gse_by_publisher.get(sub.publisher_ied, []):
                     if cand.cb_name == sub.src_cb_name:
                         addr = cand
@@ -144,7 +145,7 @@ def compute_ied_vlan_rows(scd_path: Path) -> list[IedVlanRow]:
             rx_set.add(addr.vlan_id)
             rx_publishers.setdefault(addr.vlan_id, set()).add(sub.publisher_ied)
 
-        # TX: VLAN-IDs dos proprios GSE deste IED.
+        # TX: VLAN-IDs of this IED's own GSE.
         tx_addrs = gse_by_publisher.get(ied.name, [])
         tx_set: set[str] = set()
         for addr in tx_addrs:
@@ -168,7 +169,7 @@ def compute_ied_vlan_rows(scd_path: Path) -> list[IedVlanRow]:
             unresolved=unresolved,
         ))
 
-    # Ordena IEDs por nome pra dar uma listagem determinista.
+    # Sort IEDs by name so the listing is deterministic.
     rows.sort(key=lambda r: r.ied_name)
     return rows
 
@@ -190,7 +191,7 @@ def _row_to_dict(r: IedVlanRow) -> dict:
 
 def _build_payload(scd_path: Path, scd_name: str) -> dict:
     rows = compute_ied_vlan_rows(scd_path)
-    # VLANs distintas em toda a substacao (RX+TX agregado) -- util pra UI.
+    # Distinct VLANs across the whole substation (RX+TX) -- useful for UI.
     all_vlans: set[str] = set()
     for r in rows:
         all_vlans.update(r.rx_vlans)
@@ -219,7 +220,7 @@ def _state_payload(st: _Session) -> dict:
 
 LANDING_HTML = load_template("landing.html")
 
-# A navegacao numerada e' a mesma das nove telas -- mora em theme.py.
+# The numbered navigation is the same on the nine screens -- lives in theme.py.
 
 
 # -----------------------------------------------------------------------------
@@ -227,11 +228,12 @@ LANDING_HTML = load_template("landing.html")
 # -----------------------------------------------------------------------------
 
 def build_vlan_mapper_handler(logger: logging.Logger, sessions) -> type:
-    """Devolve a classe de handler do VLAN Mapper.
+    """Return the VLAN Mapper handler class.
 
-    Nao sobe servidor: quem serve e' o dispatcher unico de `pacct.web.mount`,
-    que monta esse handler em `/vlan-mapper/`. Estado e uploads ficam por
-    sessao (`self.sess()` / `self.sdir()`), nao por processo.
+    Opens no server: serving is done by the single dispatcher of
+    `pacct.web.mount`, which mounts this handler at `/vlan-mapper/`. State
+    and uploads are per session (`self.sess()` / `self.sdir()`), not per
+    process.
     """
 
     class Handler(SessionHandler):
@@ -245,7 +247,7 @@ def build_vlan_mapper_handler(logger: logging.Logger, sessions) -> type:
                 self._send(200, LANDING_HTML, "text/html; charset=utf-8")
                 return
             if path == "/vlan-state":
-                # Sentinela usado pela home pra detectar que essa tool subiu.
+                # Sentinel the home uses to detect that this tool is up.
                 self._send_json(200, {"ok": True})
                 return
             if path == "/state":
@@ -257,8 +259,8 @@ def build_vlan_mapper_handler(logger: logging.Logger, sessions) -> type:
             path = urlparse(self.path).path
 
             if path == "/select-scd":
-                # O corpo do antigo /scd-upload, do `load_scd` pra frente: o
-                # arquivo ja foi recebido e validado em /files/.
+                # The body of the old /scd-upload, from `load_scd` onward:
+                # the file was already received and validated in /files/.
                 body = self._read_json_body()
                 sha = (body.get("sha256") or "").strip()
                 lib = filelib.library_for(sessions, self.session)

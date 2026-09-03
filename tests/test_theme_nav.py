@@ -30,8 +30,8 @@ def test_the_files_tab_marks_itself_as_the_current_screen(theme):
 @pytest.mark.parametrize("theme", ALL)
 def test_the_first_tool_is_the_vendor_neutral_one(theme):
     """régua's home cards say "Borne i" and its strip has to keep matching.
-    Com os grupos, a ferramenta 1 passou a ser o VLAN Mapper: e' a unica que
-    nao pede nada de fabricante nenhum, e o menu abre pelo generico."""
+    With the groups, tool 1 became the VLAN Mapper: it is the only one that
+    asks for nothing from any vendor, and the menu opens with the generic."""
     html = themes.nav_html(theme, "vlan-mapper")
     assert ">1<" in html or ">01<" in html
 
@@ -62,8 +62,8 @@ def test_every_tool_declares_a_known_group():
 
 
 def test_the_catalogue_is_sorted_by_group():
-    """O ordinal 1..9 sai da posicao em TOOLS. Se a lista nao estiver na ordem
-    dos grupos, a home imprime um numero e a tira imprime outro."""
+    """The 1..9 ordinal comes from the position in TOOLS. If the list is not
+    in group order, the home prints one number and the strip prints another."""
     positions = [items.GROUP_ORDER.index(t.group) for t in items.TOOLS]
     assert positions == sorted(positions)
 
@@ -76,8 +76,8 @@ def test_the_numbering_the_screens_promise():
 
 
 def test_the_two_empty_groups_are_declared_with_a_roadmap():
-    """Secao vazia e muda e' vapor; com uma linha do que vai cair ali e'
-    previsao. E' a decisao do design, entao e' teste."""
+    """An empty and silent section is vapour; with one line of what will land
+    there it is a forecast. It is the design's decision, so it is a test."""
     for key in ("ge", "siemens"):
         g = next(g for g in items.GROUPS if g.key == key)
         assert not items.tools_of(key)
@@ -107,8 +107,8 @@ def test_regua_captions_every_group_and_the_entrance():
 
 
 def test_regua_strip_and_cards_agree_on_the_number():
-    """As fichas dizem "Borne i" e a tira imprime i. Sao dois renderizadores;
-    o gotcha do docs/ENGINEERING-NOTES.md vira teste aqui."""
+    """The cards say "Borne i" and the strip prints i. They are two
+    renderers; the docs/ENGINEERING-NOTES.md gotcha becomes a test here."""
     nav = themes.nav_html("regua", "")
     home = themes.home_html("regua")
     for t in items.TOOLS:
@@ -128,7 +128,7 @@ def test_folha_names_every_group_in_its_table_of_contents():
 
 def test_folha_numbers_the_reference_column_by_section():
     html = themes.home_html("folha")
-    # 1.1 e' o VLAN Mapper (secao 1, primeira linha); 2.1 e' o GLV.
+    # 1.1 is the VLAN Mapper (section 1, first row); 2.1 is the GLV.
     assert '<td class="var">1.1</td>' in html
     assert '<td class="var">2.1</td>' in html
     assert '<td class="var">2.7</td>' in html

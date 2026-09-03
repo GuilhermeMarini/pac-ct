@@ -1,19 +1,19 @@
 """
-Smoke script para o parser+comparator de settings.
+Smoke script for the settings parser+comparator.
 
-Nao eh um test framework -- so um harness pra rodar manualmente:
+Not a test framework -- just a harness to run by hand:
 
     python3 tools/check_settings_compare.py
 
-Cobre 3 grupos de cenarios:
+It covers 3 groups of scenarios:
 
-  1. Casos sinteticos com veredicto esperado (passa/falha por igualdade).
-  2. Compara um SET_L1.TXT real consigo mesmo (devem ser todos EQUAL).
-  3. Compara o mesmo SET_L1 entre dois reles distintos da mesma familia
-     (mostra distribuicao de veredictos -- olho humano olha se faz sentido).
+  1. Synthetic cases with an expected verdict (pass/fail by equality).
+  2. Compares a real SET_L1.TXT against itself (they must all be EQUAL).
+  3. Compares the same SET_L1 between two distinct relays of the same family
+     (shows the verdict distribution -- a human eye judges if it makes sense).
 
-Saida: tabela texto + contador agregado. Exit code 0 se nenhum caso sintetico
-falha; nao tenta validar o codigo de produc̃ao alem disso.
+Output: a text table + an aggregate counter. Exit code 0 if no synthetic case
+fails; it does not try to validate the production code beyond that.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-# Permite rodar como script sem instalar o pacote.
+# Allows running as a script without installing the package.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -31,7 +31,7 @@ from selfiles.settings import parse_settings_file
 
 from pacct.paths import RDB_CACHE_DIR, RDBS_DIR
 
-# Coloque cada caso como (a, b, kind, dialect, expected_verdict, label).
+# Put each case as (a, b, kind, dialect, expected_verdict, label).
 SYNTHETIC_CASES = [
     # ----------------------------------------------------------------- EQUAL
     ("A AND B", "A AND B", "logic", "keyword", "EQUAL",
@@ -78,7 +78,7 @@ SYNTHETIC_CASES = [
      "edge em bits diferentes"),
     ("R_TRIG VB002", "VB002", "logic", "keyword", "DIFFERENT",
      "edge vs nivel"),
-    # --------------------------------------------------------- numeros / enums
+    # --------------------------------------------------------- numbers / enums
     ("0.000000", "0", "number", "keyword", "EQUIVALENT",
      "zero com tail de zeros"),
     ("1.000000", "1.0", "number", "keyword", "EQUIVALENT",
@@ -91,12 +91,12 @@ SYNTHETIC_CASES = [
     ("Y", "N", "enum", "keyword", "DIFFERENT", "enum oposto"),
     ("S,T", "S,T", "enum", "keyword", "EQUAL",
      "enum multi-valor identico"),
-    # --------------------------------------- nao-boolean (math) com texto igual
+    # ----------------------------------- non-boolean (math) with identical text
     ("(IA + IB + IC) / 3", "(IA + IB + IC) / 3", "logic", "keyword", "EQUAL",
      "math expr identica vira EQUAL via texto"),
     ("(IA + IB + IC) / 3", "(IB + IA + IC) / 3", "logic", "keyword", "DIFFERENT",
      "math nao tem equivalencia algebrica"),
-    # ---------------------------------------------------- > 16 atomos (warning)
+    # ----------------------------------------------------- > 16 atoms (warning)
     (" OR ".join(f"A{i}" for i in range(20)),
      " OR ".join(f"A{i}" for i in range(19, -1, -1)),
      "logic", "keyword", "EQUIVALENT",
@@ -114,7 +114,7 @@ SYNTHETIC_CASES = [
 
 
 def run_synthetic() -> int:
-    """Roda os casos sinteticos. Retorna numero de falhas."""
+    """Runs the synthetic cases. Returns the number of failures."""
     print("=" * 80)
     print("CASOS SINTETICOS")
     print("=" * 80)
@@ -138,14 +138,14 @@ def run_synthetic() -> int:
 
 
 def run_self_compare() -> None:
-    """Compara um SET_L1 real consigo mesmo -- tudo deve ser EQUAL."""
+    """Compares a real SET_L1 against itself -- everything must be EQUAL."""
     print()
     print("=" * 80)
     print("SELF-COMPARE (um SET_L1 real contra ele mesmo)")
     print("=" * 80)
 
-    # As extracoes moram no cache por conteudo (`cache/rdb/<sha256>/`); o
-    # `rdbs/` fica como fallback pras extracoes do layout antigo.
+    # The extractions live in the content cache (`cache/rdb/<sha256>/`);
+    # `rdbs/` stays as a fallback for the old layout's extractions.
     candidates = []
     for root, pat in ((RDB_CACHE_DIR, "*/extracted/Relays/*"),
                       (RDBS_DIR, "extracted/*/Relays/*")):
@@ -168,8 +168,8 @@ def run_self_compare() -> None:
 
     counter: Counter[str] = Counter()
     for ln in ps.lines:
-        # Tudo eh "logic" por simplicidade do self-compare: o veredicto pra
-        # numeros tambem sera EQUAL se as strings sao identicas.
+        # Everything is "logic" to keep the self-compare simple: the verdict
+        # for numbers will also be EQUAL if the strings are identical.
         r = compare(ln.value, ln.value, kind="logic", dialect=dialect)
         counter[r.verdict] += 1
     print(f"  veredictos: {dict(counter)}")
@@ -178,13 +178,13 @@ def run_self_compare() -> None:
 
 
 def run_cross_compare() -> None:
-    """Compara o mesmo SET_L1 entre 2 reles do mesmo modelo."""
+    """Compares the same SET_L1 between 2 relays of the same model."""
     print()
     print("=" * 80)
     print("CROSS-COMPARE (2 reles 7xx mesmo modelo)")
     print("=" * 80)
 
-    # Procura dois SEL-751 na mesma extracao
+    # Looks for two SEL-751 in the same extraction
     targets: list[Path] = []
     for cand in sorted(list(RDB_CACHE_DIR.glob("*/extracted/Relays/*/set_L1.txt"))
                        + list(RDBS_DIR.glob("extracted/*/Relays/*/set_L1.txt"))):
@@ -217,8 +217,9 @@ def run_cross_compare() -> None:
     counter: Counter[str] = Counter()
     differing: list[tuple[str, str, str, str]] = []
     for k in common:
-        # Tentativa boolean primeiro; se nao parsea, cai pra numero/string via texto.
-        # Aqui simplificamos: SET_L1/set_L1 sao predominantemente expressoes logicas.
+        # Boolean attempt first; if it does not parse, it falls back to
+        # number/string via text. We simplify here: SET_L1/set_L1 are
+        # predominantly logic expressions.
         r = compare(by_key_a[k], by_key_b[k], kind="logic", dialect="keyword")
         counter[r.verdict] += 1
         if r.verdict == "DIFFERENT":

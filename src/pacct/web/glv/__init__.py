@@ -1,19 +1,20 @@
-"""Graphical Logic Viewer: N diagramas abertos, cada um com o seu rele.
+"""Graphical Logic Viewer: N open diagrams, each with its own relay.
 
     state.py      LiveState (+ clear)
-    poll.py       as tres threads de polling, uma por familia de rele
-    gle_pages.py  paginas, bits e analogicos de um GLE
-    notes.py      notas, marca-texto e grupos, chaveados por nome de rele
-    link.py       RelayLink + LinkPool: uma conexao por rele, contada por
-                  referencia entre os diagramas que a pedem. So o ciclo de
-                  vida: o protocolo mora no transporte
-    transport/    o seam de transporte -- o Protocol em __init__.py e o
-                  telnet (SEL Fast Message) em telnet.py
-    diagram.py    GlvDiagram: um diagrama aberto, conectado ou nao
-    handler.py    as rotas
-    templates/    dashboard.html e landing.html
+    poll.py       the three polling threads, one per relay family
+    gle_pages.py  pages, bits and analogs of a GLE
+    notes.py      notes, highlighter and groups, keyed by relay name
+    link.py       RelayLink + LinkPool: one connection per relay, refcounted
+                  across the diagrams that ask for it. Lifecycle only: the
+                  protocol lives in the transport
+    transport/    the transport seam -- the Protocol in __init__.py and the
+                  telnet one (SEL Fast Message) in telnet.py
+    diagram.py    GlvDiagram: one open diagram, connected or not
+    handler.py    the routes
+    templates/    dashboard.html and landing.html
 
-O que era `dashboard.py` inteiro. La ficaram so a home e o `main()`.
+What used to be the whole of `dashboard.py`. Only the home and the `main()`
+stayed there.
 """
 
 from __future__ import annotations
@@ -22,5 +23,5 @@ from pacct.paths import GLV_TEMPLATES_DIR
 
 
 def load_template(name: str) -> str:
-    """Le um template do GLV. Lido no import, como a string raw era antes."""
+    """Reads a GLV template. Read at import, as the raw string was before."""
     return (GLV_TEMPLATES_DIR / name).read_text(encoding="utf-8")

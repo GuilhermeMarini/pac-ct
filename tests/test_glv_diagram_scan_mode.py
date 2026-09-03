@@ -69,10 +69,10 @@ class _FakeLink:
         self.state = LiveState()
         self.owners: set = set()
         self.fid = "FAKE-FID"
-        # `RelayLink` sempre tem os dois, e o diagrama pergunta pelos dois: um
-        # link que desistiu (a leitura parou sozinha) continua pendurado no
-        # `self.link` mas responde `connected = False`, e e' assim que a aba
-        # para de dizer LIVE. Um dublê sem isto so' testa o caso feliz.
+        # `RelayLink` always has both, and the diagram asks for both: a link
+        # that gave up (the reading stopped on its own) is still hanging on
+        # `self.link` but answers `connected = False`, and that is how the tab
+        # stops saying LIVE. A double without this only tests the happy case.
         self.connected = True
         self.error = ""
         self.key = "192.0.2.10:23"
@@ -183,9 +183,9 @@ class TestSetIntervalMs:
         assert d._interval_ms is None   # never stored for a refused request
 
     def test_mms_has_no_floor_and_zero_means_as_fast_as_the_relay_answers(self):
-        # Nao ha piso: o que segura o ritmo e' o ciclo da leitura, dentro do
-        # transporte (ver test_mms_transport.py). O diagrama repassa o que
-        # foi pedido.
+        # There is no floor: what holds the pace is the read cycle, inside
+        # the transport (see test_mms_transport.py). The diagram passes on
+        # what was asked for.
         d = _diagram(SCAN_MMS)
         d.link = _FakeLink()
         assert d.set_interval_ms(10)["interval_ms"] == 10
@@ -193,8 +193,8 @@ class TestSetIntervalMs:
         assert d.link.set_poll_interval_calls == [0.01, 0.0]
 
     def test_a_negative_period_is_cut_at_zero(self):
-        # Unico ajuste que sobrou: periodo negativo nao quer dizer nada e
-        # viraria um sleep negativo la' na frente.
+        # The only adjustment left: a negative period means nothing and
+        # would become a negative sleep further down the line.
         d = _diagram(SCAN_MMS)
         d.link = _FakeLink()
         assert d.set_interval_ms(-50)["interval_ms"] == 0
@@ -245,9 +245,9 @@ class _ReapingPool:
         self.released.append((link, owner))
 
     def acquire(self, ip, port, owner, make_transport=None):
-        # A reconexao em si nao e' o assunto destes testes: recusar aqui deixa
-        # a thread de conexao terminar por um caminho que o diagrama ja trata
-        # (`_fail`), em vez de estourar num duble incompleto.
+        # Reconnection itself is not the subject of these tests: refusing
+        # here lets the connect thread end through a path the diagram already
+        # handles (`_fail`), instead of blowing up in an incomplete double.
         raise TooManyLinks("sem bancada neste teste")
 
 
@@ -295,9 +295,9 @@ class TestALinkThatGaveUp:
 
         d.connect_async(pool, _Defaults())
 
-        # `release` e a limpeza do `self.link` acontecem em `connect_async`
-        # mesmo, antes de qualquer thread; o desfecho da reconexao e' assunto
-        # de outro teste e aqui seria uma corrida.
+        # `release` and clearing `self.link` happen in `connect_async`
+        # itself, before any thread; the outcome of the reconnection is
+        # another test's subject and here it would be a race.
         assert pool.released == [(link, d.id)], "nao soltou o link morto"
         assert d.link is None, "o link morto continuou pendurado no diagrama"
 

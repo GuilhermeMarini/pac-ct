@@ -1,32 +1,32 @@
-"""Conectores do GLE: a rede nomeada que o desenho usa no lugar de uma linha.
+"""GLE connectors: the named network the drawing uses in place of a line.
 
-Quem desenha usa um **conector** pra nao puxar uma linha comprida pela pagina.
-No XML isso NAO e' uma aresta: sao dois ou mais `<element type="Connector">`
-que compartilham um `<label>`, e nada os liga --
+Whoever draws the logic uses a **connector** so as not to drag a long line
+across the page. In the XML that is NOT an edge: it is two or more
+`<element type="Connector">` sharing one `<label>`, with nothing to link
+them --
 
-    conn 658:  elemento 667    ->  Connector #723   <label>Cont1</label>
-    conn 134:  Connector #206  ->  elemento 517     <label>Cont1</label>
+    conn 658:  element 667     ->  Connector #723   <label>Cont1</label>
+    conn 134:  Connector #206  ->  element 517      <label>Cont1</label>
 
--- de modo que o sinal morre ali e toda linha a jusante da ponta que emite fica
-sem cor. O label e' um NOME DE REDE.
+-- so the signal dies there and every line downstream of the emitting end is
+left with no colour. The label is a NETWORK NAME.
 
-Medido nos 418 `.gle` de `rdbs/extracted/`: 107 usam conector, 324 elementos,
-110 redes. A forma e' invariante -- **exatamente um receptor por rede, 110 de
-110** --, o leque de saida chega a 9 emissores, e 9 redes atravessam pagina
-(`LEDGROUND`: acionada em `SCADA`, derivada em `LEDS`).
+Measured across the 418 `.gle` of `rdbs/extracted/`: 107 use a connector, 324
+elements, 110 networks. The shape is invariant -- **exactly one receiver per
+network, 110 of 110** --, fan-out reaches 9 emitters, and 9 networks cross
+pages (`LEDGROUND`: driven in `SCADA`, derived in `LEDS`).
 
-**Este modulo extrai ESTRUTURA; quem AVALIA e' o JS.** A arvore viaja como
-dado pro `evaluatePage`, que a resolve com as mesmas primitivas que ja usa pros
-blocos desenhados. Avaliar aqui poria a semantica de NOT/RTRIG/latch em duas
-linguagens, e a lista de gotchas deste projeto e' em boa parte o que aconteceu
-quando uma regra teve duas copias.
+**This module extracts STRUCTURE; the JS is what EVALUATES.** The tree travels
+as data to `evaluatePage`, which resolves it with the same primitives it
+already uses for the drawn blocks. Evaluating here would put the semantics of
+NOT/RTRIG/latch in two languages, and this project's gotcha list is in good
+part what happened when one rule had two copies.
 
-A caminhada para no primeiro elemento com **bit nomeado da Relay Word** -- o
-nome de um `SYMBOL`, ou a saida derivada de um bloco (`relay_model
-.derived_bit_for`). E' o que faz um `PCN` terminar honestamente: o rele publica
-`PCN01Q` direto, nao ha o que simular. Medido, e' tambem o que mantem a equacao
-em ~10 bits (mediana 10, maximo 10) em vez de expandir ate as entradas
-primarias.
+The walk stops at the first element with a **named Relay Word bit** -- the name
+of a `SYMBOL`, or a block's derived output (`relay_model.derived_bit_for`).
+That is what makes a `PCN` end honestly: the relay publishes `PCN01Q` directly,
+there is nothing to simulate. Measured, it is also what keeps the equation at
+~10 bits (median 10, maximum 10) instead of expanding to the primary inputs.
 """
 
 from __future__ import annotations
@@ -39,51 +39,52 @@ from selfiles.gle import element_info, is_const_symbol_name
 
 _logger = logging.getLogger(__name__)
 
-# Teto de profundidade da caminhada. O corpus nao chega perto (0 truncadas em
-# 110), mas realimentacao de latch chegaria, e um extrator que entra em laco
-# trava o `build_diagram` inteiro.
+# Depth ceiling for the walk. The corpus does not come close (0 truncated in
+# 110), but latch feedback would, and an extractor that goes into a loop locks
+# up the whole `build_diagram`.
 MAX_DEPTH = 32
 
-# O ramo que o teto ou a guarda de ciclo cortou. Uma equacao visivelmente
-# incompleta e' honesta; uma inventada nao.
+# The branch the ceiling or the cycle guard cut. A visibly incomplete equation
+# is honest; an invented one is not.
 CUT = "…"
 
-# Operadores desenhados -> notacao SELOGIC. Medido no corpus: dentro de equacao
-# de conector so' aparecem AND (271), OR (262), SYMBOL (1036) e PCN (12) --
-# NENHUM bloco aritmetico --, entao `*` e `+` nao colidem com ADD/MULT.
+# Drawn operators -> SELOGIC notation. Measured in the corpus: inside a
+# connector equation only AND (271), OR (262), SYMBOL (1036) and PCN (12)
+# appear -- NO arithmetic block --, so `*` and `+` do not collide with
+# ADD/MULT.
 _INFIX = {"AND": " * ", "OR": " + "}
 
-# Modificador de porta -> como o texto o mostra. RTRIG/FTRIG nao sao
-# avaliaveis sem historico entre voltas do polling; o `evaluatePage` ja os
-# trata como passagem, e o texto diz que houve uma borda ali em vez de fingir
-# que nao ha nada.
+# Gate modifier -> how the text shows it. RTRIG/FTRIG are not evaluable
+# without history between polling turns; `evaluatePage` already treats them as
+# pass-through, and the text says there was an edge there instead of
+# pretending there is nothing.
 _MOD_PREFIX = {"NOT": "!", "RTRIG": "↑", "FTRIG": "↓"}
 
 
 @dataclass(frozen=True)
 class ConnectorNet:
-    """Uma rede de conector: um acionador, N derivacoes, uma equacao."""
+    """A connector network: one driver, N derivations, one equation."""
     label: str
     receiver: str          # id do elemento Connector que RECEBE o sinal
     emitters: tuple        # ids dos Connector que EMITEM
-    driver_page: str       # safe_page_id onde esta o receptor
+    driver_page: str       # the safe_page_id the receiver sits on
     pages: tuple           # safe_page_ids onde ha alguma ponta
     tree: dict             # a expressao, em JSON, pro avaliador do cliente
     bits: frozenset        # folhas nomeadas da Relay Word -- o que polar
-    equation: str          # o texto SELOGIC, pra legenda
+    equation: str          # the SELOGIC text, for the legend
 
 
 def _safe_page_id(name: str, fallback: int = 0) -> str:
-    """Mesma regra de `gle_pages.list_pages`, pra as chaves baterem."""
+    """Same rule as `gle_pages.list_pages`, so the keys match."""
     return re.sub(r"[^A-Za-z0-9_-]", "_", name or "") or f"page_{fallback}"
 
 
 def _named_bit(el, relay_model) -> str:
-    """O bit da Relay Word que ESTE elemento publica, se publicar algum.
+    """The Relay Word bit THIS element publishes, if it publishes one.
 
-    E' onde a caminhada para: se o rele ja reporta o valor por nome, nao ha
-    logica a reconstruir. Cobre o `SYMBOL` nomeado e a saida derivada de um
-    bloco com estado (`PLT04`, `PCT03Q`, `PCN01Q`, ...).
+    It is where the walk stops: if the relay already reports the value by
+    name, there is no logic to reconstruct. Covers the named `SYMBOL` and the
+    derived output of a block with state (`PLT04`, `PCT03Q`, `PCN01Q`, ...).
     """
     t = el.get("type") or ""
     if t == "SYMBOL":
@@ -91,7 +92,7 @@ def _named_bit(el, relay_model) -> str:
         if not name or is_const_symbol_name(name):
             return ""
         if relay_model is not None and relay_model.is_analog_symbol(name):
-            return ""       # analogico tem valor continuo, nao e' bit
+            return ""       # an analogue is continuous, not a bit
         return name.upper()
     if relay_model is None:
         return ""
@@ -108,7 +109,7 @@ def _named_bit(el, relay_model) -> str:
 
 
 def _const_value(el):
-    """O valor de um SYMBOL que e' literal numerico, ou `None`."""
+    """The value of a SYMBOL that is a numeric literal, or `None`."""
     if (el.get("type") or "") != "SYMBOL":
         return None
     name = element_info(el).get("name") or ""
@@ -121,13 +122,13 @@ def _const_value(el):
 
 
 class _Graph:
-    """O GLE achatado no que a caminhada precisa: elementos, arestas, labels."""
+    """The GLE flattened to what the walk needs: elements, edges, labels."""
 
     def __init__(self, gle_root):
         self.el: dict = {}            # id -> element
         self.page_of: dict = {}       # id -> safe_page_id
         self.label_of: dict = {}      # id -> label (so' Connector)
-        self.by_label: dict = {}      # label -> [ids], ordem do documento
+        self.by_label: dict = {}      # label -> [ids], in document order
         self.incoming: dict = {}      # id -> [(src_id, sink_port)]
         self.is_source: set = set()   # ids que aparecem como origem
         self.is_sink: set = set()     # ids que aparecem como destino
@@ -190,18 +191,19 @@ def _walk(g: _Graph, eid: str, relay_model, seen: frozenset, depth: int):
 
     const = _const_value(el)
     if const is not None:
-        # Literal do desenho (preset de contador, limiar de comparador). Nao
-        # existe na Relay Word -- `collect_bit_names` ja o exclui --, entao
-        # nao entra no polling. Mas e' um VALOR: mostra-lo como corte diria
-        # que a equacao esta incompleta quando nao esta. Medido: era o unico
-        # corte que sobrava no corpus, o preset `6` de um PCN.
+        # Literal from the drawing (counter preset, comparator threshold).
+        # It does not exist in the Relay Word -- `collect_bit_names` already
+        # excludes it --, so it never enters the polling. But it is a VALUE:
+        # showing it as a cut would say the equation is incomplete when it is
+        # not. Measured: it was the only cut left in the corpus, the preset
+        # `6` of a PCN.
         text = el.find("logic_element").get("physical_instance_name") or ""
         return {"op": "CONST", "value": const}, text, frozenset()
 
     etype = el.get("type") or ""
     if etype == "Connector":
-        # Emissor de outra rede: sobe pro receptor DELA. E' o que faz um
-        # conector alimentar outro sem caso especial.
+        # Emitter of another network: climb to ITS receiver. That is what
+        # lets one connector feed another with no special case.
         peer = _receiver_of(g, g.label_of.get(eid, ""))
         if peer is None or not g.incoming.get(peer):
             return {"op": "CUT"}, CUT, frozenset()
@@ -219,15 +221,16 @@ def _walk(g: _Graph, eid: str, relay_model, seen: frozenset, depth: int):
         texts.append(_wrap(text, mod))
         bits |= b
     if not trees:
-        # Bloco sem entrada e sem bit nomeado: nao ha o que ler nem o que
-        # reconstruir. Cortar e' a resposta honesta.
+        # Block with no input and no named bit: there is nothing to read and
+        # nothing to reconstruct. Cutting is the honest answer.
         return {"op": "CUT"}, CUT, frozenset()
     if len(trees) == 1:
         return trees[0], texts[0], frozenset(bits)
     sep = _INFIX.get(etype)
     if sep is None:
-        # Bloco desenhado que nao e' E nem OU e nao publica bit: o cliente
-        # decide o que fazer com ele pelo `op`, e o texto mostra a forma.
+        # Drawn block that is neither AND nor OR and publishes no bit: the
+        # client decides what to do with it from the `op`, and the text shows
+        # the shape.
         return ({"op": etype, "args": trees},
                 f"{etype}({', '.join(texts)})", frozenset(bits))
     return ({"op": etype, "args": trees},
@@ -241,11 +244,12 @@ def _receiver_of(g: _Graph, label: str):
 
 
 def extract(gle_root, relay_model=None) -> dict:
-    """`{label: ConnectorNet}` do GLE inteiro.
+    """`{label: ConnectorNet}` for the whole GLE.
 
-    Um label sem receptor -- ou com mais de um -- nao vira rede: fica no log e
-    e' ignorado. Nao acontece no corpus (110 de 110 com exatamente um), e
-    adivinhar qual ponta aciona pintaria linha por chute.
+    A label with no receiver -- or with more than one -- does not become a
+    network: it goes to the log and is ignored. It does not happen in the
+    corpus (110 of 110 with exactly one), and guessing which end drives it
+    would paint a line on a hunch.
     """
     g = _Graph(gle_root)
     nets: dict = {}
@@ -276,7 +280,7 @@ def extract(gle_root, relay_model=None) -> dict:
 
 
 def nets_on_page(nets: dict, safe_page_id: str) -> dict:
-    """As redes com alguma ponta NESTA pagina -- o que a legenda lista e o que
-    o polling precisa alimentar."""
+    """The networks with an end ON THIS page -- what the legend lists and what
+    the polling has to feed."""
     return {label: net for label, net in nets.items()
             if safe_page_id in net.pages}

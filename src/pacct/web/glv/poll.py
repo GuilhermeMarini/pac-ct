@@ -1,14 +1,14 @@
-"""Threads de polling do GLV: uma por conexao com rele.
+"""The GLV's polling threads: one per connection to a relay.
 
-Tres modos, um por familia (o `fast_read` do JSON do modelo decide qual):
+Three modes, one per family (the model JSON's `fast_read` decides which):
 
-  `poll_loop`            4xx -- Fast Meter + `VIEW 1:TARGET` pipelinados
-  `poll_loop_fastmeter`  7xx -- digitais dentro dos bancos A5D1 (AG95-10)
-  `poll_loop_tar`        3xx -- analogicos do A5D1, digitais por `TAR <linha>`
+  `poll_loop`            4xx -- Fast Meter + `VIEW 1:TARGET` pipelined
+  `poll_loop_fastmeter`  7xx -- digitals inside the A5D1 banks (AG95-10)
+  `poll_loop_tar`        3xx -- A5D1 analogs, digitals via `TAR <row>`
 
-Sairam de `dashboard.py` sem uma linha de mudanca. Todas recebem
-`(client, [reader,] state, interval, logger, stop_event)` e escrevem no
-LiveState do RelayLink que as subiu.
+They came out of `dashboard.py` without a single line changed. All of them
+take `(client, [reader,] state, interval, logger, stop_event)` and write into
+the LiveState of the RelayLink that started them.
 """
 
 from __future__ import annotations
@@ -21,12 +21,12 @@ import warnings
 
 from pacct.paths import PROJECT_ROOT
 
-# `selprotopy/` mora em PROJECT_ROOT, fora do pacote `pacct/`.
+# `selprotopy/` lives in PROJECT_ROOT, outside the `pacct/` package.
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-# Python 3.13+ removeu `telnetlib` da stdlib. `selprotopy` faz `import
-# telnetlib` direto, entao o shim precisa vir ANTES do import dele.
+# Python 3.13+ removed `telnetlib` from the stdlib. `selprotopy` does `import
+# telnetlib` directly, so the shim has to come BEFORE importing it.
 from pacct.compat import ensure_telnetlib
 
 ensure_telnetlib()
@@ -36,12 +36,13 @@ import selprotopy  # noqa: F401,E402
 
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="telnetlib")
 
-# `commands` e `telnetlib` sao REEXPORTADOS daqui: o transporte telnet os
-# importa deste modulo, e nao da origem, de proposito. Este arquivo e' o unico
-# que garante a ORDEM -- `ensure_telnetlib()` roda acima, antes de qualquer
-# `import telnetlib` -- e quem importar telnetlib direto no 3.13+ recebe
-# ImportError. Sao usados por `pacct.web.glv.transport.telnet`; o `noqa: F401`
-# diz ao ruff que nao estao sobrando.
+# `commands` and `telnetlib` are REEXPORTED from here: the telnet transport
+# imports them from this module, and not from the source, on purpose. This
+# file is the only one that guarantees the ORDER -- `ensure_telnetlib()` runs
+# above, before any `import telnetlib` -- and whoever imports telnetlib
+# directly on 3.13+ gets an ImportError. They are used by
+# `pacct.web.glv.transport.telnet`; the `noqa: F401` tells ruff they are not
+# leftovers.
 import telnetlib  # noqa: E402,F401
 
 from selprotopy.client.base import SELClient  # noqa: E402
@@ -56,33 +57,35 @@ from pacct.core.target_region import (  # noqa: E402
 )
 from pacct.web.glv.state import LiveState  # noqa: E402
 
-# --- Tempos do loop -------------------------------------------------------
+# --- Loop timings ---------------------------------------------------------
 #
-# Todos medidos na bancada de Exemplo (203.0.113.x), com os reles reais
-# que cada modo atende: 411L-A-R133 e 451-5-R331 e 487E-3-R323 (4xx),
-# 751-R402 (7xx), 311C-1-R509 (3xx). Nao sao numeros escolhidos a esmo, e
-# mexer neles sem um rele na frente e' mexer as cegas.
+# All measured on the Example bench (203.0.113.x), with the real relays each
+# mode serves: 411L-A-R133 and 451-5-R331 and 487E-3-R323 (4xx), 751-R402
+# (7xx), 311C-1-R509 (3xx). They are not numbers picked at random, and
+# changing them without a relay in front of you is changing them blind.
 
-# Teto pra drenar o que sobrou de uma resposta ASCII anterior antes de mandar
-# o proximo Fast Meter. So entra quando o buffer esta sujo (`_buffer_clean`
-# falso), o que na pratica e' a primeira volta depois de um comando ASCII.
+# Ceiling for draining what is left of a previous ASCII answer before sending
+# the next Fast Meter. It only kicks in when the buffer is dirty
+# (`_buffer_clean` false), which in practice is the first turn after an ASCII
+# command.
 DRAIN_DEADLINE_S = 0.3
 
-# Quanto esperar pela resposta de um round-trip Fast Meter antes de desistir
-# da volta. Medido: a resposta A5D1 completa chega em ~40-90 ms nos 4xx e
-# ~25 ms no 751; 3 s e' folga de uma ordem de grandeza, nao um valor tipico.
+# How long to wait for a Fast Meter round-trip's answer before giving up on
+# the turn. Measured: the complete A5D1 answer arrives in ~40-90 ms on the 4xx
+# and ~25 ms on the 751; 3 s is an order of magnitude of slack, not a typical
+# value.
 RESPONSE_DEADLINE_S = 3.0
 
-# Depois que o frame Fast Meter ja chegou, quanto tempo de silencio no socket
-# basta pra concluir que o resto (o TARGET pipelinado) nao vem mais.
+# Once the Fast Meter frame has arrived, how much silence on the socket is
+# enough to conclude that the rest (the pipelined TARGET) is not coming.
 IDLE_AFTER_FM_S = 0.15
 
-# Mesmo silencio, pros modos que nao pipelinam nada depois do FM.
+# The same silence, for the modes that pipeline nothing after the FM.
 IDLE_NO_PIPELINE_S = 0.5
 
-# Espera maxima em UMA chamada ao selector. O loop tem deadlines proprios; o
-# teto existe so pra que um `stop_event` disparado no meio de uma volta nao
-# fique preso ate o deadline inteiro.
+# Maximum wait in ONE call to the selector. The loop has deadlines of its
+# own; the ceiling exists only so that a `stop_event` fired mid-turn does not
+# stay stuck until the whole deadline.
 SELECT_SLICE_S = 0.1
 
 
@@ -130,29 +133,30 @@ def poll_loop(client: SELClient, reader: AsciiTargetReader,
               state: LiveState, interval: float, logger: logging.Logger,
               stop_event: threading.Event | None = None,
               once: FirstTimeLog | None = None):
-    """Le Fast Meter + TARGET em loop, atualizando o LiveState.
+    """Reads Fast Meter + TARGET in a loop, updating the LiveState.
 
-    Se `stop_event` for fornecido, o loop termina assim que ele for sinalizado
-    (usado quando o usuario clica em "Trocar GLE" para voltar a landing page).
+    If `stop_event` is given, the loop ends as soon as it is signalled (used
+    when the user clicks "Trocar GLE" to go back to the landing page).
     """
-    # Sem um `once` do RelayLink (chamada direta, teste), o loop ganha o
-    # dele -- o escopo passa a ser a thread, que ainda e' melhor que o
-    # processo.
+    # With no `once` from the RelayLink (a direct call, a test), the loop gets
+    # its own -- the scope becomes the thread, which is still better than the
+    # process.
     if once is None:
         once = FirstTimeLog(logger)
-    # Um canal por conexao: o `AsciiTargetReader` pega o MESMO objeto, e e'
-    # atraves dele que os dois combinam quem precisa drenar o buffer.
+    # One channel per connection: the `AsciiTargetReader` picks up the SAME
+    # object, and it is through it that the two agree on who drains the
+    # buffer.
     ch = channel_for(client)
     while True:
         if stop_event is not None and stop_event.is_set():
             return
         t0 = time.monotonic()
         try:
-            # Drain rapido
+            # Quick drain
             ch.drain(DRAIN_DEADLINE_S)
 
             ch.mark_dirty()
-            # Pipeline: FM + VIEW 1:TARGET juntos
+            # Pipeline: FM + VIEW 1:TARGET together
             ch.send_fast_meter()
             ch.send_target_region()
 
@@ -192,10 +196,10 @@ def poll_loop(client: SELClient, reader: AsciiTargetReader,
 
             ch.mark_clean()
 
-            # Parseia FORA do lock: `fast_meter_block` desempacota o frame
-            # inteiro e o TARGET vira ate 3.4 mil bits: com isso dentro do
-            # `with state.lock`, todo `/values` do navegador esperava a parse
-            # em vez de esperar uma copia de dict.
+            # Parse OUTSIDE the lock: `fast_meter_block` unpacks the whole
+            # frame and the TARGET becomes up to 3.4 thousand bits: with that
+            # inside `with state.lock`, every `/values` from the browser
+            # waited on the parse instead of on a dict copy.
             new_analogs = None
             new_digitals = None
             parse_error = ""
@@ -208,8 +212,9 @@ def poll_loop(client: SELClient, reader: AsciiTargetReader,
                         verbose=False,
                     )
                     new_analogs = fm_data.get("analogs", {})
-                    # Log one-shot dos nomes que o firmware expoe no FM
-                    # (pra batear contra analog_name_aliases do relay model).
+                    # One-shot log of the names the firmware exposes in
+                    # the FM (to check against the relay model's
+                    # analog_name_aliases).
                     keys = list(new_analogs.keys())
                     once.info(
                         "an_keys",
@@ -255,22 +260,23 @@ def poll_loop_fastmeter(client: SELClient, state: LiveState, interval: float,
                           logger: logging.Logger,
                           stop_event: threading.Event | None = None,
                           once: FirstTimeLog | None = None):
-    """Loop de polling para reles que carregam digitals dentro da resposta
-    Fast Meter (SEL-7xx: 751/787/etc.). Implementa AG95-10 fielmente -- um
-    unico round-trip A5D1 traz analogs + N banks de 8 digital bits.
+    """Polling loop for relays that carry digitals inside the Fast Meter
+    answer (SEL-7xx: 751/787/etc.). Implements AG95-10 faithfully -- a single
+    A5D1 round-trip brings analogs + N banks of 8 digital bits.
 
-    Diferencas vs `poll_loop` (4xx):
-      - Sem comando paralelo `VIEW 1:TARGET` (a 7xx nao expoe regiao TARGET
-        via Fast Message).
-      - Digitals vem de `fm_data['digitals']` (montado por
-        `selprotopy.parser.fast_meter_block` a partir de
+    Differences vs `poll_loop` (4xx):
+      - No parallel `VIEW 1:TARGET` command (the 7xx does not expose a TARGET
+        region via Fast Message).
+      - Digitals come from `fm_data['digitals']` (assembled by
+        `selprotopy.parser.fast_meter_block` out of
         `numdigitalbank`/`digitaloffset` + `dnaDef`).
-      - Sem AsciiTargetReader -- a Relay Word exposta eh o subset configurado
-        no rele (BNA/DNA) e ja vem pronta com nomes->valor 0/1.
+      - No AsciiTargetReader -- the Relay Word exposed is the subset
+        configured on the relay (BNA/DNA) and already comes ready with
+        name->0/1 value.
     """
-    # Sem um `once` do RelayLink (chamada direta, teste), o loop ganha o
-    # dele -- o escopo passa a ser a thread, que ainda e' melhor que o
-    # processo.
+    # With no `once` from the RelayLink (a direct call, a test), the loop gets
+    # its own -- the scope becomes the thread, which is still better than the
+    # process.
     if once is None:
         once = FirstTimeLog(logger)
     ch = channel_for(client)
@@ -279,7 +285,7 @@ def poll_loop_fastmeter(client: SELClient, state: LiveState, interval: float,
             return
         t0 = time.monotonic()
         try:
-            # Drain residual ASCII (mesma logica do poll_loop)
+            # Drain residual ASCII (same logic as poll_loop)
             ch.drain(DRAIN_DEADLINE_S)
 
             ch.mark_dirty()
@@ -299,14 +305,14 @@ def poll_loop_fastmeter(client: SELClient, state: LiveState, interval: float,
                 if idx >= 0 and len(buf) - idx >= 3:
                     dl = buf[idx + 2]
                     if dl < 8:
-                        # Length byte invalido -- continua procurando
+                        # Invalid length byte -- keep looking
                         search_start = idx + 2
                     elif len(buf) - idx >= dl:
                         fm_frame = bytes(buf[idx:idx + dl])
                         break
                 if (not chunk
                         and time.monotonic() - last_data > IDLE_NO_PIPELINE_S):
-                    # Sem dados nem prompt; encerra essa volta
+                    # No data and no prompt; end this turn
                     break
                 if not chunk:
                     ch.wait_readable(min(
@@ -315,7 +321,7 @@ def poll_loop_fastmeter(client: SELClient, state: LiveState, interval: float,
 
             ch.mark_clean()
 
-            # Parse fora do lock -- ver a nota em `poll_loop`.
+            # Parse outside the lock -- see the note in `poll_loop`.
             new_analogs = None
             new_digitals = None
             err = ""
@@ -328,16 +334,16 @@ def poll_loop_fastmeter(client: SELClient, state: LiveState, interval: float,
                         verbose=False,
                     )
                     new_analogs = fm_data.get("analogs", {})
-                    # selprotopy.fast_meter_block devolve digitals como
-                    # bool (via int_to_bool_list). O JS do dashboard usa
-                    # `v === 0 || v === 1` (strict), entao precisamos
-                    # serializar como int -- senao tudo vira indeterminado.
+                    # selprotopy.fast_meter_block returns digitals as
+                    # bool (via int_to_bool_list). The dashboard's JS uses
+                    # `v === 0 || v === 1` (strict), so we have to serialise
+                    # them as int -- otherwise everything goes indeterminate.
                     raw_digitals = fm_data.get("digitals", {})
                     new_digitals = {
                         k: int(bool(v)) for k, v in raw_digitals.items()
                     }
-                    # Diagnostic uma vez no startup: tamanho do bloco
-                    # recebido, primeiros 6 bits parseados.
+                    # Diagnostic once at startup: size of the block
+                    # received, first 6 bits parsed.
                     sample = list(new_digitals.items())[:6]
                     once.info(
                         "fm_first",
@@ -385,9 +391,9 @@ def poll_loop_fastmeter(client: SELClient, state: LiveState, interval: float,
 
 def _read_fast_meter_analogs(client: SELClient, logger: logging.Logger,
                              timeout: float = 3.0):
-    """Um round-trip A5D1; devolve `(analogs, erro)`.
+    """One A5D1 round-trip; returns `(analogs, error)`.
 
-    Compartilhado pelos modos que tiram SO os analogicos do Fast Meter.
+    Shared by the modes that take ONLY the analogs from the Fast Meter.
     """
     ch = channel_for(client)
     ch.drain(DRAIN_DEADLINE_S)
@@ -435,29 +441,30 @@ def poll_loop_tar(client: SELClient, reader: AsciiTargetReader,
                   state: LiveState, interval: float, logger: logging.Logger,
                   stop_event: threading.Event | None = None,
                   once: FirstTimeLog | None = None):
-    """Loop de polling da familia 3xx (SEL-311C/311L).
+    """Polling loop for the 3xx family (SEL-311C/311L).
 
-    Nem o caminho 4xx nem o 7xx servem aqui (medido num SEL-311C-1-R509):
+    Neither the 4xx path nor the 7xx one serves here (measured on a
+    SEL-311C-1-R509):
 
       - `VIEW 1:TARGET` / `MAP 1 TARGET BL` -> "Invalid Command".
-      - A5D1 anuncia numdigitalbank=111, mas o bloco DNA vem com 111 linhas de
-        "*": nenhum bit nomeado, entao a metade digital do Fast Meter e'
-        indecifravel.
+      - A5D1 announces numdigitalbank=111, but the DNA block comes with 111
+        rows of "*": no named bit, so the Fast Meter's digital half is
+        undecipherable.
 
-    Sobra: analogicos do A5D1 (10 canais, esses funcionam) + digitais por
-    `TAR <linha>` ASCII, 8 bits nomeados por round-trip.
+    What is left: A5D1 analogs (10 channels, those do work) + digitals via
+    ASCII `TAR <row>`, 8 named bits per round-trip.
 
-    Cada `TAR` custa ~200ms NO RELE -- pipelinar varios nao ajuda (medido:
-    2.81s sequencial vs 2.53s pipelinado pra 13 linhas). Por isso lemos apenas
-    os bits da pagina aberta (`state.wanted_bits`), e nao o diagrama inteiro:
-    a pagina mais pesada do GLE de exemplo tem 46 bits em 13 linhas (~2.6s),
-    contra 41 linhas (~8s) se lessemos tudo.
+    Each `TAR` costs ~200ms ON THE RELAY -- pipelining several does not help
+    (measured: 2.81s sequential vs 2.53s pipelined for 13 rows). That is why
+    we read only the open page's bits (`state.wanted_bits`), and not the whole
+    diagram: the heaviest page of the example GLE has 46 bits in 13 rows
+    (~2.6s), against 41 rows (~8s) if we read everything.
     """
     logged_first = False
     prev_wanted: set[str] | None = None
-    # Sem um `once` do RelayLink (chamada direta, teste), o loop ganha o
-    # dele -- o escopo passa a ser a thread, que ainda e' melhor que o
-    # processo.
+    # With no `once` from the RelayLink (a direct call, a test), the loop gets
+    # its own -- the scope becomes the thread, which is still better than the
+    # process.
     if once is None:
         once = FirstTimeLog(logger)
     while True:
@@ -474,18 +481,18 @@ def poll_loop_tar(client: SELClient, reader: AsciiTargetReader,
                 raw = reader.read_via_tar_rows(wanted)
                 digitals = {k: v for k, v in raw.items() if v is not None}
 
-            # Leitura parcial precisa aparecer: um bit que nao foi lido some
-            # do payload e o diagrama o pinta como indeterminado. Melhor dizer
-            # que a leitura falhou do que deixar parecer "estado desconhecido
-            # do rele" -- em comissionamento os dois significam coisas bem
-            # diferentes.
+            # A partial read has to show: a bit that was not read vanishes
+            # from the payload and the diagram paints it indeterminate. Better
+            # to say the read failed than to let it look like "unknown state
+            # on the relay" -- in commissioning the two mean very different
+            # things.
             readable = [b for b in wanted if b in reader.layout.bit_to_pos]
             page_changed = prev_wanted is not None and set(wanted) != prev_wanted
             if (readable and len(digitals) < len(readable)
                     and not page_changed and prev_wanted is not None):
-                # Na primeira volta apos trocar de pagina o conjunto pedido
-                # mudou no meio do caminho (e bits novos ainda passam por
-                # descoberta), entao "faltando" ali e' transicao, nao falha.
+                # On the first turn after a page change the requested set
+                # changed midway (and new bits still go through discovery), so
+                # "missing" there is a transition, not a failure.
                 err = (f"{err} " if err else "") + (
                     f"leitura parcial: {len(digitals)}/{len(readable)} bits"
                 )

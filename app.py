@@ -1,43 +1,46 @@
 """
-Launcher do PAC CT -- Protection, Automation & Control Commissioning Toolkit
-(multi-ferramenta web).
+Launcher for PAC CT -- Protection, Automation & Control Commissioning Toolkit.
 
-Estrutura do projeto (resumo -- o mapa completo esta no README):
+Project layout (a summary; the full map is in the README):
     pac-ct/
-    +-- app.py                  <-- voce esta aqui (launcher + bootstrap do venv)
-    +-- config/config.ini       (IP e senhas do rele; NAO versionado, semeado
-    |                            do .example no primeiro boot)
-    +-- pacct/                 (todo o codigo primeiro-parte)
-    |   +-- paths.py            (constantes de path -- use sempre daqui)
-    |   +-- core/               (modelos de rele, TARGET, SELOGIC, wordbits)
-    |   +-- parsers/            (gle, rdb, scd, set_dnp, ole_rebuild)
-    |   +-- matchers/           (cross-match RDB <-> SCD)
-    |   +-- cli/runner.py       (modo CLI: polling no terminal)
+    +-- app.py                  <-- you are here (launcher + venv bootstrap)
+    +-- config/config.ini       (the relay's IP and passwords; NOT versioned,
+    |                            seeded from the .example on first boot)
+    +-- src/pacct/              (this application's own code)
+    |   +-- paths.py            (path constants -- always resolve from here)
+    |   +-- core/               (what talks to a relay: relay_conn, TARGET)
+    |   +-- cli/runner.py       (CLI mode: polling in the terminal)
     |   +-- web/
-    |       +-- dashboard.py    (home + main(): monta as ferramentas)
-    |       +-- mount.py        (UM servidor, roteando por prefixo de caminho)
-    |       +-- session.py      (sessao por visitante, cookie `selsid`)
-    |       +-- rdb_write.py    (o unico lugar que grava bytes num RDB)
-    |       +-- project_files/  (Arquivos do Projeto: a unica tela com upload)
+    |       +-- dashboard.py    (the home + main(): mounts the tools)
+    |       +-- mount.py        (ONE server, routed by path prefix)
+    |       +-- session.py      (per-visitor session, cookie `selsid`)
+    |       +-- rdb_write.py    (the only place that writes bytes into an RDB)
+    |       +-- project_files/  (Arquivos do Projeto: the only screen with an
+    |       |                    upload)
     |       +-- glv/ dnp_map/ vb_updater/ vlan_mapper/ gle_exporter/
     |       +-- settings_compare/  themes/  progress.py
-    +-- data/relay_models/      (perfil por modelo de rele)
-    +-- data/wordbits/          (nomes validos da Relay Word, por modelo)
+    +-- data/                   (overlay for user-supplied model data; starts
+    |                            out absent, see paths.py)
     +-- tests/                  (pytest)
-    +-- cache/                  (runtime: FID, cache de RDB por conteudo, sessoes)
-    +-- samples/  docs/         (exemplos; manuais e perfis DNP3)
-    +-- selprotopy/             (biblioteca MIT patcheada -- nao edite)
+    +-- cache/                  (runtime: FID cache, content-addressed RDB
+    |                            cache, sessions)
+    +-- samples/  docs/         (examples; documentation)
+    +-- selprotopy/             (vendored, patched MIT library -- do not edit)
 
-As ferramentas NAO sobem uma de cada vez: `mount.py` poe todas no ar na mesma
-porta, cada uma num prefixo (`/glv/`, `/vb-updater/`, `/dnp-map/`, ...).
+The file formats live in two libraries extracted from this project, not here:
+`selfiles` (RDB, SET_*.TXT, DNP maps, GLE, SELOGIC, IEC 61850 SCL, and the
+per-model registries) and `cfbwrite` (the Compound File writer).
 
-Modos:
-    python3 app.py                       # GLV CLI (polling no terminal)
-    python3 app.py --web                  # PAC CT web (menu de ferramentas)
-    python3 app.py --web --port 9000      # Porta customizada
-    python3 app.py --config outro.ini    # Outro arquivo de configuracao
-    python3 app.py --skip-install        # Pula verificacao de dependencias
-    python3 app.py --no-venv             # Nao usa virtualenv
+The tools do NOT come up one at a time: `mount.py` puts them all on the same
+port, each under its own prefix (`/glv/`, `/vb-updater/`, `/dnp-map/`, ...).
+
+Modes:
+    python3 app.py                        # GLV CLI (polling in the terminal)
+    python3 app.py --web                  # PAC CT web (the tool menu)
+    python3 app.py --web --port 9000      # a custom port
+    python3 app.py --config other.ini     # another configuration file
+    python3 app.py --skip-install         # skip the dependency check
+    python3 app.py --no-venv              # do not use a virtualenv
 """
 
 import argparse
@@ -48,9 +51,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-# O pacote mora em `src/pacct/`; o `selprotopy` vendorizado continua na raiz.
-# Os dois precisam entrar no sys.path, e sao diretorios diferentes desde que o
-# projeto passou a usar o layout `src/`.
+# The package lives in `src/pacct/`; the vendored `selprotopy` stays at the
+# root. Both have to go on sys.path, and they have been different directories
+# since the project moved to the `src/` layout.
 SRC_DIR = ROOT / "src"
 REQ_FILE = ROOT / "requirements.txt"
 
@@ -60,7 +63,7 @@ if os.name == "nt":
 else:
     VENV_PYTHON = VENV_DIR / "bin" / "python"
 
-# nome do pacote no pip -> modulo importavel
+# pip package name -> the module you can actually import
 IMPORT_NAMES = {
     "pyserial": "serial",
     "telnetlib3": "telnetlib3",
@@ -72,14 +75,14 @@ IMPORT_NAMES = {
 # -----------------------------------------------------------------------------
 
 def is_inside_target_venv() -> bool:
-    # Compara PREFIXOS, nunca os executaveis. `.venv/bin/python` e' um symlink
-    # que aponta de volta pro interpretador base, entao
-    # `VENV_PYTHON.resolve()` da `/usr/bin/pythonX.Y` -- exatamente o que
-    # `sys.executable` resolve rodando FORA do venv. A comparacao dava True
-    # fora dele, a app pulava o relaunch e tentava instalar as dependencias no
-    # Python do sistema, onde o PEP 668 barra e o boot morre. `sys.prefix`
-    # aponta pro venv quando se esta dentro e pro base quando nao, que e'
-    # justamente a pergunta.
+    # Compare PREFIXES, never the executables. `.venv/bin/python` is a
+    # symlink back to the base interpreter, so `VENV_PYTHON.resolve()` gives
+    # `/usr/bin/pythonX.Y` -- exactly what `sys.executable` resolves to when
+    # running OUTSIDE the venv. The comparison was therefore True outside it,
+    # the app skipped the relaunch and tried to install the dependencies into
+    # the system Python, where PEP 668 refuses and the boot dies. `sys.prefix`
+    # points at the venv when you are inside one and at the base when you are
+    # not, which is precisely the question being asked.
     try:
         return Path(sys.prefix).resolve() == VENV_DIR.resolve()
     except OSError:
@@ -112,17 +115,18 @@ def create_venv() -> bool:
 def relaunch_in_venv() -> None:
     print(f"[INFO] Re-executando dentro do venv ({VENV_PYTHON})...")
     args = [str(VENV_PYTHON), str(Path(__file__).resolve()), *sys.argv[1:]]
-    # No Windows, os.execv monta a linha de comando concatenando os argumentos
-    # com espacos e SEM aspas. Se o projeto estiver num caminho com espaco
-    # ("06 - Ferramentas"), o Python filho recebe os pedacos como argumentos
-    # separados -- e um token "-" solto vira "leia o script do stdin", que abre
-    # o REPL em vez de rodar o app. subprocess recebe uma lista e faz o quoting
-    # correto, entao usamos ele nessa plataforma.
+    # On Windows, os.execv builds the command line by joining the arguments
+    # with spaces and NO quoting. If the project sits in a path containing a
+    # space ("06 - Ferramentas"), the child Python receives the pieces as
+    # separate arguments -- and a bare "-" token means "read the script from
+    # stdin", which opens the REPL instead of running the app. subprocess
+    # takes a list and quotes it correctly, so that is what we use here.
     if os.name == "nt":
         try:
             sys.exit(subprocess.call(args))
         except KeyboardInterrupt:
-            # Ctrl+C chega nos dois processos; o filho ja tratou e saiu.
+            # Ctrl+C reaches both processes; the child has already handled
+            # it and exited.
             sys.exit(130)
     os.execv(str(VENV_PYTHON), args)
 
@@ -139,10 +143,11 @@ def parse_requirements(req_file: Path) -> list[str]:
         line = raw.split("#", 1)[0].strip()
         if not line:
             continue
-        # Referencia direta do PEP 508 (`nome @ git+https://...`): o nome do
-        # pacote e' o que vem ANTES do '@'. Sem esta linha o "pacote" seria a
-        # URL inteira, `missing_packages` nunca conseguiria importa-lo, e o
-        # `pip install -r` rodaria (re-clonando o repositorio) a cada boot.
+        # A PEP 508 direct reference (`name @ git+https://...`): the package
+        # name is what comes BEFORE the '@'. Without this line the "package"
+        # would be the whole URL, `missing_packages` could never import it, and
+        # `pip install -r` would run -- re-cloning the repository -- on every
+        # boot.
         name = line.split(" @ ", 1)[0].strip() if " @ " in line else line
         for sep in ("==", ">=", "<=", "~=", ">", "<", "!="):
             if sep in name:
@@ -165,14 +170,14 @@ def missing_packages(pkgs: list[str]) -> list[str]:
 
 def install_requirements(allow_break: bool = False,
                          upgrade: bool = False) -> None:
-    """Instala o que falta -- ou, com `upgrade`, puxa as versoes novas.
+    """Install what is missing -- or, with `upgrade`, pull the newer versions.
 
-    O boot normal so' roda o pip quando algum pacote nao IMPORTA. E' o que
-    mantem o `--web` utilizavel numa subestacao sem internet: uma verificacao
-    de versao a cada boot faria o pip falhar sem rede, e o launcher sai no
-    erro do pip. Atualizar e' um pedido explicito (`--atualizar-deps`), e ai'
-    sim vale `--pre`: a py61850 e' publicada como pre-release enquanto a
-    0.2.0 final nao sai (ver requirements.txt).
+    A normal boot runs pip only when a package fails to IMPORT. That is what
+    keeps `--web` usable in a substation with no internet: a version check on
+    every boot would make pip fail without a network, and the launcher exits on
+    pip's error. Updating is an explicit request (`--atualizar-deps`), and
+    there `--pre` earns its place: py61850 is published as a pre-release while
+    0.2.0 final does not exist (see requirements.txt).
     """
     if not REQ_FILE.is_file():
         print(f"[AVISO] requirements.txt nao encontrado em {REQ_FILE}")

@@ -60,7 +60,7 @@ class _GivingUpTransport:
             state.error = "MMS: associação caiu"
             state.last_update_ts = time.time()
         self.polling.set()
-        self.release.wait(timeout=10.0)     # devolve = desistiu
+        self.release.wait(timeout=10.0)     # returning means it gave up
 
     def coverage(self):
         return None
@@ -93,7 +93,7 @@ def test_the_give_up_does_not_wait_for_a_lock_someone_else_holds():
     t.start()
     assert holding.wait(timeout=5.0)
 
-    # relogio monotonico: NTP anda pra tras e a medicao pode sair negativa
+    # monotonic clock: NTP walks backwards and the measurement can go negative
     t0 = time.monotonic()
     link._poll_gave_up(stop)
     elapsed = time.monotonic() - t0
@@ -121,7 +121,7 @@ def test_disconnecting_while_the_reader_gives_up_is_not_slow():
     link.connect(relay_model=None, poll_interval=0.05)
     assert link.transport.polling.wait(timeout=5.0)
 
-    # relogio monotonico: NTP anda pra tras e a medicao pode sair negativa
+    # monotonic clock: NTP walks backwards and the measurement can go negative
     t0 = time.monotonic()
     link.close()
     elapsed = time.monotonic() - t0
@@ -141,7 +141,7 @@ def test_a_give_up_with_nobody_in_the_way_still_takes_the_screen_with_it():
     assert link.transport.polling.wait(timeout=5.0)
     assert link.connected
 
-    link.transport.release.set()            # o loop devolve por conta propria
+    link.transport.release.set()            # the loop returns on its own
     for _ in range(100):
         if not link.connected:
             break

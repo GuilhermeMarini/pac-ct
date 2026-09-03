@@ -1,17 +1,18 @@
 """
-VB Updater: cruza descricoes de Virtual Bits entre o GLE do RDB (comment da
-porta de saida do SYMBOL VBxxx) e o SCD (atributo `desc` do <ExtRef intAddr="VBxxx">
-sob o IED correspondente).
+VB Updater: cross-matches Virtual Bit descriptions between the RDB's GLE
+(the output port comment of the VBxxx SYMBOL) and the SCD (`desc` attribute
+of the <ExtRef intAddr="VBxxx"> under the matching IED).
 
-Fluxo:
-  1. Usuario faz upload de um RDB e de um SCD.
-  2. App faz cross-match RDB <-> SCD usando `selfiles.match`.
-  3. Pra cada par casado, mostra um seletor de GLE + botao "Verify GLE comments".
-  4. Clicar no botao abre uma pagina dedicada com a tabela de comparacao
-     (VBxxx | comment do GLE | desc do SCD); celulas vazias mostram
+Flow:
+  1. The user uploads an RDB and an SCD.
+  2. The app cross-matches RDB <-> SCD using `selfiles.match`.
+  3. For each matched pair it shows a GLE selector + a "Verify GLE comments"
+     button.
+  4. Clicking the button opens a dedicated page with the comparison table
+     (VBxxx | GLE comment | SCD desc); empty cells show
      "<Without description>".
 
-    templates/  landing.html e compare.html
+    templates/  landing.html and compare.html
 """
 
 from __future__ import annotations
@@ -51,23 +52,23 @@ def load_template(name: str) -> str:
     return (VB_UPDATER_TEMPLATES_DIR / name).read_text(encoding="utf-8")
 
 
-# Limite generoso pra upload (usado so pelo /import-descriptions, que recebe
-# o xlsx de volta -- o RDB e o SCD em si vem da biblioteca do projeto).
+# Generous upload ceiling (used only by /import-descriptions, which takes
+# the xlsx back -- the RDB and the SCD themselves come from the library).
 _SCD_MAX_BYTES = 200 * 1024 * 1024
 
-# So consideramos VBs numericos (GOOSE virtual bits). Math variables tipo
-# VBY, VBZ, VBRMS, etc. ficam de fora.
+# We only consider numeric VBs (GOOSE virtual bits). Math variables like
+# VBY, VBZ, VBRMS, etc. are left out.
 _VB_NUMERIC_RE = re.compile(r"^VB(\d+)$", re.IGNORECASE)
 
-# Diretorio onde os SCDs uploadados sao salvos. Fica em cache/ pra ser
-# gitignored automaticamente.
-# Uploads e saidas vivem em cache/sessions/<sid>/ (ver pacct.web.session).
+# Directory where the uploaded SCDs are saved. It lives in cache/ so it is
+# gitignored automatically.
+# Uploads and outputs live in cache/sessions/<sid>/ (see pacct.web.session).
 
 _EMPTY_LABEL = "&lt;Without description&gt;"
 
-# Comment usado pra renomear VBs que aparecem no SCD com `desc` vazio
-# (i.e., declarados como ExtRef mas sem descricao). Convencao: "reserva"
-# (spare) -- indicam um VB previsto mas nao usado.
+# Comment used to rename VBs that show up in the SCD with an empty `desc`
+# (i.e. declared as an ExtRef but with no description). Convention:
+# "reserva" (spare) -- they mark a VB foreseen but not used.
 _RESERVA_LABEL = "reserva"
 
 
@@ -77,32 +78,32 @@ _RESERVA_LABEL = "reserva"
 
 @dataclass(frozen=True)
 class GleVbInstance:
-    """Uma ocorrencia de um SYMBOL VBnnn no GLE."""
-    page: str          # nome da <page> que contem o elemento
-    element_id: str    # id do <element type="SYMBOL"> que envolve o logic_element
-    comment: str       # comment da primeira <port> nao vazia (string vazia se nenhuma)
+    """One occurrence of a VBnnn SYMBOL in the GLE."""
+    page: str          # name of the <page> holding the element
+    element_id: str    # id of the <element type="SYMBOL"> wrapping the logic_element
+    comment: str       # comment of the first non-empty <port> ("" if there is none)
 
 
 def extract_vb_instances_from_gle(gle_path: Path) -> dict[str, list[GleVbInstance]]:
-    """Le um GLE.xml e retorna {VBnnn: [GleVbInstance, ...]}.
+    """Read a GLE.xml and return {VBnnn: [GleVbInstance, ...]}.
 
-    Um mesmo VB pode aparecer varias vezes no diagrama (em paginas diferentes
-    ou ate dentro da mesma pagina); cada ocorrencia gera uma instancia.
+    The same VB can appear several times in the diagram (on different pages,
+    or even within one page); each occurrence yields an instance.
 
-    So pega SYMBOLs cujo `physical_instance_name` casa com `VB\\d+`. O
-    comment de cada instancia eh lido da primeira <port> nao vazia. Se nenhuma
-    porta tiver comment, a instancia ainda eh registrada com `comment=""`.
+    Only takes SYMBOLs whose `physical_instance_name` matches `VB\\d+`. Each
+    instance's comment is read from the first non-empty <port>. If no port
+    has a comment, the instance is still recorded with `comment=""`.
     """
     out: dict[str, list[GleVbInstance]] = {}
     try:
-        # `parse_gle` ja lida com encoding misto (utf-8 declarado mas
-        # conteudo latin-1) -- bug comum em GLEs exportados pelo QuickSet.
+        # `parse_gle` already handles mixed encoding (utf-8 declared but
+        # latin-1 content) -- a common bug in GLEs exported by QuickSet.
         root = parse_gle(gle_path)
     except (OSError, ET.ParseError, UnicodeDecodeError) as e:
         _logger.warning("erro lendo GLE %s: %s", gle_path, e)
         return out
 
-    # Iteramos por pagina pra preservar a localizacao de cada SYMBOL.
+    # We iterate per page to preserve each SYMBOL's location.
     for page in root.iter("page"):
         page_name = (page.attrib.get("name") or "").strip()
         for el in page.iter("element"):
@@ -117,9 +118,9 @@ def extract_vb_instances_from_gle(gle_path: Path) -> dict[str, list[GleVbInstanc
                 if not m:
                     continue
                 key = f"VB{int(m.group(1))}"
-                # Acha a primeira <port> com comment nao vazio (qualquer index).
-                # GLEs podem ter dois blocos <ports> seguidos -- o segundo eh
-                # o que carrega os dados.
+                # Find the first <port> with a non-empty comment (any index).
+                # A GLE can have two <ports> blocks in a row -- the second is
+                # the one carrying the data.
                 port_comment = ""
                 for port in logic_el.iter("port"):
                     comment_el = port.find("comment")
@@ -133,11 +134,11 @@ def extract_vb_instances_from_gle(gle_path: Path) -> dict[str, list[GleVbInstanc
 
 
 def extract_vb_descriptions_from_scd_ied(scd_path: Path, ied_name: str) -> dict[str, str]:
-    """Le um SCD e retorna {VBxxx: desc_do_ExtRef} para o IED informado.
+    """Read an SCD and return {VBxxx: extref_desc} for the given IED.
 
-    Procura todos os <ExtRef> que estao dentro de <IED name=ied_name> e cujo
-    `intAddr` casa com VBnnn. Mapeia VBnnn -> primeiro `desc` nao vazio
-    encontrado (varios ExtRefs podem referenciar o mesmo intAddr).
+    Looks for every <ExtRef> inside <IED name=ied_name> whose `intAddr`
+    matches VBnnn. Maps VBnnn -> the first non-empty `desc` found (several
+    ExtRefs can reference the same intAddr).
     """
     out: dict[str, str] = {}
     try:
@@ -148,7 +149,7 @@ def extract_vb_descriptions_from_scd_ied(scd_path: Path, ied_name: str) -> dict[
 
     root = tree.getroot()
     target_ied = None
-    # _iter_local ignora namespace, entao 'IED' casa com '{ns}IED'.
+    # _iter_local ignores the namespace, so 'IED' matches '{ns}IED'.
     for el in scd_loader._iter_local(root, "IED"):
         if el.attrib.get("name") == ied_name:
             target_ied = el
@@ -172,8 +173,8 @@ def extract_vb_descriptions_from_scd_ied(scd_path: Path, ied_name: str) -> dict[
     return out
 
 
-# Campos do ExtRef que descrevem a "assinatura" GOOSE. Ordem usada na composicao
-# do Signal: <iedName>/<srcLDInst>/<srcLNClass>/<srcCBName>.<ldInst>.<prefix><lnClass><lnInst>.<doName>.<daName>
+# ExtRef fields describing the GOOSE "signature". Order used to compose the
+# Signal: <iedName>/<srcLDInst>/<srcLNClass>/<srcCBName>.<ldInst>.<prefix><lnClass><lnInst>.<doName>.<daName>
 _EXTREF_FIELDS = (
     "iedName", "srcLDInst", "srcLNClass", "srcCBName",
     "ldInst", "prefix", "lnClass", "lnInst", "doName", "daName",
@@ -181,10 +182,10 @@ _EXTREF_FIELDS = (
 
 
 def _format_extref_signal(attrs: dict[str, str]) -> str:
-    """Monta a string de Signal a partir dos atributos de um ExtRef.
+    """Build the Signal string out of an ExtRef's attributes.
 
-    Retorna "" se nao houver `iedName` -- esses ExtRefs sao placeholders
-    (intAddr definido mas sem subscription real).
+    Returns "" when there is no `iedName` -- those ExtRefs are placeholders
+    (intAddr defined but with no real subscription).
     """
     ied = (attrs.get("iedName") or "").strip()
     if not ied:
@@ -198,7 +199,7 @@ def _format_extref_signal(attrs: dict[str, str]) -> str:
     ln_inst = (attrs.get("lnInst") or "").strip()
     do = (attrs.get("doName") or "").strip()
     da = (attrs.get("daName") or "").strip()
-    # `prefix` eh opcional no SCL -- so concatena com lnClass+lnInst se existir.
+    # `prefix` is optional in SCL -- only joined to lnClass+lnInst if present.
     ln_token = f"{prefix}{ln_cls}{ln_inst}"
     return f"{ied}/{src_ld}/{src_ln}/{src_cb}.{ld}.{ln_token}.{do}.{da}"
 
@@ -206,12 +207,12 @@ def _format_extref_signal(attrs: dict[str, str]) -> str:
 def extract_vb_extref_rows_from_scd_ied(
     scd_path: Path, ied_name: str,
 ) -> list[dict]:
-    """Le um SCD e retorna uma lista de dicts {vb, signal, desc} -- uma linha
-    por VBxxx encontrado nos ExtRef do IED informado.
+    """Read an SCD and return a list of dicts {vb, signal, desc} -- one row
+    per VBxxx found in the ExtRefs of the given IED.
 
-    Se um mesmo VB aparece em varios ExtRefs (tipico: 1 placeholder + 1 com
-    subscription), preferimos o que tem `iedName` populado (signal real). Se
-    nenhum tem, mantemos o primeiro (signal vazio).
+    If one VB shows up in several ExtRefs (typical: 1 placeholder + 1 with a
+    subscription), we prefer the one with `iedName` filled in (the real
+    signal). If none has it, we keep the first (empty signal).
     """
     rows_by_vb: dict[str, dict] = {}
     try:
@@ -243,19 +244,19 @@ def extract_vb_extref_rows_from_scd_ied(
         if existing is None:
             rows_by_vb[vb] = row
             continue
-        # Prefere a linha com signal preenchido (subscription real).
+        # Prefer the row with the signal filled in (a real subscription).
         if not existing["signal"] and signal:
             rows_by_vb[vb] = row
     return sorted(rows_by_vb.values(), key=lambda r: int(r["vb"][2:]))
 
 
 # -----------------------------------------------------------------------------
-# Writers: GLE (dentro do RDB) e SCD
+# Writers: GLE (inside the RDB) and SCD
 # -----------------------------------------------------------------------------
 
-# Casa um <logic_element type="SYMBOL" ... physical_instance_name="VBnnn" ...>
-# ... </logic_element> em bytes. group(1) = atributos (pra pegar nome), group(2)
-# = corpo (entre as tags).
+# Matches a <logic_element type="SYMBOL" ... physical_instance_name="VBnnn" ...>
+# ... </logic_element> in bytes. group(1) = attributes (to get the name),
+# group(2) = body (between the tags).
 _GLE_VB_BLOCK_RE = re.compile(
     rb'(<logic_element\s+type="SYMBOL"[^>]*physical_instance_name="VB(\d+)"[^>]*>)'
     rb'(.*?)'
@@ -263,18 +264,18 @@ _GLE_VB_BLOCK_RE = re.compile(
     re.DOTALL,
 )
 
-# Casa <port ...> ... <comment>TEXT</comment> ... </port> dentro de um bloco
-# de logic_element. Limita-se a 1 substituicao por bloco (a primeira porta).
+# Matches <port ...> ... <comment>TEXT</comment> ... </port> inside a
+# logic_element block. Limited to 1 substitution per block (the first port).
 _GLE_PORT_COMMENT_RE = re.compile(
     rb'(<port\b[^>]*>\s*<comment>)([^<]*)(</comment>\s*</port>)',
     re.DOTALL,
 )
 
-# Casa <ExtRef ... intAddr="VBnnn" ... /> dentro de um IED. group(1) = atributos
-# antes de intAddr, group(2) = numero do VB, group(3) = atributos depois.
-# IMPORTANTE: o character class precisa permitir `/` -- valores de `desc` no
-# campo costumam ter '/' (ex.: "50/62BF LT1 UPC1"); excluir `/` aqui faria a
-# regex ignorar silenciosamente esses ExtRefs.
+# Matches <ExtRef ... intAddr="VBnnn" ... /> inside an IED. group(1) = the
+# attributes before intAddr, group(2) = the VB number, group(3) = the ones
+# after. IMPORTANT: the character class has to allow `/` -- `desc` values in
+# the field routinely carry '/' (e.g. "50/62BF LT1 UPC1"); excluding `/` here
+# would make the regex silently ignore those ExtRefs.
 _SCD_EXTREF_RE = re.compile(
     rb'<ExtRef\b(?P<attrs>[^>]*?intAddr="VB(?P<num>\d+)"[^>]*?)(?P<close>/?>)',
     re.DOTALL,
@@ -285,7 +286,7 @@ _SCD_INTADDR_ATTR_RE = re.compile(rb'intAddr="VB\d+"')
 
 
 def _xml_attr_escape(s: str) -> str:
-    """Escapa caracteres especiais para uso dentro de um atributo XML "..."."""
+    """Escape special characters for use inside an XML "..." attribute."""
     return (s.replace("&", "&amp;")
              .replace("<", "&lt;")
              .replace('"', "&quot;"))
@@ -294,12 +295,12 @@ def _xml_attr_escape(s: str) -> str:
 def _substitute_vb_comments_in_gle_bytes(
     raw: bytes, new_comments: dict[str, str],
 ) -> tuple[bytes, dict[str, int]]:
-    """Atualiza o comment da PRIMEIRA porta de cada SYMBOL VBnnn no GLE.
+    """Update the comment of the FIRST port of each VBnnn SYMBOL in the GLE.
 
-    Retorna (novos_bytes, stats). `stats` tem chaves:
-      - "updated":   numero de instancias VBnnn substituidas
-      - "skipped":   VBnnn em `new_comments` que nao tiveram porta-comment encontrada
-      - "untouched": VBnnn no GLE mas sem entry em `new_comments`
+    Returns (new_bytes, stats). `stats` has the keys:
+      - "updated":   number of VBnnn instances replaced
+      - "skipped":   VBnnn in `new_comments` with no port-comment found
+      - "untouched": VBnnn in the GLE but with no entry in `new_comments`
     """
     stats = {"updated": 0, "skipped": 0, "untouched": 0}
 
@@ -313,8 +314,8 @@ def _substitute_vb_comments_in_gle_bytes(
         if new_text is None:
             stats["untouched"] += 1
             return m.group(0)
-        # Encoda em latin-1 pra casar com o restante do GLE (Quickset escreve
-        # latin-1 embora declare utf-8 no header).
+        # Encode in latin-1 to match the rest of the GLE (Quickset writes
+        # latin-1 even though it declares utf-8 in the header).
         new_text_bytes = new_text.encode("latin-1", errors="replace")
         new_body, count = _GLE_PORT_COMMENT_RE.subn(
             lambda pm: pm.group(1) + new_text_bytes + pm.group(3),
@@ -334,23 +335,24 @@ def _substitute_vb_comments_in_gle_bytes(
 def _update_scd_extrefs_for_ied(
     raw: bytes, ied_name: str, new_descs: dict[str, str],
 ) -> tuple[bytes, dict[str, int]]:
-    """Atualiza o atributo `desc` de cada <ExtRef intAddr="VBnnn"> dentro do
-    IED `ied_name`. Se o ExtRef nao tem `desc=`, insere logo apos `intAddr=`.
+    """Update the `desc` attribute of each <ExtRef intAddr="VBnnn"> inside
+    the IED `ied_name`. If the ExtRef has no `desc=`, insert it right after
+    `intAddr=`.
 
-    Retorna (novos_bytes, stats). Bytes podem mudar de tamanho (SCD eh XML
-    puro, sem constraint).
+    Returns (new_bytes, stats). The bytes can change size (an SCD is plain
+    XML, with no constraint).
     """
     stats = {"updated": 0, "inserted": 0, "untouched": 0}
 
-    # Acha o bloco do IED especifico.
+    # Find the specific IED's block.
     ied_re = re.compile(
         rb'<IED\b[^>]*name="' + re.escape(ied_name.encode("utf-8")) + rb'"[^>]*>',
     )
     open_match = ied_re.search(raw)
     if not open_match:
         return raw, stats
-    # O </IED> correspondente: procuramos do open_match em diante. Como o
-    # SCD nao tem IEDs aninhados, basta o proximo `</IED>`.
+    # The matching </IED>: we search from open_match onward. Since the SCD
+    # has no nested IEDs, the next `</IED>` is enough.
     close_idx = raw.find(b"</IED>", open_match.end())
     if close_idx == -1:
         return raw, stats
@@ -385,16 +387,16 @@ def _update_scd_extrefs_for_ied(
 
 
 # -----------------------------------------------------------------------------
-# Orquestradores: copia arquivo + aplica substituicoes + grava `_comments_updated`
+# Orchestrators: copy file + apply substitutions + write `_comments_updated`
 # -----------------------------------------------------------------------------
 
 def _gle_stream_path(extract_dir: Path, relay_name: str, gle_name: str,
                      gle_fs_path: Path) -> list[str]:
-    """O caminho do stream do GLE dentro do OLE, com o palpite otimista.
+    """The GLE's stream path inside the OLE, with the optimistic guess.
 
-    Quando o arquivo extraido nao esta sob `extract_dir` -- o que nao acontece
-    com um GLE vindo do `RdbInfo` -- monta o caminho a partir dos nomes, que e'
-    o layout que todo RDB do corpus usa.
+    When the extracted file is not under `extract_dir` -- which does not
+    happen for a GLE coming from `RdbInfo` -- it builds the path out of the
+    names, which is the layout every RDB in the corpus uses.
     """
     return resolve_gle_stream_path(
         extract_dir, gle_fs_path,
@@ -403,11 +405,12 @@ def _gle_stream_path(extract_dir: Path, relay_name: str, gle_name: str,
 
 
 def _new_comments_from_scd(scd_path: Path, ied_name: str) -> tuple[dict, int, int]:
-    """As descricoes que o SCD manda pro GLE, mais as duas contagens do relatorio.
+    """The descriptions the SCD sends to the GLE, plus the report's two
+    counts.
 
-    VB que existe como ExtRef mas com `desc` vazia vira "reserva": e' um slot
-    previsto e nao usado, e deixar o comentario antigo la seria pior -- ele
-    descreveria um sinal que nao existe mais.
+    A VB that exists as an ExtRef but with an empty `desc` becomes "reserva":
+    it is a slot foreseen and unused, and leaving the old comment there would
+    be worse -- it would describe a signal that no longer exists.
     """
     new_comments: dict[str, str] = {}
     reserva = 0
@@ -447,16 +450,16 @@ def update_rdb_with_scd_descs(
     output_path: Path,
     job=None,
 ) -> dict:
-    """Gera `output_path` (copia do RDB) com o GLE selecionado atualizado:
-    comments das portas VBnnn substituidos pelos `desc` do SCD.
+    """Produce `output_path` (a copy of the RDB) with the selected GLE
+    updated: the VBnnn port comments replaced by the SCD's `desc`.
 
-    Uma passada de leitura, depois uma gravacao. `rdb_write.write_streams`
-    escolhe entre reescrever o stream no lugar (quando o tamanho bate) e
-    reconstruir o container (quando nao bate), e grava atomicamente. Antes o
-    stream tinha que caber no tamanho original e o excedente era comprado
-    colapsando whitespace no `.gle` inteiro -- ver `pacct/web/rdb_write.py`.
+    One read pass, then one write. `rdb_write.write_streams` chooses between
+    rewriting the stream in place (when the size matches) and rebuilding the
+    container (when it does not), and writes atomically. Before, the stream
+    had to fit the original size and the excess was bought by collapsing
+    whitespace across the whole `.gle` -- see `pacct/web/rdb_write.py`.
 
-    Com `ok: False`, nenhum arquivo foi escrito.
+    With `ok: False`, no file was written.
     """
     new_comments, with_desc, reserva = _new_comments_from_scd(scd_path, ied_name)
     if not new_comments:
@@ -494,18 +497,19 @@ def update_rdb_with_scd_descs_batch(
     output_path: Path,
     job=None,
 ) -> dict:
-    """Aplica `update_rdb_with_scd_descs` para varios reles num unico RDB.
+    """Apply `update_rdb_with_scd_descs` to several relays in a single RDB.
 
-    `selections` eh uma lista de dicts {relay, ied, gle_name, gle_fs_path}.
+    `selections` is a list of dicts {relay, ied, gle_name, gle_fs_path}.
 
-    Tudo-ou-nada, e essa e' a mudanca que importa aqui. Antes cada selecao era
-    gravada no RDB de saida assim que ficava pronta: se a terceira falhava, as
-    duas primeiras ja estavam no arquivo, a resposta ainda dizia `ok: True` e
-    esse RDB meio-aplicado entrava no acervo do projeto do mesmo jeito que um
-    inteiro. Depois que sai daqui nao da mais pra saber a diferenca.
+    All-or-nothing, and that is the change that matters here. Before, each
+    selection was written into the output RDB as soon as it was ready: if the
+    third failed, the first two were already in the file, the response still
+    said `ok: True` and that half-applied RDB entered the project library
+    just like a whole one. Once it leaves here there is no telling the two
+    apart.
 
-    Retorna {ok, output_path, method, succeeded, failed, results}. Com
-    `ok: False`, NENHUM arquivo foi escrito.
+    Returns {ok, output_path, method, succeeded, failed, results}. With
+    `ok: False`, NO file was written.
     """
     results: list[dict] = []
     streams: dict[tuple[str, ...], bytes] = {}
@@ -579,11 +583,11 @@ def update_scd_with_gle_comments(
     gle_path: Path,
     output_path: Path,
 ) -> dict:
-    """Gera `output_path` (copia do SCD) com os <ExtRef desc=> do IED `ied_name`
-    atualizados a partir dos comments das portas VBnnn do GLE.
+    """Produce `output_path` (a copy of the SCD) with the <ExtRef desc=> of
+    the IED `ied_name` updated from the GLE's VBnnn port comments.
 
-    Quando o mesmo VB aparece varias vezes no GLE com comments diferentes,
-    usa o PRIMEIRO comment nao vazio encontrado (e inclui um aviso).
+    When the same VB appears several times in the GLE with different
+    comments, it uses the FIRST non-empty comment found (and adds a warning).
     """
     gle_map = extract_vb_instances_from_gle(gle_path)
 
@@ -635,11 +639,11 @@ def update_scd_with_gle_comments(
 # Excel I/O: export descriptions to xlsx, parse edited xlsx back
 # -----------------------------------------------------------------------------
 
-# Sheet names no Excel: max 31 chars, sem `:\\/?*[]`. Sanitizamos pra evitar
-# erros do openpyxl ao salvar.
+# Excel sheet names: max 31 chars, no `:\\/?*[]`. We sanitise them to avoid
+# openpyxl errors when saving.
 
-# Header esperado nas linhas 1 e 3 do sheet. Marcador na A1 permite identificar
-# que o arquivo veio do export (e nao um xlsx aleatorio).
+# Header expected on rows 1 and 3 of the sheet. The marker in A1 identifies
+# the file as coming from the export (and not some random xlsx).
 _XLSX_IED_MARKER = "IED:"
 _XLSX_HEADER_VB = "VB"
 _XLSX_HEADER_SIGNAL = "Signal"
@@ -649,19 +653,19 @@ _XLSX_HEADER_DESC = "Description"
 def build_vb_descriptions_xlsx(
     *, scd_path: Path, ied_names: list[str], rdb_by_ied: dict[str, str] | None = None,
 ) -> bytes:
-    """Gera um .xlsx (bytes) com uma aba por IED em `ied_names`.
+    """Build an .xlsx (bytes) with one sheet per IED in `ied_names`.
 
-    Estrutura por aba:
-      A1: "IED:"           B1: <ied_name>            (marcador + identificacao)
-      A2: "Relay:"         B2: <rdb_relay_name>      (so se rdb_by_ied passado)
-      Linha 3 em branco
-      Linha 4: cabecalhos  ["VB", "Signal", "Description"]
-      Linha 5+: dados
+    Structure per sheet:
+      A1: "IED:"           B1: <ied_name>            (marker + identification)
+      A2: "Relay:"         B2: <rdb_relay_name>      (only if rdb_by_ied given)
+      Row 3 blank
+      Row 4: headers       ["VB", "Signal", "Description"]
+      Row 5+: data
 
-    O importer le o IED de B1 (nao do nome da aba), entao o usuario pode
-    renomear/reordenar abas sem quebrar o re-import.
+    The importer reads the IED from B1 (not from the sheet name), so the user
+    can rename/reorder sheets without breaking the re-import.
     """
-    # Import local: openpyxl eh dependencia opcional usada so neste fluxo.
+    # Local import: openpyxl is an optional dependency used only here.
     from io import BytesIO
 
     from openpyxl import Workbook
@@ -669,7 +673,7 @@ def build_vb_descriptions_xlsx(
     from openpyxl.utils import get_column_letter
 
     wb = Workbook()
-    # Remove a sheet default; vamos criar as nossas.
+    # Remove the default sheet; we create our own.
     default = wb.active
     wb.remove(default)
 
@@ -689,7 +693,7 @@ def build_vb_descriptions_xlsx(
             ws["A2"] = "Relay:"
             ws["B2"] = rdb_name
             ws["A2"].font = meta_font
-        # Header na linha 4.
+        # Header on row 4.
         for col, val in enumerate(
             (_XLSX_HEADER_VB, _XLSX_HEADER_SIGNAL, _XLSX_HEADER_DESC), start=1,
         ):
@@ -701,15 +705,15 @@ def build_vb_descriptions_xlsx(
             ws.cell(row=i, column=1, value=row["vb"])
             ws.cell(row=i, column=2, value=row["signal"])
             ws.cell(row=i, column=3, value=row["desc"])
-        # Auto-width grosseiro (openpyxl nao tem auto-fit nativo).
+        # Crude auto-width (openpyxl has no native auto-fit).
         widths = {1: 10, 2: 90, 3: 60}
         for col_idx, w in widths.items():
             ws.column_dimensions[get_column_letter(col_idx)].width = w
-        # Freeze pane abaixo do header.
+        # Freeze pane below the header.
         ws.freeze_panes = "A5"
 
     if not wb.sheetnames:
-        # openpyxl exige pelo menos uma sheet pra salvar.
+        # openpyxl requires at least one sheet in order to save.
         wb.create_sheet(title="empty")
 
     buf = BytesIO()
@@ -718,16 +722,16 @@ def build_vb_descriptions_xlsx(
 
 
 def parse_vb_descriptions_xlsx(xlsx_bytes: bytes) -> dict[str, dict[str, str]]:
-    """Le um xlsx gerado por `build_vb_descriptions_xlsx` (ou editado) e retorna
-    {ied_name: {VBxxx: nova_descricao}}.
+    """Read an xlsx built by `build_vb_descriptions_xlsx` (or edited) and
+    return {ied_name: {VBxxx: new_description}}.
 
-    Regras:
-      - IED de cada aba lido de B1 (nao do titulo). Abas sem marcador "IED:"
-        em A1 ou B1 vazio sao ignoradas.
-      - Apos a linha de header (4), linhas com VB vazio ou descricao vazia
-        sao puladas (empty = nao mexer).
-      - VBs sao normalizados pra VB{int(n)} (case-insensitive).
-      - Se o mesmo VB aparece duas vezes na mesma aba, a ultima descricao vence.
+    Rules:
+      - Each sheet's IED is read from B1 (not from the title). Sheets with no
+        "IED:" marker in A1, or an empty B1, are ignored.
+      - After the header row (4), rows with an empty VB or an empty
+        description are skipped (empty = do not touch).
+      - VBs are normalised to VB{int(n)} (case-insensitive).
+      - If the same VB appears twice on one sheet, the last description wins.
     """
     from io import BytesIO
 
@@ -737,7 +741,7 @@ def parse_vb_descriptions_xlsx(xlsx_bytes: bytes) -> dict[str, dict[str, str]]:
     out: dict[str, dict[str, str]] = {}
     try:
         for ws in wb.worksheets:
-            # Verifica marcador A1 e le IED de B1.
+            # Check the A1 marker and read the IED from B1.
             a1 = ws.cell(row=1, column=1).value
             b1 = ws.cell(row=1, column=2).value
             if not isinstance(a1, str) or a1.strip() != _XLSX_IED_MARKER:
@@ -746,7 +750,7 @@ def parse_vb_descriptions_xlsx(xlsx_bytes: bytes) -> dict[str, dict[str, str]]:
             if not ied:
                 continue
             per_ied: dict[str, str] = out.setdefault(ied, {})
-            # Itera a partir da linha 5 (data).
+            # Iterate from row 5 (data).
             for row in ws.iter_rows(min_row=5, max_col=3, values_only=True):
                 if row is None:
                     continue
@@ -766,7 +770,7 @@ def parse_vb_descriptions_xlsx(xlsx_bytes: bytes) -> dict[str, dict[str, str]]:
                 per_ied[key] = desc
     finally:
         wb.close()
-    # Remove IEDs sem nenhuma desc valida.
+    # Drop IEDs with no valid desc at all.
     return {k: v for k, v in out.items() if v}
 
 
@@ -774,10 +778,10 @@ def update_scd_with_descriptions_multi(
     *, scd_path: Path, descriptions_by_ied: dict[str, dict[str, str]],
     output_path: Path,
 ) -> dict:
-    """Aplica novas descricoes a varios IEDs em um unico SCD e grava em
-    `output_path`. Reusa `_update_scd_extrefs_for_ied` por IED.
+    """Apply new descriptions to several IEDs in a single SCD and write to
+    `output_path`. Reuses `_update_scd_extrefs_for_ied` per IED.
 
-    Retorna dict com per_ied stats e totais.
+    Returns a dict with per_ied stats and totals.
     """
     raw = scd_path.read_bytes()
     per_ied_stats: dict[str, dict] = {}
@@ -789,7 +793,7 @@ def update_scd_with_descriptions_multi(
             continue
         new_raw, stats = _update_scd_extrefs_for_ied(raw, ied, vb_map)
         if stats["updated"] + stats["inserted"] == 0 and stats["untouched"] == 0:
-            # IED nao encontrado ou sem ExtRef VBnnn.
+            # IED not found, or with no VBnnn ExtRef.
             skipped_no_ied.append(ied)
             continue
         raw = new_raw
@@ -811,7 +815,7 @@ def update_scd_with_descriptions_multi(
 
 
 # -----------------------------------------------------------------------------
-# Estado da sessao (modulo-global, uma instancia por processo)
+# Session state (module-global, one instance per process)
 # -----------------------------------------------------------------------------
 
 @dataclass
@@ -823,7 +827,7 @@ class _SessionState:
 
 
 def _maybe_match(st: _SessionState) -> None:
-    """Roda o cross-match se ja temos RDB e SCD. Chamar sob o lock da sessao."""
+    """Run the cross-match if RDB and SCD exist. Call under the session lock."""
     if st.rdb is None or st.scd_path is None:
         st.match_report = None
         return
@@ -851,7 +855,7 @@ def _state_payload(st: _SessionState) -> dict:
         d["matches"] = [m.to_dict() for m in st.match_report.matched]
         d["unmatched_rdb"] = [u.to_dict() for u in st.match_report.unmatched_rdb]
         d["unmatched_scd"] = [u.to_dict() for u in st.match_report.unmatched_scd]
-    # GLEs por relay (pra popular o <select> de cada linha)
+    # GLEs per relay (to populate each row's <select>)
     if st.rdb is not None:
         gles_by_relay: dict[str, list[str]] = {}
         for r in st.rdb.relays:
@@ -868,11 +872,12 @@ def _state_payload(st: _SessionState) -> dict:
 
 def _render_compare_page(rdb_relay: str, ied_name: str, gle_name: str,
                          gle_path: Path, scd_path: Path) -> str:
-    """Gera o HTML completo da pagina de comparacao.
+    """Build the full HTML of the comparison page.
 
-    Uma linha por instancia de VB no GLE. Se um VB aparece N vezes no GLE,
-    sao geradas N linhas (todas comparadas contra a mesma desc do SCD). Se
-    nao aparece no GLE mas existe no SCD, vira 1 linha com GLE vazio.
+    One row per VB instance in the GLE. If a VB appears N times in the GLE,
+    N rows are produced (all compared against the same SCD desc). If it does
+    not appear in the GLE but exists in the SCD, it becomes 1 row with an
+    empty GLE.
     """
     gle_map = extract_vb_instances_from_gle(gle_path)
     scd_map = extract_vb_descriptions_from_scd_ied(scd_path, ied_name)
@@ -911,7 +916,7 @@ def _render_compare_page(rdb_relay: str, ied_name: str, gle_name: str,
         instances = gle_map.get(vb, [])
         scd_desc = scd_map.get(vb, "")
         if not instances:
-            # VB existe no SCD mas nao no GLE.
+            # The VB exists in the SCD but not in the GLE.
             rows.append(_row(vb, "", scd_desc, "(ausente no GLE)"))
             continue
         for inst in instances:
@@ -947,7 +952,7 @@ def _render_compare_page(rdb_relay: str, ied_name: str, gle_name: str,
 
 LANDING_HTML = load_template("landing.html")
 
-# A navegacao numerada e' a mesma das nove telas -- mora em theme.py.
+# The numbered navigation is the same on the nine screens -- lives in theme.py.
 
 
 COMPARE_HTML_TEMPLATE = load_template("compare.html")
@@ -959,11 +964,11 @@ COMPARE_HTML_TEMPLATE = load_template("compare.html")
 # -----------------------------------------------------------------------------
 
 def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
-    """Devolve a classe de handler do VB Updater.
+    """Return the VB Updater handler class.
 
-    Nao sobe servidor: quem serve e' o dispatcher unico de `pacct.web.mount`,
-    que monta esse handler em `/vb-updater/`. Estado e uploads ficam por sessao
-    (`self.sess()` / `self.sdir()`), nao por processo.
+    Opens no server: serving is done by the single dispatcher of
+    `pacct.web.mount`, which mounts this handler at `/vb-updater/`. State and
+    uploads are per session (`self.sess()` / `self.sdir()`), not per process.
     """
 
     class Handler(SessionHandler):
@@ -980,25 +985,25 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                 self._send(200, LANDING_HTML, "text/html; charset=utf-8")
                 return
             if path == "/vb-state":
-                # Sentinela usado por home/dashboard pra detectar que essa
-                # ferramenta esta no ar.
+                # Sentinel the home/dashboard uses to detect that this
+                # tool is up.
                 self._send_json(200, {"ok": True})
                 return
             if path == "/state":
                 self._send_json(200, _state_payload(self.sess()))
                 return
             if path == "/download":
-                # Serve arquivo gerado pelo /apply como download. Sandbox em
-                # diretorios da propria sessao pra evitar
+                # Serves a file generated by /apply as a download. Sandboxed
+                # to the session's own directories to prevent
                 # path traversal.
                 file_param = (qs.get("file") or [""])[0]
                 if not file_param:
                     self._send(400, "missing 'file' param", "text/plain")
                     return
                 target = Path(file_param).resolve()
-                # `rdbs` saiu: os uploads agora vao pro cache por conteudo,
-                # que e' compartilhado -- deixa-lo entrar no sandbox daria a um
-                # visitante o arquivo derivado gerado por outro.
+                # `rdbs` is gone: uploads now go to the content cache,
+                # which is shared -- letting it into the sandbox would hand
+                # one visitor the derived file generated by another.
                 if not is_within(target, (self.sdir("out"), self.sdir("scd"))):
                     self._send(403, "path outside allowed roots", "text/plain")
                     return
@@ -1080,9 +1085,9 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                     st = self.sess()
                     rdb = st.rdb
                     scd_path = st.scd_path
-                    # O nome de EXIBICAO, e nao o do arquivo: o acervo guarda
-                    # o SCD como `<sha12>.scd`, entao derivar a saida do
-                    # caminho batizava o arquivo do usuario de
+                    # The DISPLAY name, not the file's: the library keeps
+                    # the SCD as `<sha12>.scd`, so deriving the output from
+                    # the path named the user's file
                     # "72586aeda11e_comments_updated.scd".
                     scd_label = Path(st.scd_name or (scd_path.name if scd_path
                                                      else "arquivo.scd"))
@@ -1095,9 +1100,9 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                     return
                 try:
                     if direction == "scd-to-gle":
-                        # O RDB de origem mora no cache por conteudo, que e'
-                        # compartilhado; a saida derivada e' desta sessao (e o
-                        # /download so serve os diretorios dela).
+                        # The source RDB lives in the content cache, which
+                        # is shared; the derived output belongs to this
+                        # session (and /download only serves its dirs).
                         out_path = self.sdir("out") / _with_suffix_before_ext(
                             Path(rdb.display_name), "_comments_updated",
                         ).name
@@ -1113,10 +1118,10 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                             job=self.job(),
                         )
                     else:  # gle-to-scd
-                        # O SCD de origem agora tambem pode vir da biblioteca
-                        # do projeto (compartilhada com outras ferramentas na
-                        # mesma sessao); a saida derivada e' desta ferramenta
-                        # (e o /download so serve os diretorios dela).
+                        # The source SCD can now also come from the project
+                        # library (shared with the other tools in the same
+                        # session); the derived output belongs to this tool
+                        # (and /download only serves its directories).
                         out_path = self.sdir("out") / _with_suffix_before_ext(
                             scd_label, "_comments_updated",
                         ).name
@@ -1132,9 +1137,9 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                     return
                 if result.get("ok"):
                     out_abs = Path(result["output_path"]).resolve()
-                    # RDB ou SCD corrigido: e' entrada das outras ferramentas,
-                    # entao entra no acervo do projeto em vez de morrer no
-                    # link de download desta aba.
+                    # A corrected RDB or SCD is input for the other tools,
+                    # so it enters the project library instead of dying in
+                    # this tab's download link.
                     result["project_file"] = self.publish_output(
                         out_abs, "VB Updater", job=self.job(), logger=logger)
                     result["download_url"] = self.mount_prefix + "/download?file=" + quote(str(out_abs), safe="")
@@ -1216,10 +1221,10 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                     return
 
                 if not result.get("ok"):
-                    # Tudo-ou-nada: nenhuma selecao foi gravada, entao nao ha
-                    # arquivo pra baixar nem pra publicar no acervo. As
-                    # `results` por selecao vao junto pra tela dizer QUAL
-                    # falhou.
+                    # All-or-nothing: no selection was written, so there is
+                    # no file to download nor to publish into the library.
+                    # The per-selection `results` go along so the screen can
+                    # say WHICH one failed.
                     if invalid:
                         result["invalid"] = invalid
                     logger.warning("[vb-updater] apply-batch abortado: %s",
@@ -1261,8 +1266,8 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                 if scd_path is None:
                     self._send_json(409, {"error": "SCD nao carregado"})
                     return
-                # Coleta IEDs preservando ordem e deduplicando. Tambem mapeia
-                # IED -> relay name (RDB) pra mostrar na aba.
+                # Collect IEDs preserving order and deduplicating. Also
+                # maps IED -> relay name (RDB) to show on the sheet.
                 ied_names: list[str] = []
                 seen: set[str] = set()
                 rdb_by_ied: dict[str, str] = {}
@@ -1289,7 +1294,7 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                     logger.exception("falha gerando xlsx: %s", e)
                     self._send_json(500, {"error": str(e)})
                     return
-                # Salva no diretorio de SCD da sessao (mesmo sandbox de /download).
+                # Saves into the session's SCD dir (the /download sandbox).
                 out_name = _with_suffix_before_ext(
                     scd_label, "_descriptions",
                 ).with_suffix(".xlsx").name
@@ -1328,12 +1333,12 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                 if scd_path is None:
                     self._send_json(409, {"error": "SCD nao carregado"})
                     return
-                # IEDs selecionados (filtro opcional): aceita header
-                # X-Selected-Ieds com uma lista JSON (URL-encoded). E' JSON e
-                # nao "a,b" porque o encodeURIComponent do cliente escapa a
-                # virgula literal de um nome exatamente como o separador: depois
-                # do unquote as duas ficam indistinguiveis e um IED chamado
-                # "A,B" viraria dois.
+                # Selected IEDs (optional filter): accepts the header
+                # X-Selected-Ieds with a JSON list (URL-encoded). JSON and
+                # not "a,b" because the client's encodeURIComponent escapes a
+                # literal comma inside a name exactly like the separator:
+                # after the unquote the two are indistinguishable and an IED
+                # called "A,B" would become two.
                 raw_sel = self.headers.get("X-Selected-Ieds", "")
                 selected_ieds: set[str] | None = None
                 if raw_sel:
@@ -1359,7 +1364,7 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                                  "(verifique que A1='IED:' e B1=<nome do IED>)",
                     })
                     return
-                # Filtra pelos selecionados, se houver.
+                # Filter by the selected ones, if any.
                 ignored: list[str] = []
                 if selected_ieds is not None:
                     filtered = {}
@@ -1402,9 +1407,9 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                 return
 
             if path in ("/select-rdb", "/select-scd"):
-                # O corpo do antigo /rdb-upload ou /scd-upload, do
-                # `process_upload`/`load_scd` pra frente: o arquivo ja foi
-                # recebido e extraido/validado em /files/.
+                # The body of the old /rdb-upload or /scd-upload, from
+                # `process_upload`/`load_scd` onward: the file was already
+                # received and extracted/validated in /files/.
                 want = (filelib.KIND_RDB if path == "/select-rdb"
                         else filelib.KIND_SCD)
                 body = self._read_json_body()
@@ -1430,8 +1435,8 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                         st.scd_name = entry.display_name
                         logger.info("[vb-updater] SCD '%s' (%s) escolhido",
                                     entry.display_name, entry.short_sha)
-                    # O cruzamento RDB x SCD so acontece quando os dois
-                    # existem; `_maybe_match` ja sabe disso.
+                    # The RDB x SCD cross-match only happens when both
+                    # exist; `_maybe_match` already knows that.
                     job.stage("Cruzando RDB com SCD", 60)
                     _maybe_match(st)
                 job.finish("Arquivo carregado")

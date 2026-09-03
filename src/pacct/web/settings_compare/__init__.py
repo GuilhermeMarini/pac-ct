@@ -1,17 +1,17 @@
 """
-Settings Compare (Comparador de Ajustes): diff lado a lado de ajustes de reles
-SEL extraidos de RDBs.
+Settings Compare (Comparador de Ajustes): side-by-side diff of SEL relay
+settings extracted from RDBs.
 
-Fluxo do usuario:
+User flow:
 
-  1. Seleciona um ou mais RDBs (uploads novos ou ja extraidos em `rdbs/`).
-  2. Escolhe ate 7 reles da MESMA familia (3xx/4xx/7xx).
-  3. Escolhe grupos de ajustes (abas: L1, S1, A1, etc.).
-  4. Visualiza diff por aba; cada variavel mostra um veredito por linha:
+  1. Pick one or more RDBs (fresh uploads or already extracted in `rdbs/`).
+  2. Choose up to 7 relays of the SAME family (3xx/4xx/7xx).
+  3. Choose settings groups (tabs: L1, S1, A1, etc.).
+  4. Read the diff per tab; each variable shows a per-row verdict:
      EQUAL / EQUAL_LOGIC_DIFF_COMMENT / EQUIVALENT / DIFFERENT.
 
-Compartilha estilo visual com `vb_updater.py` e `vlan_mapper.py`. Estado por
-processo (singleton); o usuario clica "<- Menu" para voltar.
+Shares the visual style with `vb_updater.py` and `vlan_mapper.py`. State per
+process (singleton); the user clicks "<- Menu" to go back.
 
     templates/  index.html
 """
@@ -53,25 +53,25 @@ def load_template(name: str) -> str:
 
 
 # -----------------------------------------------------------------------------
-# Estado da sessao
+# Session state
 # -----------------------------------------------------------------------------
 
 @dataclass
 class _Session:
-    """RDBs que o usuario carregou (referenciados por sha256 curto)."""
+    """RDBs the user loaded (referenced by their short sha256)."""
     rdbs: dict[str, RdbInfo] = field(default_factory=dict)
-    # Cache de RelayModel normalizado por (rdb_sha, relay_name).
+    # Cache of the normalised RelayModel by (rdb_sha, relay_name).
     relay_cache: dict[tuple[str, str], RelayModel] = field(default_factory=dict)
 
 
 
 
 # -----------------------------------------------------------------------------
-# Helpers de descoberta
+# Discovery helpers
 # -----------------------------------------------------------------------------
 
 def _register_rdb(st: _Session, lock, info: RdbInfo) -> str:
-    """Salva o RdbInfo no estado da sessao e devolve a chave (sha curto)."""
+    """Save the RdbInfo into the session state; returns the short sha."""
     key = _short_sha(info.sha256)
     with lock:
         st.rdbs[key] = info
@@ -81,7 +81,7 @@ def _register_rdb(st: _Session, lock, info: RdbInfo) -> str:
 def _get_or_normalize_relay(
     st: _Session, lock, rdb_key: str, relay_name: str,
 ) -> RelayModel | None:
-    """Le e normaliza um rele do RDB indicado (cache por (rdb_sha, name))."""
+    """Read and normalise one relay of an RDB (cache key (rdb_sha, name))."""
     with lock:
         info = st.rdbs.get(rdb_key)
     if info is None:
@@ -92,7 +92,7 @@ def _get_or_normalize_relay(
     if cached is not None:
         return cached
 
-    # Acha o RelayEntry correspondente e infere a familia.
+    # Find the matching RelayEntry and infer the family.
     target_entry = None
     for r in info.relays:
         if r.name == relay_name:
@@ -113,7 +113,7 @@ def _get_or_normalize_relay(
 
 
 def _rdb_summary(rdb_key: str, info: RdbInfo) -> dict:
-    """Resumo de um RDB pra payload do frontend."""
+    """Summary of one RDB for the frontend payload."""
     relays = []
     for r in info.relays:
         fam = family_from_relaytype(r.model)
@@ -121,7 +121,7 @@ def _rdb_summary(rdb_key: str, info: RdbInfo) -> dict:
             "name": r.name,
             "model": r.model,
             "ip": r.ip,
-            "family": fam,                  # None se nao for rele de protecao
+            "family": fam,                  # None if it is not a protection relay
             "is_relay": is_relay_device(r.model),
         })
     return {
@@ -137,9 +137,9 @@ def _list_groups_for_relays(
     st: _Session, lock,
     rdb_relays: list[tuple[str, str]],
 ) -> tuple[Family | None, list[dict]]:
-    """Dado um conjunto de (rdb_key, relay_name), devolve a familia comum e a
-    lista de grupos (catalogo) com `present` indicando se o grupo existe em
-    todos os reles selecionados."""
+    """Given a set of (rdb_key, relay_name), return the common family and
+    the list of groups (catalogue) with `present` telling whether the group
+    exists in every selected relay."""
     if not rdb_relays:
         return None, []
     models: list[RelayModel] = []
@@ -171,20 +171,20 @@ def _list_groups_for_relays(
 
 
 # -----------------------------------------------------------------------------
-# Computacao do diff
+# Diff computation
 # -----------------------------------------------------------------------------
 
 @dataclass(frozen=True)
 class _CellPayload:
     relay: str       # "rdb_key|relay_name"
-    label: str       # nome amigavel pra UI ("relay_name")
+    label: str       # friendly name for the UI ("relay_name")
     rdb_filename: str
-    value: str       # `raw` do field
+    value: str       # the field's `raw`
     body: str
     comment: str
     source_file: str
     source_lineno: int
-    present: bool    # se o campo existe nesse rele
+    present: bool    # whether the field exists in this relay
 
 
 @dataclass(frozen=True)
@@ -201,19 +201,19 @@ class _VariableRow:
     name: str                     # 'PLT11' / 'LT01' / 'TR' / etc.
     var_kind: str                 # 'latch' / 'timer' / 'direct' / etc.
     fields: list[_FieldRow]
-    worst_verdict: str            # piora entre fields
+    worst_verdict: str            # the worst across the fields
 
 
-# DISPLACED = todos os campos comparaveis sao EQUAL/EQUAL_LOGIC_DIFF_COMMENT,
-# mas o campo "slot" (metadado de posicao em SITM<n>/ALIAS<n>) difere. O bit
-# esta registrado em todos os reles com o mesmo conteudo, so muda a posicao.
+# DISPLACED = every comparable field is EQUAL/EQUAL_LOGIC_DIFF_COMMENT, but
+# the "slot" field (position metadata in SITM<n>/ALIAS<n>) differs. The bit
+# is recorded in every relay with the same content, only the position moved.
 #
-# VB_DIFF = os valores diferem apenas em substituicoes de tokens VB### (Virtual
-# Bits). Estrutura identica em ambos os lados, so o numero do VB mudou.
-# Tipico em SER (SITM=VB042 vs VB055) ou em logica (PSV01 := VB001 OR IN101
-# vs PSV01 := VB042 OR IN101). Pode ser renumeracao benigna OU sinal
-# totalmente diferente -- exige revisao humana, mas nao eh "definitivamente
-# diferente".
+# VB_DIFF = the values differ only in VB### (Virtual Bits) token
+# substitutions. Identical structure on both sides, only the VB number
+# changed. Typical in SER (SITM=VB042 vs VB055) or in logic (PSV01 := VB001
+# OR IN101 vs PSV01 := VB042 OR IN101). It can be a benign renumbering OR a
+# completely different signal -- it needs human review, but it is not
+# "definitely different".
 def _verdict_severity(v: str) -> int:
     return {
         "EQUAL": 0,
@@ -222,7 +222,7 @@ def _verdict_severity(v: str) -> int:
         "EQUIVALENT": 3,
         "VB_DIFF": 4,
         "DIFFERENT": 5,
-        "MISSING": 6,   # presente em alguns reles, ausente em outros
+        "MISSING": 6,   # present in some relays, absent in others
     }.get(v, 7)
 
 
@@ -230,10 +230,10 @@ _VB_TOKEN_RE = re.compile(r'\bVB\d+\b', re.IGNORECASE)
 
 
 def _is_vb_only_diff(a: str, b: str) -> bool:
-    """True se `a` e `b` diferem apenas em substituicoes de tokens VB###.
+    """True when `a` and `b` differ only in VB### token substitutions.
 
-    Substitui cada `VB\\d+` por um placeholder; se os textos normalizados
-    sao iguais E havia pelo menos um VB em algum lado, eh diff so-de-VB.
+    Replaces each `VB\\d+` with a placeholder; if the normalised texts are equal
+    AND there was at least one VB on either side, it is a VB-only diff.
     """
     if a == b:
         return False
@@ -245,25 +245,25 @@ def _is_vb_only_diff(a: str, b: str) -> bool:
 
 
 # -----------------------------------------------------------------------------
-# Secoes -- subdivisao das abas de Relatorios por tipo de ajuste
+# Sections -- subdividing the Relatorios tabs by kind of setting
 # -----------------------------------------------------------------------------
 #
-# A aba "Relatorios" mistura ajustes de natureza muito diferente: chatter do
-# SER, points/aliases do SOE, Signal Profile, Event Reporting (digital +
-# analog), Fast Message Read, etc. Aqui dividimos essa aba em secoes
-# semanticas (uma per familia) para o usuario localizar mais rapido.
+# The "Relatorios" tab mixes settings of very different natures: SER
+# chatter, SOE points/aliases, Signal Profile, Event Reporting (digital +
+# analog), Fast Message Read, etc. Here we split that tab into semantic
+# sections (one per family) so the user finds things faster.
 #
-# Variaveis que nao casam com nenhuma secao definida caem em "Outros" no
-# rodape da aba -- nada eh perdido do diff.
+# Variables matching no defined section fall into "Outros" at the foot of
+# the tab -- nothing is lost from the diff.
 
 @dataclass(frozen=True)
 class _Section:
     key: str
     label: str
     order: int
-    exact: frozenset[str] = frozenset()       # casamento exato pelo nome
+    exact: frozenset[str] = frozenset()       # exact match by name
     prefix: tuple[str, ...] = ()              # startswith
-    kinds: frozenset[str] = frozenset()       # casamento pelo Variable.kind
+    kinds: frozenset[str] = frozenset()       # match by Variable.kind
 
 
 _DEFAULT_SECTION = _Section("_other", "Outros", 9999)
@@ -319,8 +319,8 @@ _R_SECTIONS: dict[tuple[str, str], tuple[_Section, ...]] = {
 def _classify_variable(
     family: str, group_key: str, var_name: str, var_kind: str,
 ) -> _Section:
-    """Decide a qual secao uma variavel pertence dentro da aba. Variavel sem
-    secao definida cai em `_DEFAULT_SECTION`."""
+    """Decide which section a variable belongs to inside the tab. A
+    variable with no section defined falls into `_DEFAULT_SECTION`."""
     sections = _R_SECTIONS.get((family, group_key))
     if not sections:
         return _DEFAULT_SECTION
@@ -340,12 +340,12 @@ def _compute_field_row(
     cells: list[_CellPayload],
     dialect: str,
 ) -> _FieldRow:
-    """Veredicto entre N cells presentes. Se alguma cell esta ausente,
-    veredicto MISSING (sem fazer compare das presentes).
+    """Verdict across the N cells present. If any cell is absent, the
+    verdict is MISSING (the present ones are not compared).
 
-    Downgrades aplicados aqui:
-      - campo `slot` com diff -> DISPLACED (bit registrado em posicao diferente)
-      - diff so em tokens VB### -> VB_DIFF (renumeracao de Virtual Bits)
+    Downgrades applied here:
+      - `slot` field with a diff -> DISPLACED (bit recorded at another spot)
+      - diff only in VB### tokens -> VB_DIFF (Virtual Bits renumbering)
     """
     presents = [c for c in cells if c.present]
     if len(presents) < len(cells):
@@ -360,7 +360,7 @@ def _compute_field_row(
             verdict="EQUAL",
         )
 
-    # Veredicto pairwise contra o primeiro; pega o pior.
+    # Pairwise verdict against the first one; keep the worst.
     worst = "EQUAL"
     note: str | None = None
     a_val = presents[0].value
@@ -393,9 +393,9 @@ def _collect_variables(
     models: list[tuple[str, RelayModel]],   # (relay_key, RelayModel)
     group_key: str,
 ) -> list[_VariableRow]:
-    """Une o set de variaveis presentes nos N reles para o grupo dado, e
-    monta uma `_VariableRow` por nome com `_FieldRow`s comparativos."""
-    # Indexa variaveis por (relay_key) -> dict[var_name -> Variable]
+    """Union of the variables present in the N relays for the given group,
+    building one `_VariableRow` per name with comparative `_FieldRow`s."""
+    # Index variables by (relay_key) -> dict[var_name -> Variable]
     per_relay: list[tuple[str, dict[str, Variable], RelayModel]] = []
     for relay_key, model in models:
         gm = model.groups.get(group_key)
@@ -410,11 +410,11 @@ def _collect_variables(
     dialect = models[0][1].dialect if models else "keyword"
     rows: list[_VariableRow] = []
     for vname in all_var_names:
-        # Para cada variavel, juntar todos os field_names existentes em
-        # qualquer rele (em ordem canonica per kind).
+        # For each variable, gather every field_name that exists in any
+        # relay (in canonical order per kind).
         var_kind_seen = None
         all_field_names: list[str] = []
-        # ordem preferida; o resto entra no fim em ordem alfabetica
+        # preferred order; the rest goes at the end alphabetically
         preferred_order = (
             "set", "reset", "input", "pickup", "dropout",
             "count_up", "count_down", "load", "preset",
@@ -471,8 +471,8 @@ def _collect_variables(
             fr = _compute_field_row(fn, kind_seen or "string", cells, dialect)
             field_rows.append(fr)
 
-        # Veredicto da variavel = pior dos campos. DISPLACED/VB_DIFF ja foram
-        # aplicados em _compute_field_row.
+        # The variable's verdict = worst of its fields. DISPLACED/VB_DIFF
+        # were already applied in _compute_field_row.
         worst = "EQUAL"
         for fr in field_rows:
             if _verdict_severity(fr.verdict) > _verdict_severity(worst):
@@ -491,10 +491,11 @@ def _compute_diff_payload(
     group_keys: list[str],
     on_progress=None,
 ) -> dict:
-    """Roda o diff completo e devolve um payload JSON-serializavel.
+    """Run the full diff and return a JSON-serialisable payload.
 
-    `on_progress(feitos, total, etapa)` alimenta a barra do cliente: normalizar
-    os ajustes de cada rele e' a parte cara, e sao ate 5 reles por comparacao.
+    `on_progress(feitos, total, etapa)` feeds the client's bar: normalising
+    each relay's settings is the expensive part, and there are up to 5 relays
+    per comparison.
     """
     models: list[tuple[str, RelayModel]] = []
     for i, ref in enumerate(relay_refs):
@@ -508,13 +509,13 @@ def _compute_diff_payload(
         key = f"{rdb_key}|{relay_name}"
         models.append((key, m))
 
-    # Famil­ia comum (ja deveria estar validada no UI)
+    # Common family (should already have been validated in the UI)
     fams = {m.family for _, m in models}
     if len(fams) != 1:
         return {"error": "selecao de reles cruza familias diferentes"}
     fam = next(iter(fams))
 
-    # Preenche rdb_filename nas cells -- precisamos do RDB info
+    # Fill rdb_filename in the cells -- we need the RDB info
     with lock:
         rdb_filenames = {
             rk: st.rdbs[rk].display_name if rk in st.rdbs else ""
@@ -557,9 +558,9 @@ def _compute_diff_payload(
     for gk in group_keys:
         rows = _collect_variables(models, gk)
 
-        # Agrupa variaveis por secao. Familias/grupos sem secao definida caem
-        # todos numa unica secao "_default" (rotulo vazio -- frontend nao
-        # renderiza header pra essa).
+        # Group variables by section. Families/groups with no section
+        # defined all fall into a single "_default" section (empty label --
+        # the frontend renders no header for that one).
         sections_meta = _R_SECTIONS.get((fam, gk))
         if sections_meta:
             buckets: dict[str, list[_VariableRow]] = {s.key: [] for s in sections_meta}
@@ -586,7 +587,7 @@ def _compute_diff_payload(
 
         groups_out.append({"key": gk, "sections": sections_out})
 
-    # Tambem devolve os labels dos grupos pra UI mostrar nome bonito.
+    # Also returns the group labels so the UI can show a pretty name.
     catalog = {g.key: g.label for g in groups_for_family(fam)}
     return {
         "family": fam,
@@ -611,7 +612,7 @@ def _compute_diff_payload(
 
 INDEX_HTML = load_template("index.html")
 
-# A navegacao numerada e' a mesma das nove telas -- mora em theme.py.
+# The numbered navigation is the same on the nine screens -- lives in theme.py.
 
 
 # -----------------------------------------------------------------------------
@@ -619,12 +620,13 @@ INDEX_HTML = load_template("index.html")
 # -----------------------------------------------------------------------------
 
 def build_settings_compare_handler(logger: logging.Logger, sessions) -> type:
-    """Devolve a classe de handler do Settings Compare.
+    """Return the Settings Compare handler class.
 
-    Nao sobe servidor: quem serve e' o dispatcher unico de `pacct.web.mount`,
-    que monta esse handler em `/settings-compare/`. Estado e uploads ficam por
-    sessao (`self.sess()` / `self.sdir()`), nao por processo -- inclusive a
-    limpeza: o diretorio inteiro da sessao some quando ela expira.
+    Opens no server: serving is done by the single dispatcher of
+    `pacct.web.mount`, which mounts this handler at `/settings-compare/`.
+    State and uploads are per session (`self.sess()` / `self.sdir()`), not
+    per process -- cleanup included: the session's whole directory goes away
+    when it expires.
     """
 
     class Handler(SessionHandler):
@@ -646,13 +648,13 @@ def build_settings_compare_handler(logger: logging.Logger, sessions) -> type:
                 return None
 
         def _ensure_rdbs(self, keys) -> None:
-            """Garante que cada chave curta esteja em `st.rdbs`.
+            """Ensure every short key is in `st.rdbs`.
 
-            Rede de seguranca do mesmo principio do `/state`: o RDB esta no
-            acervo do visitante, entao nenhuma rota precisa exigir que a
-            pagina tenha "adotado" antes. Sem isto, uma aba que ficou aberta
-            enquanto a sessao perdeu o estado responderia "rele nao
-            encontrado" para um arquivo que esta ali.
+            A safety net on the same principle as `/state`: the RDB is in
+            the visitor's library, so no route has to demand that the page
+            "adopted" it first. Without this, a tab left open while the
+            session lost its state would answer "rele nao encontrado" for a
+            file that is right there.
             """
             st = self.sess()
             for key in keys:
@@ -670,18 +672,19 @@ def build_settings_compare_handler(logger: logging.Logger, sessions) -> type:
                 self._send(200, INDEX_HTML, "text/html; charset=utf-8")
                 return
             if path == "/settings-state":
-                # Sentinela usado pela home pra detectar que essa tool subiu.
+                # Sentinel the home uses to detect that this tool is up.
                 self._send_json(200, {"ok": True})
                 return
             if path == "/state":
-                # O acervo do PROJETO, nao "os RDBs que esta ferramenta
-                # adotou". Havia duas listas na tela -- os arquivos do
-                # projeto num seletor e os adotados numa lista ao lado -- e um
-                # botao "Usar" que so' copiava um ponteiro de uma pra outra.
-                # Era o resto de quando o comparador tinha upload proprio.
-                # Listar tambem registra em `st.rdbs`, que e' o que faz
-                # escolher um arquivo virar um clique: `/groups` e `/diff`
-                # continuam achando o RDB pela chave curta sem etapa nenhuma.
+                # The PROJECT's library, not "the RDBs this tool has
+                # adopted". There used to be two lists on screen -- the
+                # project's files in a selector and the adopted ones in a
+                # list beside it -- and a "Usar" button that only copied a
+                # pointer from one to the other. It was the leftover of when
+                # the comparator had an upload of its own. Listing also
+                # registers into `st.rdbs`, which is what makes choosing a
+                # file a single click: `/groups` and `/diff` still find the
+                # RDB by its short key with no step at all.
                 st = self.sess()
                 lib = filelib.library_for(sessions, self.session)
                 with self.session.lock:

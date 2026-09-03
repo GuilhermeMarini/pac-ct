@@ -1,21 +1,21 @@
-"""Notas, marca-texto e checkboxes de grupo de um rele.
+"""Notes, highlighter and group checkboxes of one relay.
 
-Os tres arquivos ficam em `cache/` e o formato nao mudou:
+The three files live in `cache/` and the format has not changed:
 
-    cache/groups_<chave>.json      {"version":1, "checked":[...]}
-    cache/notes_<chave>.json       {"version":2, "html_relay":..., "pages":{...}}
-    cache/highlights_<chave>.json  {"version":1, "pages":{pagina:{item:true}}}
+    cache/groups_<key>.json        {"version":1, "checked":[...]}
+    cache/notes_<key>.json         {"version":2, "html_relay":..., "pages":{...}}
+    cache/highlights_<key>.json    {"version":1, "pages":{page:{item:true}}}
 
-O que mudou e' a CHAVE. Era o DEVID quando conectado e o nome do rele
-sanitizado em modo desenho -- ou seja, o mesmo rele gravava em dois arquivos
-diferentes conforme houvesse conexao ou nao, e a nota escrita antes de
-conectar sumia da tela depois de conectar. Agora e' sempre o nome do rele no
-RDB, que existe desde antes de qualquer conexao. Na primeira conexao,
-`adopt_devid()` adota o que ficou gravado pelo DEVID.
+What changed is the KEY. It was the DEVID when connected and the sanitised
+relay name in drawing mode -- that is, the same relay wrote to two different
+files depending on whether there was a connection or not, and a note written
+before connecting vanished from the screen after connecting. Now it is always
+the relay's name in the RDB, which exists from before any connection. On the
+first connection, `adopt_devid()` adopts what was written under the DEVID.
 
-O registro e' do PROCESSO, e nao da sessao: dois visitantes com o mesmo rele
-aberto escrevem nos mesmos arquivos e precisam do mesmo objeto e da mesma
-trava, senao o ultimo a salvar apaga o que o outro escreveu.
+The registry is the PROCESS's, not the session's: two visitors with the same
+relay open write to the same files and need the same object and the same
+lock, otherwise the last one to save wipes what the other wrote.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ NOTE_MAX_BYTES = 256 * 1024
 
 
 def note_key(relay_name: str) -> str:
-    """Nome do rele no RDB -> chave de arquivo."""
+    """Relay name in the RDB -> file key."""
     return re.sub(r"[^A-Za-z0-9._-]", "_", relay_name or "") or "unknown"
 
 
@@ -41,7 +41,7 @@ def _path(kind: str, key: str):
 
 
 # -----------------------------------------------------------------------------
-# Leitura / escrita dos tres arquivos
+# Reading / writing the three files
 # -----------------------------------------------------------------------------
 
 def _load_groups(key: str) -> set:
@@ -95,7 +95,7 @@ def _load_highlights(key: str) -> dict:
 
 
 class NoteStore:
-    """Estado anotado de UM rele, carregado do disco no primeiro acesso."""
+    """Annotated state of ONE relay, loaded from disk on first access."""
 
     def __init__(self, key: str):
         self.key = key
@@ -105,7 +105,7 @@ class NoteStore:
         self.highlights: dict = _load_highlights(key)
         self._adopted = False
 
-    # -- escrita ------------------------------------------------------------
+    # -- writing ------------------------------------------------------------
 
     def set_group(self, group_id: str, checked: bool) -> None:
         with self._lock:
@@ -131,7 +131,7 @@ class NoteStore:
                 "version": 2,
                 "key": self.key,
                 "html_relay": self.note_relay,
-                # Filtra paginas vazias (mantem o arquivo enxuto)
+                # Filters out empty pages (keeps the file lean)
                 "pages": {k: v for k, v in self.note_pages.items() if v},
             })
 
@@ -153,7 +153,7 @@ class NoteStore:
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    # -- leitura ------------------------------------------------------------
+    # -- reading ------------------------------------------------------------
 
     def note_payload(self) -> dict:
         with self._lock:
@@ -171,11 +171,11 @@ class NoteStore:
     # -- migracao -----------------------------------------------------------
 
     def adopt_devid(self, devid: str, logger) -> list:
-        """Primeira conexao: adota o que ficou gravado pelo DEVID.
+        """First connection: adopt what was written under the DEVID.
 
-        Por arquivo, e so quando o arquivo pela chave nova NAO existe: uma nota
-        escrita antes de conectar ja esta no arquivo certo e nao pode ser
-        sobrescrita pelo que veio do DEVID. Roda uma vez por store.
+        Per file, and only when the file under the new key does NOT exist: a
+        note written before connecting is already in the right file and must
+        not be overwritten by what came from the DEVID. Runs once per store.
         """
         with self._lock:
             if self._adopted:
@@ -206,7 +206,7 @@ class NoteStore:
 
 
 class NoteRegistry:
-    """Um NoteStore por chave, do processo."""
+    """One NoteStore per key, process-wide."""
 
     def __init__(self):
         self._stores: dict[str, NoteStore] = {}

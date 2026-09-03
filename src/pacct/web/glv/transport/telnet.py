@@ -1,16 +1,17 @@
-"""O transporte telnet do GLV: SEL Fast Message por um telnet com o rele.
+"""The GLV's telnet transport: SEL Fast Message over a telnet to the relay.
 
-Saiu inteiro do `link.py`, e os corpos vieram sem uma linha de mudanca: o
-caminho telnet e' o unico verificado contra rele de verdade, e os comentarios
-em portugues aqui dentro registram medicoes de bancada (Exemplo,
-203.0.113.x), nao opinioes. O `RelayLink` ficou com o ciclo de vida --
-identidade, refcount, `LiveState`, watchdog e a thread de polling -- e este
-modulo, com tudo que sabe falar SEL.
+It came out of `link.py` whole, and the bodies arrived without a single line
+changed: the telnet path is the only one verified against a real relay, and
+the comments in here record bench measurements (Example, 203.0.113.x), not
+opinions. `RelayLink` kept the lifecycle -- identity, refcount, `LiveState`,
+watchdog and the polling thread -- and this module kept everything that knows
+how to speak SEL.
 
-`abort()` fecha o SOCKET, e nao e' um detalhe: um `selprotopy` travado numa
-leitura engole a excecao e tenta de novo, entao fechar o socket e' a unica
-coisa que o acorda. Um transporte com timeout de socket de verdade nao precisa
-disso -- por isso `abort()` e' do transporte, e nao do watchdog generico.
+`abort()` closes the SOCKET, and that is not a detail: a `selprotopy` stuck on
+a read swallows the exception and tries again, so closing the socket is the
+only thing that wakes it. A transport with a real socket timeout does not need
+that -- which is why `abort()` belongs to the transport, not to the generic
+watchdog.
 """
 
 from __future__ import annotations
@@ -38,30 +39,30 @@ from pacct.web.glv.transport import (
     drawing_variables,
 )
 
-# A regiao TARGET no SEL-411L tem ate 500 rows (3004h..31f7h por
-# MAP 1 TARGET BL); manual pag. 10.5 diz char[~488]. Usamos 500 como cap.
+# The TARGET region on the SEL-411L has up to 500 rows (3004h..31f7h via
+# MAP 1 TARGET BL); manual p. 10.5 says char[~488]. We use 500 as the cap.
 MIN_ROWS_DESIRED = 500
-# O 311C tem 111 linhas e responde erro depois disso, entao discover_all_rows
-# para sozinho; 256 e' so um teto de seguranca.
+# The 311C has 111 rows and answers with an error past that, so
+# discover_all_rows stops on its own; 256 is only a safety ceiling.
 TAR_MAX_ROWS = 256
 
 
 def setup_relay(ip: str, port: int, acc_password: str, logger=None,
                 on_socket=None) -> SELClient:
-    """Abre o telnet, faz login e autoconfig, e devolve o SELClient pronto.
+    """Opens the telnet, logs in and autoconfigures; returns the SELClient.
 
-    Recebe IP, porta e senha explicitos de proposito. Antes lia
-    `cfg.get("tcp","ip_address")`, e o loop de sessao ESCREVIA nesse mesmo cfg
-    quando o usuario digitava um IP na tela de selecao. Com um rele isso era
-    invisivel; com dois diagramas, abrir o segundo apontando pra outro IP
-    reescrevia o IP do primeiro -- que continuava dizendo na tela que era o
-    rele A e reconectava no rele B. O config.ini agora e' so a fonte dos
-    valores padrao, lida uma vez no boot.
+    It takes explicit IP, port and password on purpose. It used to read
+    `cfg.get("tcp","ip_address")`, and the session loop WROTE into that same
+    cfg when the user typed an IP on the selection screen. With one relay that
+    was invisible; with two diagrams, opening the second one pointing at
+    another IP rewrote the first one's IP -- which went on saying on screen
+    that it was relay A and reconnected to relay B. config.ini is now only the
+    source of the default values, read once at boot.
     """
     tn = telnetlib.Telnet(ip, port, timeout=10)
-    # O watchdog de `connect()` precisa do socket pra conseguir abortar: um
-    # peer que aceita TCP e nunca responde (switch, port forward morto) deixa
-    # o login e o autoconfig do selprotopy lendo pra sempre.
+    # `connect()`'s watchdog needs the socket to be able to abort: a peer
+    # that accepts TCP and never answers (a switch, a dead port forward)
+    # leaves selprotopy's login and autoconfig reading for ever.
     if on_socket is not None:
         on_socket(tn)
     drain_login_banner(tn, logger)
@@ -71,14 +72,14 @@ def setup_relay(ip: str, port: int, acc_password: str, logger=None,
     client.autoconfig_fastmeter(attempts=3, verbose=False)
     if client.access_level()[0] == 0:
         client.access_level_1()
-    # Le DNA (para fast_meter_block funcionar)
+    # Read DNA (so that fast_meter_block works)
     client._read_clean_prompt()
     client._write(commands.DNA)
     client.dnaDef = sel_parser.relay_dna_block(
         client._read_command_response(commands.DNA),
         encoding="utf-8",
     )
-    # Le ID block (para FID -- usado pelo lookup do cache)
+    # Read the ID block (for the FID -- used by the cache lookup)
     client._write(commands.ID)
     id_block = sel_parser.relay_id_block(
         client._read_command_response(commands.ID),
@@ -91,8 +92,8 @@ def setup_relay(ip: str, port: int, acc_password: str, logger=None,
 
 
 def mode_for(relay_model) -> str:
-    """Modo de leitura pra esse modelo. Sem modelo, assume 4xx (o default do
-    `fast_read` ausente, como antes)."""
+    """Read mode for this model. With no model, assumes 4xx (the default of
+    an absent `fast_read`, as before)."""
     if relay_model is None:
         return MODE_TARGET
     if getattr(relay_model, "digitals_via_tar", False):
@@ -103,11 +104,11 @@ def mode_for(relay_model) -> str:
 
 
 class TelnetTransport:
-    """Fast Message por telnet: a metade do antigo `RelayLink` que fala SEL.
+    """Fast Message over telnet: the half of old `RelayLink` that speaks SEL.
 
-    Guarda o `SELClient`, o `AsciiTargetReader` e o modo de leitura da familia
-    (`fast_read` do JSON do modelo). Nao sabe nada de diagrama, de refcount nem
-    de progresso alem do `job` que recebe.
+    It keeps the `SELClient`, the `AsciiTargetReader` and the family's read
+    mode (`fast_read` from the model JSON). It knows nothing about diagrams,
+    refcounts or progress beyond the `job` it is handed.
     """
 
     def __init__(self, ip: str, port: int, *, acc_password: str = "",
@@ -123,22 +124,23 @@ class TelnetTransport:
         self.client = None
         self.reader = None
         self._cache_path = None
-        # O telnet cru, guardado pra `abort()` conseguir fechar o socket de
-        # outra thread. Chega pelo `on_socket=` do `setup_relay`.
+        # The raw telnet, kept so that `abort()` can close the socket from
+        # another thread. It arrives through `setup_relay`'s `on_socket=`.
         self._tn = None
         self._lock = threading.RLock()
-        # Ate onde o prazo do watchdog vale. O setup (telnet + login +
-        # autoconfig) tem prazo; a descoberta de bits, nao -- num FID sem cache
-        # ela leva minutos de propria vontade, e sempre levou.
+        # How far the watchdog deadline reaches. The setup (telnet + login
+        # + autoconfig) has a deadline; bit discovery does not -- on a FID
+        # with no cache it takes minutes of its own accord, and always has.
         self.setup_done = threading.Event()
 
     # -- conexao ------------------------------------------------------------
 
     def connect(self, job=None) -> None:
-        """Abre o telnet, identifica o rele e monta o mapa de bits.
+        """Opens the telnet, identifies the relay and builds the bit map.
 
-        Levanta em qualquer falha: quem trata e' o `RelayLink`, que transforma
-        a excecao em `self.error` e deixa o diagrama aberto e desconectado.
+        Raises on any failure: handling it is the `RelayLink`'s job, which
+        turns the exception into `self.error` and leaves the diagram open and
+        disconnected.
         """
         client = setup_relay(self.ip, self.port, self.acc_password, self.logger,
                              on_socket=self._on_socket)
@@ -146,7 +148,8 @@ class TelnetTransport:
             self.client = client
         self.fid = client.fid or ""
         self.devid = client.devid or ""
-        # Daqui pra frente o watchdog nao manda mais: o que vem e' descoberta.
+        # From here on the watchdog no longer rules: what comes next is
+        # discovery.
         self.setup_done.set()
 
         if self.mode in (MODE_TARGET, MODE_TAR):
@@ -158,10 +161,10 @@ class TelnetTransport:
         self._tn = tn
 
     def abort(self) -> None:
-        """Fecha o socket pra levantar uma leitura travada.
+        """Closes the socket to lift a stuck read.
 
-        Nao da pra interromper uma leitura bloqueada de fora; fechar o socket
-        faz ela levantar, que e' o que queremos.
+        There is no interrupting a blocked read from outside; closing the
+        socket makes it raise, which is what we want.
         """
         tn = self._tn
         if tn is not None:
@@ -180,32 +183,33 @@ class TelnetTransport:
                 pass
 
     def unreachable(self, bits):
-        """Quais DESTES nomes nao existem no rele, por dois criterios.
+        """Which of THESE names do not exist on the relay, by two criteria.
 
-        Nos modos com `AsciiTargetReader` (4xx e 3xx) o criterio e' o mapa da
-        Relay Word: o que nao esta em `bit_to_pos` depois da descoberta nao
-        vai ser lido nunca. Isso engloba de proposito os dois jeitos de faltar
-        -- os que foram procurados com `TAR <nome>` e cairam na lista negra
-        (`not_findable`), e os `VB*`, que a descoberta PULA porque moram em
-        outra regiao e o Fast Message nao os traz. Esse segundo caso e'
-        exatamente o que manda o usuario pro MMS, entao esconde-lo por nunca
-        ter sido procurado seria esconder a resposta.
+        In the modes with an `AsciiTargetReader` (4xx and 3xx) the criterion
+        is the Relay Word map: what is not in `bit_to_pos` after discovery
+        will never be read. That deliberately covers both ways of being
+        missing -- those looked up with `TAR <name>` that fell into the
+        blacklist (`not_findable`), and the `VB*`, which discovery SKIPS
+        because they live in another region and Fast Message does not bring
+        them. That second case is exactly what sends the user to MMS, so
+        hiding it for never having been looked up would hide the answer.
 
-        No 7xx nao ha reader: os digitais sao o subconjunto que o rele nomeia
-        no DNA, e o criterio e' esse. `*` e' linha sem nome, e nao um bit.
+        On the 7xx there is no reader: the digitals are the subset the relay
+        names in the DNA, and that is the criterion. `*` is an unnamed row,
+        not a bit.
 
-        `None` desconectado, e `None` num 7xx que nao respondeu o DNA: sem uma
-        das duas fontes, chamar os 400 bits do desenho de ausentes seria
-        inventar.
+        `None` when disconnected, and `None` on a 7xx that did not answer the
+        DNA: without one of the two sources, calling the drawing's 400 bits
+        absent would be inventing.
         """
         wanted = drawing_variables(bits)
-        # Sem o `_lock`, de proposito: `prepare_bits` o segura durante a
-        # descoberta INTEIRA (~90 s numa varredura TAR fria), e o painel se
-        # atualiza justamente quando a conexao muda -- ou seja, enquanto ela
-        # roda. Isto aqui so' le dois dicionarios que ja estao na memoria; ler
-        # um leitor recem-trocado e' um diagnostico uma volta atrasado, e o
-        # lock existe pra manter `client`/`reader` coerentes no `close()`, nao
-        # pra proteger uma leitura.
+        # Without the `_lock`, on purpose: `prepare_bits` holds it for the
+        # WHOLE discovery (~90 s on a cold TAR sweep), and the panel refreshes
+        # precisely when the connection changes -- that is, while it is
+        # running. This here only reads two dictionaries already in memory;
+        # reading a just-swapped reader is a diagnosis one turn late, and the
+        # lock exists to keep `client`/`reader` coherent in `close()`, not to
+        # protect a read.
         client = self.client
         reader = self.reader
         if client is None:
@@ -225,17 +229,17 @@ class TelnetTransport:
         return {"names": sorted(wanted - known), "reason": reason}
 
     def coverage_for(self, bits):
-        """Telnet le a Relay Word inteira: nao ha o que reportar.
+        """Telnet reads the whole Relay Word: there is nothing to report.
 
-        `None` e nao `0/N`: zero soaria como "nada mapeado" quando o certo e'
-        "nao se aplica", e e' por isso que o cliente esconde o badge em vez de
-        mostrar um numero."""
+        `None` and not `0/N`: zero would sound like "nothing mapped" when the
+        right answer is "does not apply", and that is why the client hides the
+        badge instead of showing a number."""
         return None
 
     # -- descoberta ---------------------------------------------------------
 
     def _setup_ascii_reader(self, job=None) -> None:
-        """Mapa da Relay Word + cache por FID (SEL-4xx e SEL-3xx)."""
+        """Relay Word map + per-FID cache (SEL-4xx and SEL-3xx)."""
         logger = self.logger
         client = self.client
         reader = AsciiTargetReader(client, logger=logger)
@@ -245,9 +249,9 @@ class TelnetTransport:
         self._cache_path = cache_path
 
         if self.mode == MODE_TAR:
-            # 3xx: `MAP 1 TARGET BL` responde "Invalid Command", entao a unica
-            # descoberta possivel e' varrer `TAR 0..N`. Custa ~90s uma vez;
-            # depois disso o cache por FID resolve.
+            # 3xx: `MAP 1 TARGET BL` answers "Invalid Command", so the only
+            # discovery possible is sweeping `TAR 0..N`. It costs ~90s once;
+            # after that the per-FID cache settles it.
             if not have_cache:
                 logger.info("Sem cache; varrendo TAR 0..N (3xx, ~1-2 min)...")
                 if job:
@@ -258,9 +262,10 @@ class TelnetTransport:
                 logger.info(f"Cache TAR: {len(reader.layout.row_to_names)} linhas, "
                             f"{len(reader.layout.bit_to_pos)} bits.")
         elif not have_cache:
-            # Fast path: 1 round-trip via MAP 1 TARGET BL (~1-3s) em vez de
-            # ~500 chamadas TAR n (~40s). Salva dump cru para inspecao caso o
-            # parser nao reconheca o formato do firmware especifico.
+            # Fast path: 1 round-trip via MAP 1 TARGET BL (~1-3s) instead
+            # of ~500 TAR n calls (~40s). It saves a raw dump for inspection
+            # in case the parser does not recognise the specific firmware
+            # format.
             logger.info("Sem cache; tentando MAP 1 TARGET BL (fast path)...")
             if job:
                 job.stage("Descobrindo bits da regiao TARGET...", 30)
@@ -287,8 +292,8 @@ class TelnetTransport:
                     f"{len(reader.layout.row_to_names)} linhas")
 
     def _reindex(self) -> None:
-        """Reconstroi bit_to_pos a partir de row_to_names (cache antigo nem
-        sempre tem todos os bits indexados, mas as linhas estao la)."""
+        """Rebuilds bit_to_pos from row_to_names (an old cache does not
+        always have every bit indexed, but the rows are there)."""
         reader = self.reader
         if reader is None:
             return
@@ -298,36 +303,37 @@ class TelnetTransport:
                     reader.layout.bit_to_pos[nm.upper()] = (row_idx, 7 - j)
 
     def prepare_bits(self, names, job=None, pause=None) -> int:
-        """Descobre no rele os bits desse diagrama que ainda nao estao no mapa.
+        """Discovers on the relay this diagram's bits not yet in the map.
 
-        Precisa parar o polling: o telnet e' um so, e intercalar `TAR <nome>`
-        com o pipeline de Fast Meter embaralharia as duas respostas. Parar e
-        subir de novo custa uma volta de poll, e evita mexer nas `poll_loop*`,
-        que foram movidas como estavam.
+        It has to stop the polling: there is only one telnet, and interleaving
+        `TAR <name>` with the Fast Meter pipeline would scramble both answers.
+        Stopping and starting again costs one poll turn, and avoids touching
+        the `poll_loop*`, which were moved as they were.
 
-        `pause` e' esse "parar", e vem da casca, que e' a dona da thread. Entra
-        so em volta do `discover_bits`, DEPOIS das saidas rapidas: num 7xx nao
-        ha reader (os digitais vem do Fast Meter) e num FID com cache completo
-        nao ha bit faltando -- nesses caminhos ninguem fala com o rele, e parar
-        o leitor seria derrubar e subir a thread de graca.
+        `pause` is that "stopping", and comes from the shell, which owns the
+        thread. It goes in only around `discover_bits`, AFTER the early exits:
+        on a 7xx there is no reader (the digitals come from Fast Meter) and on
+        a FID with a complete cache there is no missing bit -- on those paths
+        nobody talks to the relay, and stopping the reader would be tearing
+        the thread down and back up for nothing.
 
-        E' tambem o que faz um SEGUNDO diagrama funcionar numa conexao que ja
-        existe: ele traz bits que ninguem pediu ao rele ainda.
+        It is also what makes a SECOND diagram work on a connection that
+        already exists: it brings bits nobody has asked the relay for yet.
         """
         logger = self.logger
         if pause is None:
-            pause = nullcontext          # chamada direta (teste, script)
+            pause = nullcontext          # direct call (test, script)
         with self._lock:
             reader = self.reader
             client = self.client
             if reader is None or client is None:
-                return 0   # 7xx: digitais vem do Fast Meter, sem descoberta
+                return 0   # 7xx: digitals come from Fast Meter, no discovery
             missing = [
                 b for b in sorted(names)
                 if b not in reader.layout.bit_to_pos
-                and b not in reader.layout.not_findable  # ja tentamos e nao achou
-                and not b.startswith("VB")               # GOOSE em outra regiao
-                and not b.isdigit()                      # constantes "0", "12"
+                and b not in reader.layout.not_findable  # tried, not found
+                and not b.startswith("VB")               # GOOSE, other region
+                and not b.isdigit()                      # constants "0", "12"
             ]
             if not missing:
                 logger.info(
@@ -362,9 +368,9 @@ class TelnetTransport:
             return added
 
     def _log_fast_meter_digitals(self) -> None:
-        """SEL-7xx (AG95-10 fast read): A5D1 ja carrega digitals via
-        numdigitalbank/digitaloffset; selprotopy ja chamou DNA/BNA no autoconfig
-        pra popular client.dnaDef."""
+        """SEL-7xx (AG95-10 fast read): A5D1 already carries digitals via
+        numdigitalbank/digitaloffset; selprotopy already called DNA/BNA in the
+        autoconfig to populate client.dnaDef."""
         logger = self.logger
         client = self.client
         fmd = client.fast_meter_definition or {}
@@ -375,8 +381,8 @@ class TelnetTransport:
             f"Fast Meter digitals: {nbanks} banks @ offset {offset} "
             f"(DNA={dna_rows} rows). Pulando AsciiTargetReader."
         )
-        # Diagnostic: re-fetch A5C1 + DNA raw e salva em cache/ quando o
-        # mismatch acontece, pra inspecao posterior.
+        # Diagnostic: re-fetch A5C1 + DNA raw and save into cache/ when the
+        # mismatch happens, for later inspection.
         if nbanks == dna_rows:
             return
         try:
@@ -405,8 +411,8 @@ class TelnetTransport:
     # -- polling ------------------------------------------------------------
 
     def poll(self, state, interval, stop, once) -> None:
-        """Uma volta de leitura por modo, ate `stop`. O despacho e' o que era
-        o corpo de `RelayLink._start_polling`, com os mesmos argumentos."""
+        """One read turn per mode, until `stop`. The dispatch is what used to
+        be the body of `RelayLink._start_polling`, with the same arguments."""
         client = self.client
         if client is None:
             return
@@ -414,8 +420,9 @@ class TelnetTransport:
             poll_loop(client, self.reader, state, interval, self.logger, stop,
                       once)
         elif self.mode == MODE_TAR:
-            # 3xx: cada linha custa ~200ms no rele, entao o intervalo minimo
-            # util e' maior que o dos outros modos -- e so lemos a pagina aberta.
+            # 3xx: each row costs ~200ms on the relay, so the minimum
+            # useful interval is larger than in the other modes -- and we only
+            # read the open page.
             poll_loop_tar(client, self.reader, state, max(interval, 1.5),
                           self.logger, stop, once)
         else:

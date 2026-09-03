@@ -1,8 +1,9 @@
-"""Ultimo snapshot lido de um rele.
+"""Last snapshot read from a relay.
 
-Mora aqui, e nao no diagrama, porque quem escreve nele sao as `poll_loop*` --
-uma thread por RELE, nao por desenho. Dois diagramas abertos sobre o mesmo
-rele leem o mesmo LiveState, que e' o certo: a Relay Word e' do rele.
+It lives here, and not in the diagram, because what writes into it are the
+`poll_loop*` -- one thread per RELAY, not per drawing. Two diagrams open on
+the same relay read the same LiveState, which is right: the Relay Word is the
+relay's.
 """
 
 from __future__ import annotations
@@ -12,27 +13,27 @@ import time
 
 
 class LiveState:
-    """Mantem o ultimo snapshot de valores lidos do rele."""
+    """Keeps the last snapshot of values read from the relay."""
     def __init__(self):
         self.lock = threading.Lock()
         self.digitals: dict[str, int] = {}
         self.analogs: dict[str, float] = {}
-        # A leitura e' carimbada por DOIS relogios, e o segundo nao e' luxo.
-        # O de parede (`last_update_ts`) e' a hora; o monotonico
-        # (`last_update_mono`) e' o unico com que se pode medir IDADE. Medido
-        # nesta maquina: o relogio do WSL estava 82,5 s atras do relogio do
-        # Windows, e o navegador (que roda no Windows) fazia
-        # `Date.now()/1000 - ts` -- 82,5 s de "valores antigos" com o fio
-        # perfeito, e uma tela que parecia congelada porque a conta atravessa
-        # dois relogios que nao concordam. Quem responde a idade agora e' o
-        # servidor, com o relogio que nao anda pra tras.
+        # A reading is stamped by TWO clocks, and the second is not a luxury.
+        # The wall clock (`last_update_ts`) is the time of day; the monotonic
+        # one (`last_update_mono`) is the only one you can measure AGE with.
+        # Measured on this machine: the WSL clock was 82.5 s behind the
+        # Windows clock, and the browser (which runs on Windows) did
+        # `Date.now()/1000 - ts` -- 82.5 s of "stale values" over a perfect
+        # link, and a screen that looked frozen because the subtraction
+        # crosses two clocks that do not agree. What answers the age now is
+        # the server, with the clock that does not run backwards.
         self.last_update_ts = 0.0
         self.last_update_mono = 0.0
         self.error = ""
-        # Bits da pagina que o usuario esta vendo. So o modo `tar_digitals`
-        # (3xx) usa isso: la cada linha da Relay Word custa ~200ms de round
-        # trip, entao ler o diagrama inteiro a cada volta seria inviavel --
-        # lemos so o que esta na tela. Preenchido pelo handler de /values.
+        # Bits of the page the user is looking at. Only the `tar_digitals`
+        # mode (3xx) uses it: there each Relay Word row costs ~200ms of round
+        # trip, so reading the whole diagram every turn would be unworkable --
+        # we read only what is on screen. Filled by the /values handler.
         self.wanted_bits: set[str] = set()
 
     def set_wanted_bits(self, bits) -> None:
@@ -40,9 +41,9 @@ class LiveState:
             self.wanted_bits = {b.upper() for b in bits}
 
     def mark_updated(self) -> None:
-        """Carimba a leitura nos dois relogios. Chame COM `self.lock` na mao
-        -- os quatro loops de polling ja escrevem os valores debaixo dele, e o
-        carimbo tem que entrar na mesma seccao critica que eles."""
+        """Stamps the reading on both clocks. Call it WITH `self.lock` in
+        hand -- the four polling loops already write the values under it, and
+        the stamp has to go into the same critical section as they do."""
         self.last_update_ts = time.time()
         self.last_update_mono = time.monotonic()
 
@@ -53,20 +54,20 @@ class LiveState:
                 "analogs": {k: (str(v) if not isinstance(v, (int, float)) else v)
                             for k, v in self.analogs.items()},
                 "ts": self.last_update_ts,
-                # A idade em segundos, medida AQUI. `None` enquanto nada foi
-                # lido -- que e' diferente de "zero segundos" e a tela trata
-                # como tal.
+                # The age in seconds, measured HERE. `None` while nothing has
+                # been read -- which is different from "zero seconds", and the
+                # screen treats it as such.
                 "age": (time.monotonic() - self.last_update_mono
                         if self.last_update_mono else None),
                 "error": self.error,
             }
 
     def clear(self) -> None:
-        """Volta tudo a indeterminado.
+        """Puts everything back to indeterminate.
 
-        Chamado ao desconectar: a tela nunca pode continuar mostrando um valor
-        que nao esta sendo lido agora. `wanted_bits` fica -- e' o que a pagina
-        aberta pediu, nao um valor lido.
+        Called on disconnect: the screen can never keep showing a value that
+        is not being read now. `wanted_bits` stays -- it is what the open page
+        asked for, not a value that was read.
         """
         with self.lock:
             self.digitals = {}

@@ -371,8 +371,8 @@ def test_the_same_relay_and_session_in_another_rdb_is_a_real_target():
 
 
 def test_copying_a_subset_leaves_the_other_points_alone():
-    """O passo 2 do assistente manda as chaves marcadas; o que ficou de fora
-    fica como esta no destino -- uma copia nunca apaga ponto."""
+    """Step 2 of the wizard sends the checked keys; what was left out stays
+    as it is in the target -- a copy never blanks a point."""
     st, lock = _fresh()
     src = set_dnp.parse(_setd("D1", "1.0", "PSV22", "TRIP"))
     alvo = set_dnp.parse(_setd("D1", "1.0", "OUTRO", "OUTRO2"))
@@ -383,17 +383,18 @@ def test_copying_a_subset_leaves_the_other_points_alone():
 
     assert model.edits_for(st, "abc", "R2", "D1") == {"BI_1": "PSV22"}
     assert o.touched == 1
-    # BI_2 nao foi pedido: nao e' desencontro, e' escolha de quem copiou.
+    # BI_2 was not asked for: not a mismatch, but the copier's choice.
     assert (o.missing, o.extra) == (0, 0)
 
 
 def test_a_chosen_point_carries_its_scale_and_deadband():
-    """A escala e' atributo da grandeza mapeada, nao um ponto a parte: marcar
-    AI_1 leva AI_SCA1/AI_DBD1 junto, como o arraste do editor."""
+    """The scale is an attribute of the mapped quantity, not a point of its
+    own: checking AI_1 takes AI_SCA1/AI_DBD1 with it, like a drag in the
+    editor."""
     st, lock = _fresh()
     src = set_dnp.parse(_setd("D1", "1.0", "PSV22", ""))
     alvo = set_dnp.parse(_setd("D1", "1.0", "PSV22", ""))
-    # o destino difere so' na escala do AI_1
+    # the target differs only in AI_1's scale
     alvo.set_value("AI_SCA1", "9.9")
 
     (o,) = model.copy_map_to(st, lock, "abc", "R1", "D1", src, "abc",
@@ -418,8 +419,8 @@ def test_an_empty_selection_copies_nothing():
 
 
 def test_no_selection_still_means_the_whole_map():
-    """`point_keys=None` e' o mapa inteiro -- e' assim que `copy_session` e o
-    caminho antigo continuam funcionando."""
+    """`point_keys=None` is the whole map -- that is how `copy_session` and
+    the old path keep working."""
     st, lock = _fresh()
     src = set_dnp.parse(_setd("D1", "1.0", "PSV22", "TRIP"))
     alvo = set_dnp.parse(_setd("D1", "1.0", "OUTRO", "OUTRO2"))
