@@ -11,7 +11,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        # 3.10 is the floor `requires-python` declares; 3.14 is the newest
+        # release. 3.13 is not optional cover: it is where `telnetlib` was
+        # REMOVED from the standard library, and the vendored `selprotopy`
+        # still does a bare `import telnetlib` -- `pacct/compat.py` aliases
+        # `telnetlib3`'s backport into `sys.modules` to cover it, and this is
+        # the job that would notice if the backport ever stopped being a
+        # drop-in.
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

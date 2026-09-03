@@ -120,3 +120,49 @@ def test_the_unpublished_libraries_are_pinned_to_a_commit_not_a_branch():
         assert "@" in ref, f"{name}: a git reference must name a commit or tag"
         assert not ref.rstrip("/").endswith("@main"), (
             f"{name}: pinned to a moving branch")
+
+
+def _ci_matrix() -> list[tuple[int, int]]:
+    text = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    line = next(ln for ln in text.splitlines()
+                if ln.strip().startswith("python-version:"))
+    return sorted((int(a), int(b)) for a, b in
+                  re.findall(r'"(\d+)\.(\d+)"', line))
+
+
+def _requires_python_floor() -> tuple[int, int]:
+    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    m = re.search(r'requires-python\s*=\s*">=(\d+)\.(\d+)"', text)
+    assert m, "requires-python must declare a floor"
+    return int(m[1]), int(m[2])
+
+
+def test_ci_starts_at_the_version_pyproject_promises():
+    """`requires-python` is a promise to whoever installs this. A matrix that
+    starts above it means the oldest supported Python is never actually run."""
+    assert _ci_matrix()[0] == _requires_python_floor()
+
+
+def test_the_ci_matrix_has_no_holes_in_it():
+    """Skipping a version is how a real incompatibility hides.
+
+    The concrete one here is **3.13**: that is the release where `telnetlib`
+    was removed from the standard library, and the vendored `selprotopy` still
+    does a bare `import telnetlib`. `pacct/compat.py` covers it by aliasing
+    `telnetlib3`'s backport into `sys.modules` -- and a matrix that jumped
+    3.12 to 3.14 would never exercise the boundary where that starts mattering.
+    """
+    matrix = _ci_matrix()
+    expected = [(matrix[0][0], minor)
+                for minor in range(matrix[0][1], matrix[-1][1] + 1)]
+    assert matrix == expected, f"gap in the CI matrix: {matrix}"
+
+
+def test_every_version_ci_runs_is_a_version_the_metadata_claims():
+    """The classifiers are what a reader believes without running anything;
+    the matrix is what is actually measured. They must say the same thing."""
+    proj = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    claimed = {tuple(int(p) for p in m)
+               for m in re.findall(
+                   r'"Programming Language :: Python :: (\d+)\.(\d+)"', proj)}
+    assert claimed == set(_ci_matrix())

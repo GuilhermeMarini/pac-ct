@@ -94,7 +94,8 @@ pac-ct/
 
 ## Prerequisites
 
-- Python 3.10+ (tested on 3.12)
+- Python 3.10 to 3.14 (CI runs all five; 3.12 and 3.14 are exercised by
+  hand here, including a full offline install)
 - TCP access to the SEL relay (port 23 / Telnet) -- for the GLV only
 - Linux/macOS/WSL (native Windows should work too)
 

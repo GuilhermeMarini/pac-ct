@@ -479,6 +479,19 @@ What Phase 5 added, by file:
 `tests/test_update.py::test_the_paths_module_reads_the_two_variables_the_launcher_sets`
 is now the thing that says so out loud.
 
+**Python 3.13 and 3.14 were added to the matrix, and measured rather than
+assumed.** CI ran 3.10–3.12; the floor `requires-python` declares is 3.10 and
+the newest release is 3.14, so three of five supported versions were covered.
+3.13 is the one that had to be there: it is where `telnetlib` was removed from
+the standard library, and the vendored `selprotopy` still does a bare
+`import telnetlib` — `pacct/compat.py` covers it, and a matrix jumping 3.12 to
+3.14 would never exercise the boundary where that starts mattering. Measured
+locally on **3.14.6**: 647 tests, `ruff`, `mypy`, a bundle build and all eleven
+screens, all green — and the `DeprecationWarning` 3.12 emits is simply absent
+there, because the shim takes the backport path instead of the stdlib one.
+Three tests now keep the matrix, `requires-python` and the classifiers from
+drifting apart, including one that refuses a *hole* in the matrix.
+
 The one part that cannot be verified here: the Windows half — the `mklink /J`
 junction, `pac-ct.cmd`, and a venv built from `win_amd64` wheels — has been
 written against the documented behaviour and reviewed, but there is no Windows

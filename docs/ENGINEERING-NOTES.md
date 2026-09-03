@@ -113,7 +113,9 @@ python3 app.py --reverter     # point `current` back one version
 
 ## Dependencies
 
-`pyserial`, `telnetlib3`, `olefile`, `openpyxl`, `py61850` (see `requirements.txt`). Python 3.10+ (tested on 3.12).
+`pyserial`, `telnetlib3`, `olefile`, `openpyxl`, `py61850` (see `requirements.txt`). Python 3.10 to 3.14; CI runs all five.
+
+**From Python 3.13, `telnetlib` is gone from the standard library, and `pacct/compat.py` is what keeps the toolkit running.** The vendored `selprotopy` does a bare `import telnetlib` *and* monkeypatches `telnetlib.Telnet.process_rawq` so the SEL protocol's significant null bytes survive, so it cannot simply be dropped — and it is hook-protected, so it cannot be patched either. `compat.ensure_telnetlib()` aliases `telnetlib3`'s redistributed backport into `sys.modules` under the original name, which satisfies every import form. Call it at the top of any entry point that touches `selprotopy`, ahead of the `import selprotopy` line. Measured on 3.14.6: the whole suite passes and the `DeprecationWarning` 3.12 emits is simply absent, because on 3.13+ the shim takes the backport path instead of the stdlib one.
 
 **`py61850` ships as a PRE-RELEASE, and the requirement line has to say so.** The MMS client the GLV calls (`MmsClient`, `decode_data_definition`, `py61850.mms.pdu`) exists from `0.2.0.dev1`; PyPI carries that and `0.0.1`, and **`0.2.0` final does not exist**. A plain `py61850>=0.2.0` therefore matches nothing installable, `pip install -r` fails, and `app.py` `sys.exit()`s on it — a clean clone then boots **no tool at all**, not just the MMS one. The line is `py61850>=0.2.0.dev1`: mentioning a pre-release in the specifier is what lets `pip install -r` take a dev **without `--pre` on the command line** (PEP 440). It was a `@ git+...@<sha>` pin until 2026-08-31, while nothing was published; that shape still passes the test, but it costs the automatic pickup of a new dev and an upstream history rewrite orphans the sha (it did — the pinned commit is no longer reachable from `main`).
 
