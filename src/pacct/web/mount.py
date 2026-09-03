@@ -1,9 +1,9 @@
-"""Monta varias ferramentas num unico servidor HTTP, por prefixo de caminho.
+"""Mount several tools on a single HTTP server, routed by path prefix.
 
-Antes, cada ferramenta subia o proprio `ThreadingHTTPServer` na mesma porta e
-o `main()` rodava uma de cada vez: pra abrir o VB Updater era preciso derrubar
-o servidor da home, e vice-versa. Aqui um unico servidor fica no ar em
-`:8765` e roteia por prefixo:
+Each tool used to bring up its own `ThreadingHTTPServer` on the same port, and
+`main()` ran one at a time: opening the VB Updater meant taking the home's
+server down, and the other way round. Here one server stays up on `:8765` and
+routes by prefix:
 
     /                       -> home (menu)
     /vb-updater/...         -> VB Updater
@@ -12,31 +12,31 @@ o servidor da home, e vice-versa. Aqui um unico servidor fica no ar em
     /settings-compare/...   -> Settings Compare
     /glv/...                -> Graphical Logic Viewer
 
-Assim varias ferramentas ficam disponiveis ao mesmo tempo, cada uma na sua
-aba, e so uma porta precisa ser liberada no firewall / portproxy do WSL.
+So several tools are usable at once, each in its own browser tab, and only
+one port has to be open in the firewall or the WSL portproxy.
 
-Duas pecas fazem isso funcionar:
+Two pieces make that work:
 
-1. `make_dispatcher()` -- do lado do servidor. Cada ferramenta continua
-   definindo o proprio `BaseHTTPRequestHandler` com rotas absolutas
-   (`/state`, `/download`, ...). O dispatcher tira o prefixo de `self.path` e
-   troca `self.__class__` pela classe da ferramenta, entao o handler original
-   roda sem enxergar o prefixo -- nenhuma rota precisou ser reescrita.
+1. `make_dispatcher()` -- the server side. Each tool still defines its own
+   `BaseHTTPRequestHandler` with absolute routes (`/state`, `/download`, ...).
+   The dispatcher strips the prefix from `self.path` and swaps
+   `self.__class__` for the tool's class, so the original handler runs without
+   ever seeing the prefix -- not one route had to be rewritten.
 
-2. `inject_head()` -- do lado do cliente. O JS embutido nas paginas usa
-   caminhos absolutos (`fetch('/state')`), que sob prefixo bateriam em
-   `/state` e dariam 404. O shim injetado no `<head>` reescreve `fetch` e
-   `XMLHttpRequest.open` pra prefixar caminhos absolutos, entao o JS existente
-   tambem ficou intacto. A mesma injecao poe a folha de tema (`/theme.css`) e
-   marca `data-theme` no `<html>` em TODAS as telas -- por isso ela nao e' mais
-   so o shim, e roda tambem na home (prefixo vazio). O seletor de tema, esse,
-   so e' montado na home: o tema e' um cookie de um ano, escolhido no menu.
+2. `inject_head()` -- the client side. The JavaScript embedded in the pages
+   uses absolute paths (`fetch('/state')`), which under a prefix would hit
+   `/state` and 404. A shim injected into the `<head>` rewrites `fetch` and
+   `XMLHttpRequest.open` to prefix absolute paths, so the existing JavaScript
+   stayed intact too. The same injection adds the theme stylesheet
+   (`/theme.css`) and stamps `data-theme` on `<html>` for EVERY screen --
+   which is why it is no longer just the shim, and runs on the home (empty
+   prefix) as well. The theme PICKER, though, is mounted only on the home: the
+   theme is a one-year cookie, chosen once, in the menu.
 
-O dispatcher tambem serve quatro rotas comuns a todas as ferramentas, antes de
-casar prefixo: `/progress`, `/theme.css`, `/static/...` (as fontes .woff2 que
-acompanham o projeto) e `/library` (a lista de arquivos do projeto do
-visitante, que o seletor de cada ferramenta le). Nenhuma delas pertence a uma
-ferramenta so.
+The dispatcher also serves four routes common to every tool, before matching
+any prefix: `/progress`, `/theme.css`, `/static/...` (the .woff2 fonts that
+ship with the project) and `/library` (the visitor's project files, which each
+tool's picker reads). None of them belongs to a single tool.
 """
 
 from __future__ import annotations
@@ -54,12 +54,12 @@ from pacct.web import theme as themes
 # Shim de cliente
 # -----------------------------------------------------------------------------
 
-# Reescreve caminhos absolutos ("/state") pra "<prefixo>/state" em `fetch` e
-# `XMLHttpRequest`. Nao mexe em URLs absolutas com esquema (http://...), em
-# caminhos protocol-relative ("//host/x") nem em caminhos relativos.
+# Rewrites absolute paths ("/state") to "<prefix>/state" in `fetch` and
+# `XMLHttpRequest`. Leaves alone: absolute URLs with a scheme (http://...),
+# protocol-relative paths ("//host/x"), and relative paths.
 #
-# `/` sozinho e' preservado de proposito: e' o link "<- Menu", que deve ir pra
-# home de verdade, e nao pra raiz da ferramenta.
+# A bare `/` is preserved on purpose: that is the "<- Menu" link, which must
+# go to the real home rather than to the tool's own root.
 _PREFIX_SHIM = """<script>
 (function () {
   var P = %s;
@@ -96,16 +96,16 @@ _HTML_RE = re.compile(r"<html\b[^>]*>", re.IGNORECASE)
 # Tema
 # -----------------------------------------------------------------------------
 
-# O seletor e' montado por JS porque a home tem cabecalho proprio: em vez de
-# editar a marcacao, ele se pendura no `<header>` (ou `.masthead`) da pagina.
-# Sem cabecalho, cai num canto fixo -- abaixo da barra de progresso, que ocupa
-# o topo da viewport.
+# The picker is mounted by JavaScript because the home has a header of its
+# own: rather than editing the markup, it hangs itself off the page's
+# `<header>` (or `.masthead`). With no header it falls back to a fixed corner,
+# below the progress bar that occupies the top of the viewport.
 #
-# Ele so vai pra HOME (prefixo vazio). Antes ia pras nove telas, e nos
-# cabecalhos de aplicacao -- o do GLV, que ja carrega titulo, estado, busca,
-# ferramentas e zoom -- virava mais um grupo espremido numa faixa que ja
-# quebrava em varias linhas. O tema e' um cookie de um ano: escolhe-se uma vez,
-# no menu, e ele segue o visitante por todas as telas.
+# It goes on the HOME only (empty prefix). It used to go on all nine screens,
+# and in an application header -- the GLV's, which already carries a title, a
+# state, a search box, tools and a zoom -- it became one more group fighting
+# for a band that already wrapped onto several lines. The theme is a one-year
+# cookie: chosen once, in the menu, and it follows the visitor everywhere.
 _THEME_PICKER = """<script>
 (function () {
   var THEMES = %s, CURRENT = %s;
@@ -163,33 +163,36 @@ def _picker_script(active: str) -> str:
                             json.dumps(active))
 
 
-# Marcadores que a direcao resolve. Ficam no HTML das telas em vez da marcacao
-# pronta porque as tres direcoes NAO emitem a mesma estrutura: a navegacao e'
-# `.toc` na folha, `.strip`/`.borne` na regua e `.tabs`/`.tab` no caderno, e o
-# menu e' tabela, borne ou ficha com clipe. Antes isto era resolvido no import
-# de cada ferramenta, o que congelava a marcacao da folha nos tres temas.
+# Markers the direction resolves. They sit in the screens' HTML instead of
+# finished markup because the three directions do NOT emit the same structure:
+# the navigation is `.toc` in Folha, `.strip`/`.borne` in Régua and
+# `.tabs`/`.tab` in Caderno, and the menu is a table, a terminal block or a
+# clipped card. This used to be resolved at each tool's import, which froze
+# Folha's markup into all three themes.
 _NAV_RE = re.compile(r"<!--NAV:([a-z0-9-]*)-->")
 _HOME_RE = re.compile(r"<!--HOME-->")
 
 
 def _resolve_markup(html: str, theme: str) -> str:
-    """Troca os marcadores de tela pela marcacao da direcao ativa."""
+    """Replace the screen markers with the active direction's markup."""
     html = _NAV_RE.sub(lambda m: themes.nav_html(theme, m.group(1)), html)
     return _HOME_RE.sub(lambda _m: themes.home_html(theme), html)
 
 
 def inject_head(html: str, prefix: str, theme: str = themes.DEFAULT_THEME) -> str:
-    """Injeta shim de prefixo, folha de tema e seletor de tema no `<head>`.
+    """Inject the prefix shim, the theme stylesheet and the theme picker into
+    `<head>`.
 
-    Antes isto era so o shim, e por isso nao rodava na home (prefixo vazio).
-    Agora roda sempre: a home tambem precisa de tema.
+    This used to be the shim alone, which is why it did not run on the home
+    (empty prefix). Now it always runs: the home needs a theme too.
 
-    O SELETOR, porem, so entra na home. A folha de tema e o `data-theme` vao
-    em todas as telas -- o que nao vai mais e' o grupo de botoes de troca.
+    The PICKER, though, goes only on the home. The stylesheet and the
+    `data-theme` go on every screen -- what no longer travels is the group of
+    switch buttons.
 
-    A folha entra logo apos `<head>`, ANTES do `<style>` da ferramenta -- assim
-    os tokens ja existem quando a ferramenta os usa, e o que ainda nao foi
-    convertido continua vencendo por ordem de cascata.
+    The stylesheet lands immediately after `<head>`, BEFORE the tool's own
+    `<style>`, so the tokens already exist when the tool uses them and
+    anything not yet converted still wins by cascade order.
     """
     theme = themes.normalize(theme)
     html = _resolve_markup(html, theme)
@@ -213,7 +216,8 @@ def inject_head(html: str, prefix: str, theme: str = themes.DEFAULT_THEME) -> st
     return _HTML_RE.sub(stamp, html, count=1)
 
 
-# Nome antigo: era so o shim de prefixo. Mantido pra nao quebrar import de fora.
+# The old name, from when this was only the prefix shim. Kept so an outside
+# import does not break.
 inject_prefix_shim = inject_head
 
 
@@ -227,31 +231,31 @@ class Mount:
     __slots__ = ("prefix", "handler", "label")
 
     def __init__(self, prefix: str, handler: type, label: str):
-        # Normaliza pra "/nome" (sem barra final); raiz vira "".
+        # Normalised to "/name" with no trailing slash; the root becomes "".
         prefix = "/" + prefix.strip("/")
         self.prefix = "" if prefix == "/" else prefix
         self.handler = handler
         self.label = label
-        # O handler usa isso pra montar URLs absolutas que o cliente navega
-        # direto (download_url), fora do alcance do shim de `fetch`.
+        # The handler uses this to build absolute URLs the client navigates
+        # to directly (download_url), which the `fetch` shim cannot reach.
         handler.mount_prefix = self.prefix
 
 
 def make_dispatcher(mounts: list[Mount], sessions=None,
                     default_theme: str = themes.DEFAULT_THEME) -> type:
-    """Cria o handler que roteia por prefixo entre as ferramentas montadas.
+    """Build the handler that routes by prefix between the mounted tools.
 
-    A montagem na raiz (prefixo "") e' o fallback: qualquer caminho que nao
-    casar com um prefixo cai nela.
+    The mount at the root (empty prefix) is the fallback: any path matching no
+    prefix lands there.
 
-    `sessions` e' um `SessionManager` (ou None). Quando presente, o dispatcher
-    resolve a sessao do visitante ANTES de delegar e deixa `session` e
-    `_set_cookie` na instancia -- os handlers que herdam de `SessionHandler`
-    leem dali.
+    `sessions` is a `SessionManager`, or None. When present, the dispatcher
+    resolves the visitor's session BEFORE delegating and leaves `session` and
+    `_set_cookie` on the instance -- which is where handlers inheriting from
+    `SessionHandler` read them.
 
-    `default_theme` e' o tema de quem ainda nao escolheu ([web] theme do
-    config.ini). O tema do visitante sai do cookie `seltheme` e tambem fica na
-    instancia, em `self.theme`, antes da delegacao.
+    `default_theme` is the theme for someone who has not chosen ([web] theme
+    in config.ini). The visitor's theme comes from the `seltheme` cookie and
+    also lands on the instance, as `self.theme`, before delegation.
     """
     default_theme = themes.normalize(default_theme)
     prefixed = [m for m in mounts if m.prefix]
@@ -262,19 +266,20 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
             pass  # silencia stderr; cada tool loga o que interessa
 
         def end_headers(self):
-            """Emite o `Set-Cookie` da sessao nova, igual `SessionHandler`.
+            """Emit the new session's `Set-Cookie`, exactly as `SessionHandler` does.
 
-            Precisa estar aqui por causa do redirecionamento
-            "/vb-updater" -> "/vb-updater/": ele e' respondido pelo proprio
-            dispatcher, DEPOIS de `resolve()` ter criado a sessao, e sem
-            trocar `self.__class__` -- entao caia no `end_headers` do
-            `BaseHTTPRequestHandler`, que nao sabe de cookie, e o visitante
-            chegava na ferramenta ainda sem identidade.
+            It has to be here because of the "/vb-updater" -> "/vb-updater/"
+            redirect: that one is answered by the dispatcher itself, AFTER
+            `resolve()` has created the session, and without swapping
+            `self.__class__` -- so it fell through to
+            `BaseHTTPRequestHandler.end_headers`, which knows nothing about
+            cookies, and the visitor reached the tool still without an
+            identity.
 
-            As rotas de infraestrutura nao dependem disto: elas nao criam
-            sessao nenhuma (ver `_dispatch`). Quando `self.__class__` e'
-            trocado pela ferramenta, quem responde e' o `end_headers` do
-            `SessionHandler`; os dois nunca rodam na mesma resposta.
+            The infrastructure routes do not depend on this: they create no
+            session at all (see `_dispatch`). Once `self.__class__` has been
+            swapped for the tool's, `SessionHandler.end_headers` is what
+            answers; the two never run on the same response.
             """
             cookie = getattr(self, "_set_cookie", None)
             if cookie:
