@@ -95,9 +95,34 @@ SAMPLE_GLE = gle(
 # SCD
 # -----------------------------------------------------------------------------
 
-def scd(*ieds: bytes) -> bytes:
+def scd(*ieds: bytes, ips: dict[str, str] | None = None) -> bytes:
+    """An SCL document around the given IEDs.
+
+    `ips` adds the `<Communication>` block, `{ied_name: ip}`. It is separate
+    from `ied()` because that is where an address actually lives in SCL -- on
+    the `<ConnectedAP>` under a `<SubNetwork>`, not inside the IED -- and
+    because it is what the RDB x SCD matcher pairs on: it matches by IP or
+    RID and NEVER by name, two files routinely naming the same bay
+    differently. An SCD built without `ips` is deliberately unmatchable,
+    which is the case `unmatched_rdb` exists to report.
+    """
+    comm = b""
+    if ips:
+        aps = b"".join(
+            b'      <ConnectedAP iedName="' + n.encode() + b'" apName="S1">\r\n'
+            b'        <Address>\r\n'
+            b'          <P type="IP">' + ip.encode() + b'</P>\r\n'
+            b'        </Address>\r\n'
+            b'      </ConnectedAP>\r\n'
+            for n, ip in ips.items())
+        comm = (b'  <Communication>\r\n'
+                b'    <SubNetwork name="W01">\r\n'
+                + aps
+                + b'    </SubNetwork>\r\n'
+                b'  </Communication>\r\n')
     return (b'<?xml version="1.0" encoding="UTF-8"?>\r\n'
             b'<SCL xmlns="http://www.iec.ch/61850/2003/SCL">\r\n'
+            + comm
             + b"".join(ieds)
             + b'</SCL>\r\n')
 
