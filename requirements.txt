@@ -20,7 +20,7 @@ cfbwrite>=1.0
 #
 # Published on PyPI on 2026-09-03, same day and for the same reason as
 # cfbwrite -- which it depends on, so it was published second.
-selfiles>=1.0
+selfiles>=1.1
 openpyxl>=3.1
 # py61850 (the GLV's MMS transport). Until 2026-08-31 this was a commit pin
 # (`py61850 @ git+https://...@<sha>`), because PyPI carried only 0.0.1 and the

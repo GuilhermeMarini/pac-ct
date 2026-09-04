@@ -106,13 +106,21 @@ def compute_ied_vlan_rows(scd_path: Path) -> list[IedVlanRow]:
     (the switch port still carries MMS/Reports/etc. traffic, but within the
     scope of this tool their VLANs come out empty).
     """
-    ieds: list[IedInfo] = scd_loader.load_scd(scd_path)
-    gse_map: dict[tuple[str, str, str], GseAddress] = (
-        scd_loader.extract_gse_communication_map(scd_path)
-    )
-    subs_by_ied: dict[str, list[GooseSubscription]] = (
-        scd_loader.extract_goose_subscriptions_by_ied(scd_path)
-    )
+    # One parse for the three questions. Through the module-level functions
+    # this was three, and on a real 22 MB substation SCD that is where the
+    # time went: 1406 ms total, 1104 ms (78%) of it re-parsing the same bytes.
+    # One document answers all three in 670 ms.
+    #
+    # `load()` is the graceful constructor, so a file the visitor uploaded
+    # that will not parse gives None and a log line rather than an exception
+    # -- the same behaviour the three functions had, and what this route
+    # already relies on.
+    doc = scd_loader.ScdDocument.load(scd_path)
+    if doc is None:
+        return []
+    ieds: list[IedInfo] = doc.ieds()
+    gse_map: dict[tuple[str, str, str], GseAddress] = doc.gse_communication_map()
+    subs_by_ied: dict[str, list[GooseSubscription]] = doc.goose_subscriptions_by_ied()
 
     # Index GSE by publisher for a fast TX lookup.
     gse_by_publisher: dict[str, list[GseAddress]] = {}
