@@ -221,6 +221,15 @@ def install_requirements(allow_break: bool = False,
     try:
         subprocess.check_call(cmd)
     except subprocess.CalledProcessError as exc:
+        if offline:
+            sys.exit(
+                f"[ERRO] Falha ao instalar de {VENDOR_DIR} (codigo "
+                f"{exc.returncode}).\n"
+                f"       Falta algum wheel para este sistema. Confira se o "
+                f"pacote e' o do seu sistema\n"
+                f"       (pac-ct-<versao>-win_amd64.zip no Windows) ou, com "
+                f"internet, tente:\n"
+                f"           python app.py --web --online")
         sys.exit(f"[ERRO] Falha ao instalar dependencias (codigo {exc.returncode}).")
 
 
@@ -235,12 +244,52 @@ def _ensure_import_path() -> None:
             sys.path.insert(0, str(d))
 
 
+def _explain_import_failure(exc: ModuleNotFoundError) -> str:
+    """Turn a ModuleNotFoundError into something worth reading.
+
+    A traceback ending in `No module named 'pacct'` tells a commissioning
+    engineer nothing about what to do, and the two causes need opposite
+    answers: an incomplete unzip is a broken copy, a missing `selfiles` is
+    dependencies that were never installed. The distinction is on disk, so it
+    costs one `is_file()` to say which.
+    """
+    missing = exc.name or "?"
+    if not (SRC_DIR / "pacct" / "__init__.py").is_file():
+        return (
+            f"[ERRO] Nao achei o codigo do PAC CT em {SRC_DIR}.\n"
+            f"       Esta copia esta incompleta: faltou descompactar o pacote "
+            f"inteiro.\n"
+            f"       Descompacte o .zip de novo (a pasta tem que ter `src`, "
+            f"`vendor` e `app.py`)."
+        )
+    if missing in ("pacct", "selprotopy"):
+        return (f"[ERRO] Nao consegui importar `{missing}` a partir de "
+                f"{SRC_DIR}.\n"
+                f"       O arquivo existe, entao o problema e' de permissao "
+                f"ou de copia parcial.")
+    hint = (f"           python app.py --web --offline    "
+            f"(usa os wheels de {VENDOR_DIR.name}/)"
+            if VENDOR_DIR.is_dir() else
+            "           python app.py --web              "
+            "(instala as dependencias)")
+    return (
+        f"[ERRO] Falta a dependencia `{missing}`.\n"
+        f"       As dependencias ainda nao foram instaladas neste "
+        f"computador. Rode:\n"
+        f"{hint}\n"
+        f"       (`--skip-install` pula justamente essa instalacao.)"
+    )
+
+
 def run_cli(extra_args: list[str]) -> None:
     _ensure_import_path()
     sys.argv = ["pacct.cli.runner", *extra_args]
     print("[INFO] Iniciando CLI (pacct.cli.runner)...")
     print("-" * 60)
-    from pacct.cli.runner import main as cli_main
+    try:
+        from pacct.cli.runner import main as cli_main
+    except ModuleNotFoundError as exc:
+        sys.exit(_explain_import_failure(exc))
     cli_main()
 
 
@@ -250,7 +299,10 @@ def run_web(extra_args: list[str], port: int) -> None:
     print(f"[INFO] Iniciando dashboard web na porta {port}...")
     print(f"[INFO] Abra http://localhost:{port}/ no navegador")
     print("-" * 60)
-    from pacct.web.dashboard import main as web_main
+    try:
+        from pacct.web.dashboard import main as web_main
+    except ModuleNotFoundError as exc:
+        sys.exit(_explain_import_failure(exc))
     web_main()
 
 
@@ -368,7 +420,10 @@ def main() -> None:
                         help="Porta do dashboard web (default 8765)")
     parser.add_argument("--offline", action="store_true",
                         help="Instala as dependencias so' de vendor/ "
-                             "(pacote offline; nunca consulta um indice)")
+                             "(automatico quando vendor/ existe)")
+    parser.add_argument("--online", action="store_true",
+                        help="Ignora vendor/ e busca as dependencias num "
+                             "indice (precisa de internet)")
     parser.add_argument("--versao", "--version", dest="show_version",
                         action="store_true",
                         help="Mostra a versao e sai")
@@ -390,10 +445,15 @@ def main() -> None:
         print(read_version_file())
         return
 
-    # A bundle installs from its own wheels. Saying so here rather than making
-    # the engineer remember a second flag is the difference between one command
-    # in INSTALAR.txt and two.
-    offline = args.offline or args.instalar
+    # A bundle installs from its own wheels, and does NOT need to be asked.
+    # `vendor/` exists in a bundle and never in a clone, so its presence is the
+    # question already answered: an engineer who unzips the package and runs
+    # `app.py --web` in a substation has no index to reach, and requiring them
+    # to remember a flag for that is requiring them to know why it broke.
+    # `--online` is the escape hatch for a vendor/ that is wrong for this
+    # machine.
+    offline = not args.online and (args.offline or args.instalar
+                                   or VENDOR_DIR.is_dir())
 
     use_break_system = args.no_venv
     if not args.no_venv and not is_inside_target_venv():

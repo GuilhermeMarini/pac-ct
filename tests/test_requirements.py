@@ -114,3 +114,38 @@ def test_the_venv_check_says_yes_from_inside_the_venv(monkeypatch):
     app = _app_module()
     monkeypatch.setattr(sys, "prefix", str(app.VENV_DIR))
     assert app.is_inside_target_venv() is True
+
+
+def test_a_bundle_installs_from_its_own_wheels_without_being_asked():
+    """`vendor/` exists in a bundle and never in a clone, so its presence is
+    the question already answered.
+
+    Shipped 1.4.0 required `--offline` for that, which meant an engineer who
+    unzipped the package in a substation and ran `app.py --web` -- the command
+    the README gives -- went to an index that is not reachable. The bundle was
+    carrying 12 wheels the run refused to look at. Requiring a flag there is
+    requiring the user to already know why it broke.
+    """
+    import inspect
+
+    src = inspect.getsource(_app_module().main)
+    assert "VENDOR_DIR.is_dir()" in src, (
+        "the presence of vendor/ must be what turns the offline install on")
+    assert "args.online" in src, "there must be an escape hatch for a bad vendor/"
+
+
+def test_a_missing_dependency_is_explained_not_traced():
+    """`ModuleNotFoundError: No module named 'selfiles'` plus a traceback tells
+    a commissioning engineer nothing, and the two causes need opposite
+    answers: an incomplete unzip is a broken copy, a missing dependency is an
+    install that never ran. The distinction is on disk, so it costs one
+    `is_file()` to say which."""
+    app = _app_module()
+    msg = app._explain_import_failure(
+        ModuleNotFoundError("No module named 'selfiles'", name="selfiles"))
+    assert "selfiles" in msg and "app.py --web" in msg
+    assert "Traceback" not in msg
+    # ... and the other cause names the real problem instead of a dependency.
+    broken = app._explain_import_failure(
+        ModuleNotFoundError("No module named 'pacct'", name="pacct"))
+    assert "pacct" in broken
