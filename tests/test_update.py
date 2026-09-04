@@ -70,18 +70,81 @@ def test_a_snapshot_is_never_offered_as_an_update():
     assert U.update_available(release_with("1.3.0", {}), "1.4.0") is False
 
 
-def test_a_tag_with_a_v_prefix_becomes_a_plain_version(monkeypatch):
-    """GitHub tags are `v1.5.0`; every comparison in this project is on
-    `1.5.0`. Getting this wrong makes every release un-offerable, silently."""
-    payload = {"tag_name": "v1.5.0", "body": "notas",
-               "assets": [{"name": "pac-ct-1.5.0.zip",
-                           "browser_download_url": "https://example.invalid/z",
-                           "size": 10}]}
-    monkeypatch.setattr(U, "_get_json", lambda url, timeout: payload)
+MANIFEST_1_5_0 = {
+    "name": "pac-ct", "version": "1.5.0", "release": True,
+    "artifacts": [
+        {"file": "pac-ct-1.5.0.zip", "platform": "any",
+         "sha256": "a" * 64, "size": 10},
+        {"file": "pac-ct-1.5.0-win_amd64.zip", "platform": "win_amd64",
+         "sha256": "b" * 64, "size": 11},
+    ],
+}
+
+
+def test_the_check_reads_a_manifest_and_never_the_rest_api(monkeypatch):
+    """The REST API allows 60 requests/hour to a caller that does not identify
+    itself, counted PER SOURCE IP -- so a utility whose engineers sit behind
+    one NAT shares a single budget, and "try again later" is a poor answer to
+    "is there a new version". `releases/latest/download/<asset>` is the
+    ordinary file path and is not rated that way.
+
+    Authenticating would lift the limit and is exactly what must not happen:
+    the token would travel inside a zip handed to substations.
+    """
+    seen = []
+
+    def fake(url, timeout):
+        seen.append(url)
+        return MANIFEST_1_5_0
+
+    monkeypatch.setattr(U, "_get_json", fake)
     rel = U.check_latest()
+    assert seen and all("api.github.com" not in u for u in seen), seen
+    assert seen[0].endswith("/releases/latest/download/manifest.json")
     assert rel.version == "1.5.0" and rel.tag == "v1.5.0"
-    assert rel.asset("pac-ct-1.5.0.zip") is not None
-    assert rel.asset("pac-ct-1.5.0-win_amd64.zip") is None
+
+
+def test_asset_urls_are_pinned_to_the_version_not_to_latest(monkeypatch):
+    """The sha256 comes from THIS manifest. A release published between the
+    check and the download would otherwise hand back different bytes for the
+    digest we are about to verify against -- so the URLs name the tag."""
+    monkeypatch.setattr(U, "_get_json", lambda url, timeout: MANIFEST_1_5_0)
+    rel = U.check_latest()
+    for name in ("pac-ct-1.5.0.zip", "pac-ct-1.5.0-win_amd64.zip"):
+        a = rel.asset(name)
+        assert a is not None
+        assert a.url.endswith(f"/releases/download/v1.5.0/{name}"), a.url
+        assert "/latest/" not in a.url
+
+
+def test_the_check_carries_the_manifest_so_it_is_not_fetched_twice(monkeypatch):
+    """`check_latest` already read the manifest -- that is how it knew the
+    version. The update verifies against that same document."""
+    monkeypatch.setattr(U, "_get_json", lambda url, timeout: MANIFEST_1_5_0)
+    rel = U.check_latest()
+    assert rel.manifest == MANIFEST_1_5_0
+    assert U.expected_sha256(rel.manifest, "pac-ct-1.5.0.zip") == "a" * 64
+
+
+def test_a_snapshot_manifest_is_refused_even_if_it_is_published(monkeypatch):
+    """`latest/` already skips pre-releases, but a snapshot manifest uploaded
+    by mistake is the shape it cannot rule out. Rule 4 is checked here too."""
+    snap = dict(MANIFEST_1_5_0, version="1.5.0.dev0+gabc1234", release=False)
+    monkeypatch.setattr(U, "_get_json", lambda url, timeout: snap)
+    with pytest.raises(U.UpdateError):
+        U.check_latest()
+
+
+def test_release_notes_never_fail_the_update(monkeypatch):
+    """The notes are the one thing still on the REST API, deliberately on the
+    side of the road: a spent hourly limit costs the notes, not the update."""
+    import urllib.error
+
+    def raise_403(url, timeout):
+        raise urllib.error.HTTPError(url, 403, "rate limited", {}, None)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(U, "_get_json", raise_403)
+    assert U.fetch_notes() == ""
 
 
 # ---------------------------------------------------------------------------
@@ -358,25 +421,19 @@ def test_a_fresh_versioned_install_finds_the_config_model(tmp_path, monkeypatch)
         importlib.reload(importlib.import_module("pacct.paths"))
 
 
-@pytest.mark.parametrize("code,expected", [
-    (404, "nenhuma versao publicada"),
-    (403, "60 por hora"),
-])
-def test_the_two_http_answers_that_are_not_a_problem_here(monkeypatch, code,
-                                                          expected):
-    """`/releases/latest` answers 404 until the first release exists, and 403
-    when the anonymous hourly budget runs out. Neither is a fault on this
-    machine, and printing the number would send somebody hunting a network
-    problem that is not there."""
+def test_no_release_yet_is_a_sentence_and_not_a_404(monkeypatch):
+    """`latest/` answers 404 until the first release exists. That is not a
+    fault on this machine, and printing the number would send somebody hunting
+    a network problem that is not there."""
     import urllib.error
 
     def raise_http(url, timeout):
-        raise urllib.error.HTTPError(url, code, "", {}, None)  # type: ignore[arg-type]
+        raise urllib.error.HTTPError(url, 404, "", {}, None)  # type: ignore[arg-type]
 
     monkeypatch.setattr(U, "_get_json", raise_http)
     with pytest.raises(U.UpdateError) as exc:
         U.check_latest()
-    assert expected in str(exc.value)
+    assert "nenhuma versao publicada" in str(exc.value)
 
 
 # ---------------------------------------------------------------------------

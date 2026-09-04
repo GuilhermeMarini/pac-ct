@@ -352,6 +352,7 @@ def run_update(assume_yes: bool = False) -> None:
         Layout,
         UpdateError,
         check_latest,
+        fetch_notes,
         install_kind,
         perform_portable_update,
         perform_update,
@@ -375,9 +376,13 @@ def run_update(assume_yes: bool = False) -> None:
               f"({release.tag or 'sem release'}). Nada a fazer.")
         return
     print(f"[INFO] Disponivel: {release.version} (voce tem {current})")
-    if release.notes.strip():
+    # Best effort, and on the side of the road: the notes are the one thing
+    # still read from the REST API, so a spent hourly limit costs the notes
+    # and never the update.
+    notes = fetch_notes().strip()
+    if notes:
         print("-" * 60)
-        print(release.notes.strip()[:2000])
+        print(notes[:2000])
         print("-" * 60)
     if kind == "portable":
         print("[INFO] Pasta portatil: a atualizacao troca o codigo aqui mesmo "

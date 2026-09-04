@@ -62,8 +62,28 @@ from pacct import version as version_mod
 log = logging.getLogger(__name__)
 
 REPO = "GuilhermeMarini/pac-ct"
-LATEST_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 MANIFEST_ASSET = "manifest.json"
+
+# The check reads the release's own manifest through the `releases/latest/`
+# REDIRECT, not the REST API. That is not a micro-optimisation: the REST API
+# allows 60 requests/hour to a caller that does not identify itself, counted
+# PER SOURCE IP -- so a utility whose engineers all sit behind one NAT shares
+# a single budget, and "tente de novo mais tarde" is a poor answer to "is
+# there a new version". `releases/latest/download/<asset>` is the ordinary
+# file path, served like any other download and not rated the same way.
+#
+# Authenticating would lift the limit to 5.000/hour and is exactly what must
+# NOT happen here: the token would have to travel inside a zip handed to
+# substations, which is a credential in a public artefact. The repository is
+# public precisely so that no secret is needed.
+#
+# `latest/` resolves only to the newest NON-prerelease, which is rule 4 --
+# only real releases are ever offered -- enforced by GitHub rather than by us.
+LATEST_MANIFEST_URL = (
+    f"https://github.com/{REPO}/releases/latest/download/{MANIFEST_ASSET}")
+# Release notes are a nicety, so they stay on the API and any failure there is
+# simply no notes. They are never on the path that decides anything.
+NOTES_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 # GitHub refuses a request with no User-Agent, and an honest one is also what
 # lets them tell this traffic apart if it ever misbehaves.
 USER_AGENT = "pac-ct-updater"
@@ -89,6 +109,12 @@ class Release:
     tag: str
     notes: str
     assets: tuple[Asset, ...]
+    # The manifest this release was described by, when the check already read
+    # it. Carrying it means the update does not fetch the same document twice,
+    # and -- more importantly -- the sha256 that gets verified is the one from
+    # the very response that named this version, not a second read that could
+    # have moved.
+    manifest: dict | None = None
 
     def asset(self, name: str) -> Asset | None:
         for a in self.assets:
@@ -231,6 +257,25 @@ def _restore(moved: list[tuple[Path, Path]]) -> None:
             log.exception("Falha ao restaurar %s", live)
 
 
+def _manifest_for(release: Release, tmp: Path) -> dict:
+    """The manifest describing `release`, without fetching it twice.
+
+    `check_latest` already read it -- that is how it knew the version at all --
+    so the normal path costs no request here. The download branch is for a
+    `Release` assembled some other way (a test, or a caller that built one by
+    hand), and it keeps the old contract: no manifest, no unpacking.
+    """
+    if release.manifest is not None:
+        return release.manifest
+    asset = release.asset(MANIFEST_ASSET)
+    if asset is None:
+        raise UpdateError(
+            f"A release {release.tag} nao traz {MANIFEST_ASSET}; sem ele nao "
+            f"ha' sha256 para conferir e nada sera' descompactado.")
+    return json.loads(
+        download(asset.url, tmp / MANIFEST_ASSET).read_text(encoding="utf-8"))
+
+
 def perform_portable_update(root: Path, release: Release, *,
                             windows: bool | None = None) -> Path:
     """Update a portable folder in place, keeping everything the user put there.
@@ -247,12 +292,6 @@ def perform_portable_update(root: Path, release: Release, *,
         preferred_asset_name(release.version, windows=False))
     if asset is None:
         raise UpdateError(f"A release {release.tag} nao traz {asset_name}.")
-    manifest_asset = release.asset(MANIFEST_ASSET)
-    if manifest_asset is None:
-        raise UpdateError(
-            f"A release {release.tag} nao traz {MANIFEST_ASSET}; sem ele nao "
-            f"ha' sha256 para conferir e nada sera' descompactado.")
-
     staging_root = root / STAGING_DIR
     backup = root / BACKUP_DIR
     shutil.rmtree(staging_root, ignore_errors=True)
@@ -263,10 +302,7 @@ def perform_portable_update(root: Path, release: Release, *,
     try:
         with tempfile.TemporaryDirectory(prefix="pacct-dl-") as tmpdir:
             tmp = Path(tmpdir)
-            manifest = json.loads(
-                download(manifest_asset.url, tmp / MANIFEST_ASSET)
-                .read_text(encoding="utf-8"))
-            digest = expected_sha256(manifest, asset.name)
+            digest = expected_sha256(_manifest_for(release, tmp), asset.name)
             bundle = download(asset.url, tmp / asset.name)
             verify(bundle, digest)                 # rule 2, before unpack
             staged = unpack(bundle, staging_root / release.version)
@@ -334,49 +370,76 @@ def _get_json(url: str, timeout: float) -> dict:
     return parsed
 
 
-def check_latest(url: str = LATEST_URL,
+def release_from_manifest(manifest: dict) -> Release:
+    """Build a `Release` out of a bundle manifest.
+
+    Every asset URL is pinned to `releases/download/v<version>/`, never left
+    on `latest/`: the sha256 comes from THIS manifest, and a release published
+    between the check and the download would otherwise hand back different
+    bytes for the digest we are about to verify against.
+    """
+    version = str(manifest.get("version") or "")
+    if not version:
+        raise UpdateError("O manifesto da release nao diz a versao.")
+    if not manifest.get("release", False):
+        # Rule 4, and the one shape `latest/` cannot rule out on its own: a
+        # snapshot manifest published by mistake.
+        raise UpdateError(
+            f"A versao publicada ({version}) nao e' um release; nao sera' "
+            f"oferecida.")
+    base = f"https://github.com/{REPO}/releases/download/v{version}"
+    assets = tuple(
+        Asset(name=str(a.get("file") or ""),
+              url=f"{base}/{a.get('file')}",
+              size=int(a.get("size") or 0))
+        for a in manifest.get("artifacts") or [] if a.get("file")
+    )
+    return Release(version=version, tag=f"v{version}", notes="",
+                   assets=assets, manifest=manifest)
+
+
+def fetch_notes(timeout: float = DEFAULT_TIMEOUT) -> str:
+    """The release body, best effort. Never fails the update.
+
+    This is the one call still on the REST API, and it is deliberately on the
+    side of the road: if the hourly limit is spent, or there is no network for
+    it, the user gets no notes rather than no update.
+    """
+    try:
+        return str(_get_json(NOTES_URL, timeout).get("body") or "")
+    except (UpdateError, urllib.error.URLError, OSError, ValueError):
+        return ""
+
+
+def check_latest(url: str = LATEST_MANIFEST_URL,
                  timeout: float = DEFAULT_TIMEOUT) -> Release:
-    """The newest published release, or `UpdateError` saying why not.
+    """The newest published release, read from its own manifest.
 
     Offline is an ordinary answer here, not a crash: the caller is a command
     the engineer typed, and "sem internet" is what it should print.
     """
     try:
-        payload = _get_json(url, timeout)
+        manifest = _get_json(url, timeout)
     except urllib.error.HTTPError as exc:
         if exc.code == 404:
-            # `/releases/latest` answers 404 for a repository that has never
-            # published one. That is not an error on this machine, and saying
-            # "404" would send somebody looking for a network problem.
+            # No release has ever been published, so `latest/` resolves to
+            # nothing. That is not an error on this machine, and saying "404"
+            # would send somebody looking for a network problem.
             raise UpdateError(
                 "Ainda nao ha' nenhuma versao publicada no projeto."
             ) from exc
-        if exc.code == 403:
-            raise UpdateError(
-                "GitHub recusou a consulta (limite de 60 por hora para quem "
-                "nao se identifica). Tente de novo mais tarde."
-            ) from exc
         raise UpdateError(
-            f"GitHub respondeu {exc.code} ao consultar as versoes publicadas."
+            f"GitHub respondeu {exc.code} ao procurar a versao mais nova."
         ) from exc
     except (urllib.error.URLError, OSError) as exc:
         raise UpdateError(
             f"Sem acesso a' internet para consultar atualizacoes ({exc})."
         ) from exc
     except ValueError as exc:
-        raise UpdateError("Resposta invalida da API do GitHub.") from exc
+        raise UpdateError(
+            "O manifesto da versao mais nova veio ilegivel.") from exc
 
-    tag = str(payload.get("tag_name") or "")
-    assets = tuple(
-        Asset(name=str(a.get("name") or ""),
-              url=str(a.get("browser_download_url") or ""),
-              size=int(a.get("size") or 0))
-        for a in payload.get("assets") or []
-        if a.get("name") and a.get("browser_download_url")
-    )
-    return Release(version=tag[1:] if tag.startswith("v") else tag,
-                   tag=tag, notes=str(payload.get("body") or ""),
-                   assets=assets)
+    return release_from_manifest(manifest)
 
 
 def update_available(release: Release, current: str) -> bool:
@@ -645,19 +708,10 @@ def perform_update(layout: Layout, release: Release, *,
     if asset is None:
         raise UpdateError(
             f"A release {release.tag} nao traz {asset_name}.")
-    manifest_asset = release.asset(MANIFEST_ASSET)
-    if manifest_asset is None:
-        raise UpdateError(
-            f"A release {release.tag} nao traz {MANIFEST_ASSET}; sem ele nao "
-            f"ha' sha256 para conferir e nada sera' descompactado.")
-
     layout.versions.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="pacct-dl-") as tmpdir:
         tmp = Path(tmpdir)
-        manifest = json.loads(
-            download(manifest_asset.url, tmp / MANIFEST_ASSET)
-            .read_text(encoding="utf-8"))
-        digest = expected_sha256(manifest, asset.name)
+        digest = expected_sha256(_manifest_for(release, tmp), asset.name)
         bundle = download(asset.url, tmp / asset.name)
         verify(bundle, digest)                       # rule 2, before unpack
         target = layout.versions / release.version
