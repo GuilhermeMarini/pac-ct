@@ -44,7 +44,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.11"]
+# Kept in step with requirements-dev.txt by hand -- that file is what CI
+# installs, this extra is what `pip install -e .[dev]` gives. They must
+# agree or `mypy` passes on one and not the other.
+dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.11", "types-openpyxl"]
 
 [project.urls]
 Homepage = "https://github.com/GuilhermeMarini/pac-ct"
