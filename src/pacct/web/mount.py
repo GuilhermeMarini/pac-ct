@@ -45,10 +45,16 @@ import json
 import logging
 import re
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from pacct.paths import STATIC_DIR, is_within
 from pacct.web import theme as themes
+
+if TYPE_CHECKING:
+    # Type-only: `session` imports `inject_head` from here at module level, so
+    # a real import would close the cycle S4 already describes.
+    from pacct.web.session import SessionHandler
 
 # -----------------------------------------------------------------------------
 # Shim de cliente
@@ -230,7 +236,7 @@ class Mount:
 
     __slots__ = ("prefix", "handler", "label")
 
-    def __init__(self, prefix: str, handler: type, label: str):
+    def __init__(self, prefix: str, handler: type[SessionHandler], label: str):
         # Normalised to "/name" with no trailing slash; the root becomes "".
         prefix = "/" + prefix.strip("/")
         self.prefix = "" if prefix == "/" else prefix
@@ -355,11 +361,17 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
                     # Strips the prefix, preserving the query string. The
                     # tool's handler sees exactly what it saw before.
                     self.path = self.path[len(m.prefix):]
-                    self.__class__ = m.handler
+                    # The delegation this whole module is built on: the
+                    # request becomes the tool's handler in place, keeping
+                    # the socket and the attributes already set on it.
+                    # `Dispatcher` and `SessionHandler` are siblings under
+                    # `BaseHTTPRequestHandler`, so no annotation can describe
+                    # the swap -- these two are the only ignores in the tree.
+                    self.__class__ = m.handler   # type: ignore[assignment]
                     getattr(self, verb)()
                     return
             if root is not None:
-                self.__class__ = root.handler
+                self.__class__ = root.handler   # type: ignore[assignment]
                 getattr(self, verb)()
                 return
             self.send_response(404)

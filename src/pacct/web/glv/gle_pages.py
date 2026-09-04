@@ -14,7 +14,7 @@ from selfiles.gle import element_info, is_const_symbol_name
 
 def list_pages(gle_root) -> list[tuple[str, str]]:
     """Returns [(name, safe_id)]."""
-    pages = []
+    pages: list[tuple[str, str]] = []
     for p in gle_root.findall(".//page"):
         name = p.get("name", "")
         safe = re.sub(r"[^A-Za-z0-9_-]", "_", name) or f"page_{len(pages)}"
@@ -91,7 +91,7 @@ def collect_bits_per_page(gle_root, relay_model=None) -> dict[str, set[str]]:
     If `relay_model` is None we generate no derived bits and do not filter
     analogs (named SYMBOLs only).
     """
-    out = {}
+    out: dict[str, set[str]] = {}
     for p in gle_root.findall(".//page"):
         name = p.get("name", "")
         safe = re.sub(r"[^A-Za-z0-9_-]", "_", name) or f"page_{len(out)}"

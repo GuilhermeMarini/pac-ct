@@ -289,6 +289,15 @@ class SessionHandler(BaseHTTPRequestHandler):
     mount_prefix: str = ""
     session_key: str = ""
     session: Session | None = None
+    # Declared by every tool's handler class inside its `build_*_handler`
+    # factory, never here: the manager is the one the factory closed over, and
+    # the factory is what knows which state object this tool keeps. They are
+    # annotated on the base so that the base's own methods -- `sess()`,
+    # `library_entry()`, `publish_output()` -- can read them, which is the
+    # whole reason those methods live here instead of being copied into six
+    # handlers.
+    server_sessions: SessionManager
+    state_factory: Callable[[], Any]
     # The visitor's active theme (the `seltheme` cookie), resolved by the
     # dispatcher before it swaps `self.__class__` to this class. The literal
     # here is only the class attribute's starting value; the dispatcher is what
@@ -300,15 +309,40 @@ class SessionHandler(BaseHTTPRequestHandler):
 
     # -- sessao -------------------------------------------------------------
 
+    def require_session(self) -> Session:
+        """The visitor's session, guaranteed to exist.
+
+        `session` is declared `Session | None` because that is the truth of
+        the attribute: it starts as None, and the dispatcher's `/library`
+        route deliberately `peek()`s a request that may have no session at
+        all. Inside a TOOL's route it is never None -- the dispatcher calls
+        `sessions.resolve()`, which always returns a real `Session`, and only
+        then swaps `self.__class__` to the tool's handler.
+
+        So the invariant is stated once, here, instead of as ~40 narrowing
+        branches in the tools that could never be taken. If it is ever broken
+        -- a handler mounted on a dispatcher built without a `SessionManager`,
+        say -- this raises where the mistake is, rather than an
+        `AttributeError` on `None.lock` several frames deeper.
+        """
+        sess = self.session
+        if sess is None:
+            raise RuntimeError(
+                f"[{self.session_key}] rota de ferramenta sem sessao: o "
+                "dispatcher deveria te-la resolvido antes de trocar "
+                "self.__class__"
+            )
+        return sess
+
     def sess(self):
         """Estado desta ferramenta na sessao do visitante."""
         return self.server_sessions.state(
-            self.session, self.session_key, self.state_factory,
+            self.require_session(), self.session_key, self.state_factory,
         )
 
     def sdir(self, name: str) -> Path:
         """Subdiretorio de trabalho da sessao (uploads, saidas)."""
-        return self.session.subdir(f"{self.session_key}-{name}")
+        return self.require_session().subdir(f"{self.session_key}-{name}")
 
     def library_entry(self, ref: str, kind: str = ""):
         """The file in this visitor's library that `ref` names, or None.

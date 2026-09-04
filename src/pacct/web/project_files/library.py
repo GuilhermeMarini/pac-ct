@@ -101,6 +101,39 @@ class FileEntry:
     def generated(self) -> bool:
         return bool(self.origin)
 
+    def require_scd_path(self) -> Path:
+        """The file on disk, for a caller that has already established this is
+        an SCD entry. The mirror of `require_rdb`, and true for the same
+        reason: `handler._build_scd_entry` sets `path` to the file it just
+        moved into the library, and `derived.adopt` to the one it copied."""
+        path = self.scd_path
+        if path is None:
+            raise ValueError(
+                f"entrada '{self.display_name}' ({self.short_sha}) e do tipo "
+                f"{self.kind!r} mas nao tem arquivo em disco"
+            )
+        return path
+
+    def require_rdb(self) -> RdbInfo:
+        """The extraction, for a caller that has already established this is
+        an RDB entry.
+
+        `rdb` is Optional because the field is, for the SCDs and spreadsheets
+        that share this class -- but an entry with `kind == KIND_RDB` always
+        carries one: both places that build one (`handler._build_rdb_entry`
+        and `derived._rdb_entry`) pass the `RdbInfo` that
+        `rdb.process_upload` just returned, and neither can produce the kind
+        without it. Four tools read `entry.rdb` straight after checking the
+        kind; this is that invariant written down once, where the field is,
+        instead of four narrowing branches that can never be taken.
+        """
+        if self.rdb is None:
+            raise ValueError(
+                f"entrada '{self.display_name}' ({self.short_sha}) e do tipo "
+                f"{self.kind!r} mas nao tem extracao"
+            )
+        return self.rdb
+
     def file_path(self) -> Path | None:
         """The bytes on disk, whatever the kind -- what `/download` serves."""
         if self.kind == KIND_RDB:

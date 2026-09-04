@@ -19,6 +19,8 @@ from __future__ import annotations
 import re
 import threading
 from contextlib import nullcontext
+from pathlib import Path
+from typing import Any
 
 from pacct.core.relay_conn import drain_login_banner
 from pacct.core.target_region import AsciiTargetReader
@@ -121,9 +123,12 @@ class TelnetTransport:
         self.mode = mode_for(relay_model)
         self.fid = ""
         self.devid = ""
-        self.client = None
-        self.reader = None
-        self._cache_path = None
+        # `SELClient` comes from the vendored, hook-protected `selprotopy`,
+        # which mypy is told to skip -- so `Any` is the honest annotation here
+        # rather than a name the checker cannot resolve.
+        self.client: Any = None
+        self.reader: AsciiTargetReader | None = None
+        self._cache_path: Path | None = None
         # The raw telnet, kept so that `abort()` can close the socket from
         # another thread. It arrives through `setup_relay`'s `on_socket=`.
         self._tn = None
@@ -326,7 +331,11 @@ class TelnetTransport:
         with self._lock:
             reader = self.reader
             client = self.client
-            if reader is None or client is None:
+            # `_cache_path` is set by `_setup_ascii_reader` in the same breath
+            # as `reader`, so it is in the guard beside it rather than checked
+            # again at the `save_cache` below: the two are one piece of state.
+            cache_path = self._cache_path
+            if reader is None or client is None or cache_path is None:
                 return 0   # 7xx: digitals come from Fast Meter, no discovery
             missing = [
                 b for b in sorted(names)
@@ -361,7 +370,7 @@ class TelnetTransport:
                 f"nao-findable (total {len(reader.layout.bit_to_pos)} bits, "
                 f"{len(reader.layout.not_findable)} blacklist)")
             try:
-                reader.save_cache(self._cache_path, fid=client.fid,
+                reader.save_cache(cache_path, fid=client.fid,
                                   devid=client.devid)
             except OSError as e:
                 logger.warning("  Falha ao gravar cache de bits: %s", e)
@@ -416,15 +425,27 @@ class TelnetTransport:
         client = self.client
         if client is None:
             return
-        if self.mode == MODE_TARGET:
-            poll_loop(client, self.reader, state, interval, self.logger, stop,
-                      once)
-        elif self.mode == MODE_TAR:
-            # 3xx: each row costs ~200ms on the relay, so the minimum
-            # useful interval is larger than in the other modes -- and we only
-            # read the open page.
-            poll_loop_tar(client, self.reader, state, max(interval, 1.5),
-                          self.logger, stop, once)
+        if self.mode in (MODE_TARGET, MODE_TAR):
+            # Both of these read through the Relay Word map, which `connect()`
+            # builds before polling ever starts. Refusing here rather than
+            # handing a None to `poll_loop*` keeps the failure in this frame,
+            # where it can name the mode; `RelayLink._poll_runner` sees the
+            # loop end either way and marks the link disconnected.
+            reader = self.reader
+            if reader is None:
+                self.logger.error(
+                    "Sem mapa da Relay Word no modo %s; polling nao iniciado.",
+                    self.mode)
+                return
+            if self.mode == MODE_TARGET:
+                poll_loop(client, reader, state, interval, self.logger, stop,
+                          once)
+            else:
+                # 3xx: each row costs ~200ms on the relay, so the minimum
+                # useful interval is larger than in the other modes -- and we
+                # only read the open page.
+                poll_loop_tar(client, reader, state, max(interval, 1.5),
+                              self.logger, stop, once)
         else:
             poll_loop_fastmeter(client, state, interval, self.logger, stop,
                                 once)

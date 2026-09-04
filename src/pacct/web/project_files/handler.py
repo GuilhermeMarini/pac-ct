@@ -68,7 +68,7 @@ def build_project_files_handler(logger: logging.Logger, sessions) -> type:
             sha = (parse_qs(urlparse(self.path).query).get("sha256")
                    or [""])[0].strip()
             lib = self.sess()
-            with self.session.lock:
+            with self.require_session().lock:
                 entry = lib.get(sha)
             if entry is None:
                 self._send(404, "Arquivo não está no projeto.",
@@ -161,7 +161,7 @@ def build_project_files_handler(logger: logging.Logger, sessions) -> type:
             # so the cost of this order is re-reading the file, not
             # reprocessing it.
             lib = self.sess()
-            with self.session.lock:
+            with self.require_session().lock:
                 existing = lib.get(sha)
             if existing is not None:
                 self._discard(entry, keep=existing)
@@ -170,7 +170,7 @@ def build_project_files_handler(logger: logging.Logger, sessions) -> type:
                                       "entry": existing.to_json()})
                 return
 
-            with self.session.lock:
+            with self.require_session().lock:
                 entry, duplicate = lib.add(entry)
             logger.info("[files] %s '%s' (%s) no projeto: %s",
                         entry.kind.upper(), entry.display_name,
@@ -225,12 +225,16 @@ def build_project_files_handler(logger: logging.Logger, sessions) -> type:
             so it lands in a temp file in the same directory and is renamed
             once. Same directory means `os.replace` is atomic: no tool ever
             sees a half-written `.scd`. Returns `(entry, sha256)`."""
-            files_dir = library.files_dir(self.session)
+            files_dir = library.files_dir(self.require_session())
             files_dir.mkdir(parents=True, exist_ok=True)
             fd, tmp_name = tempfile.mkstemp(dir=str(files_dir),
                                             suffix=".scd-part")
             os.close(fd)
             tmp = Path(tmp_name)
+            # `os.replace` below moves this file into the library; until it
+            # does, the `finally` owns it. A flag rather than clearing `tmp`,
+            # so the path stays a Path all the way down.
+            moved = False
             target = None
             try:
                 try:
@@ -261,9 +265,9 @@ def build_project_files_handler(logger: logging.Logger, sessions) -> type:
 
                 target = library.scd_path_for(files_dir, sha)
                 os.replace(tmp, target)
-                tmp = None
+                moved = True
             finally:
-                if tmp is not None:
+                if not moved:
                     tmp.unlink(missing_ok=True)
 
             return library.FileEntry(
@@ -302,7 +306,7 @@ def build_project_files_handler(logger: logging.Logger, sessions) -> type:
         def _do_remove(self):
             sha = (self._read_json_body().get("sha256") or "").strip()
             lib = self.sess()
-            with self.session.lock:
+            with self.require_session().lock:
                 removed = lib.remove(sha)
             if removed is None:
                 self._send_json(404, {"ok": False,

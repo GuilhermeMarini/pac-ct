@@ -6,3 +6,7 @@ pytest>=8.0
 #     .venv/bin/python -m mypy
 ruff>=0.6
 mypy>=1.11
+# Real stubs rather than a blanket `ignore_missing_imports`: they are
+# what caught `int(cell.value)` on an uploaded spreadsheet and the two
+# `wb.remove(wb.active)` calls.
+types-openpyxl

@@ -116,8 +116,8 @@ def compute_ied_vlan_rows(scd_path: Path) -> list[IedVlanRow]:
 
     # Index GSE by publisher for a fast TX lookup.
     gse_by_publisher: dict[str, list[GseAddress]] = {}
-    for addr in gse_map.values():
-        gse_by_publisher.setdefault(addr.publisher_ied, []).append(addr)
+    for pub_addr in gse_map.values():
+        gse_by_publisher.setdefault(pub_addr.publisher_ied, []).append(pub_addr)
 
     rows: list[IedVlanRow] = []
     for ied in ieds:
@@ -263,8 +263,8 @@ def build_vlan_mapper_handler(logger: logging.Logger, sessions) -> type:
                 # the file was already received and validated in /files/.
                 body = self._read_json_body()
                 sha = (body.get("sha256") or "").strip()
-                lib = filelib.library_for(sessions, self.session)
-                with self.session.lock:
+                lib = filelib.library_for(sessions, self.require_session())
+                with self.require_session().lock:
                     entry = lib.get(sha)
                 if entry is None or entry.kind != filelib.KIND_SCD:
                     self._send_json(404, {
@@ -273,14 +273,15 @@ def build_vlan_mapper_handler(logger: logging.Logger, sessions) -> type:
                 job = self.job()
                 job.stage("Lendo IEDs e VLANs do SCD", 10)
                 try:
-                    payload = _build_payload(entry.scd_path, entry.display_name)
+                    payload = _build_payload(entry.require_scd_path(),
+                                             entry.display_name)
                 except Exception as e:
                     logger.exception("falha computando VLAN map: %s", e)
                     self._send_json(500, {
                         "error": f"falha computando VLAN map: {e}"})
                     return
                 st = self.sess()
-                with self.session.lock:
+                with self.require_session().lock:
                     st.scd_path = entry.scd_path
                     st.scd_name = entry.display_name
                     st.payload = payload

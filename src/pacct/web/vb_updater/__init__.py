@@ -24,6 +24,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from html import escape
 from pathlib import Path
+from typing import Any
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from selfiles import match as matcher
@@ -674,8 +675,11 @@ def build_vb_descriptions_xlsx(
 
     wb = Workbook()
     # Remove the default sheet; we create our own.
+    # A fresh `Workbook()` always has one sheet, but `active` is
+    # Optional in the stubs -- every sheet here is added by name.
     default = wb.active
-    wb.remove(default)
+    if default is not None:
+        wb.remove(default)
 
     used: set[str] = set()
     header_font = Font(bold=True, color="FFFFFFFF")
@@ -842,7 +846,9 @@ def _maybe_match(st: _SessionState) -> None:
 
 
 def _state_payload(st: _SessionState) -> dict:
-    d = {
+    # The response body: flags, names, lists of match rows and the
+    # per-relay GLE map all share it.
+    d: dict[str, Any] = {
         "has_rdb": st.rdb is not None,
         "has_scd": st.scd_path is not None,
         "rdb_name": st.rdb.display_name if st.rdb else None,
@@ -1032,7 +1038,7 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                 relay = (qs.get("relay") or [""])[0]
                 ied = (qs.get("ied") or [""])[0]
                 gle = (qs.get("gle") or [""])[0]
-                with self.session.lock:
+                with self.require_session().lock:
                     st = self.sess()
                     rdb = st.rdb
                     scd_path = st.scd_path
@@ -1081,7 +1087,7 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                 if direction not in ("scd-to-gle", "gle-to-scd"):
                     self._send_json(400, {"error": "direction invalida"})
                     return
-                with self.session.lock:
+                with self.require_session().lock:
                     st = self.sess()
                     rdb = st.rdb
                     scd_path = st.scd_path
@@ -1161,7 +1167,7 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                 if not isinstance(selections, list) or not selections:
                     self._send_json(400, {"error": "selections vazia"})
                     return
-                with self.session.lock:
+                with self.require_session().lock:
                     st = self.sess()
                     rdb = st.rdb
                     scd_path = st.scd_path
@@ -1258,7 +1264,7 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                 if not isinstance(selections, list) or not selections:
                     self._send_json(400, {"error": "selections vazia"})
                     return
-                with self.session.lock:
+                with self.require_session().lock:
                     st = self.sess()
                     scd_path = st.scd_path
                     scd_label = Path(st.scd_name or (scd_path.name if scd_path
@@ -1325,7 +1331,7 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                 if length > _SCD_MAX_BYTES:
                     self._send_json(413, {"error": "arquivo grande demais"})
                     return
-                with self.session.lock:
+                with self.require_session().lock:
                     st = self.sess()
                     scd_path = st.scd_path
                     scd_label = Path(st.scd_name or (scd_path.name if scd_path
@@ -1412,29 +1418,29 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                 # received and extracted/validated in /files/.
                 want = (filelib.KIND_RDB if path == "/select-rdb"
                         else filelib.KIND_SCD)
-                body = self._read_json_body()
-                sha = (body.get("sha256") or "").strip()
-                lib = filelib.library_for(sessions, self.session)
-                with self.session.lock:
-                    entry = lib.get(sha)
-                if entry is None or entry.kind != want:
+                payload = self._read_json_body()
+                sha = (payload.get("sha256") or "").strip()
+                lib = filelib.library_for(sessions, self.require_session())
+                with self.require_session().lock:
+                    chosen = lib.get(sha)
+                if chosen is None or chosen.kind != want:
                     self._send_json(404, {
                         "error": "Arquivo não está mais no projeto."})
                     return
                 job = self.job()
-                with self.session.lock:
+                with self.require_session().lock:
                     st = self.sess()
                     if want == filelib.KIND_RDB:
-                        st.rdb = entry.rdb
+                        st.rdb = chosen.require_rdb()
                         logger.info("[vb-updater] RDB '%s' (%s) escolhido; "
                                     "%d relé(s) com GLE",
-                                    entry.display_name, entry.short_sha,
-                                    len(entry.rdb.relays))
+                                    chosen.display_name, chosen.short_sha,
+                                    len(chosen.require_rdb().relays))
                     else:
-                        st.scd_path = entry.scd_path
-                        st.scd_name = entry.display_name
+                        st.scd_path = chosen.scd_path
+                        st.scd_name = chosen.display_name
                         logger.info("[vb-updater] SCD '%s' (%s) escolhido",
-                                    entry.display_name, entry.short_sha)
+                                    chosen.display_name, chosen.short_sha)
                     # The RDB x SCD cross-match only happens when both
                     # exist; `_maybe_match` already knows that.
                     job.stage("Cruzando RDB com SCD", 60)

@@ -124,11 +124,11 @@ def connect(cfg: configparser.ConfigParser, logger: logging.Logger,
         )
 
     if conn_type == "serial":
-        port = cfg.get("serial", "port")
+        serial_port = cfg.get("serial", "port")
         baud = cfg.getint("serial", "baudrate", fallback=9600)
-        logger.info(f"Conectando via Serial em {port} @ {baud} bps...")
+        logger.info(f"Conectando via Serial em {serial_port} @ {baud} bps...")
         return SerialSELClient(
-            port=port,
+            port=serial_port,
             baudrate=baud,
             logger=logger,
             verbose=verbose,
@@ -717,9 +717,15 @@ def main():
                     data, target_raw = pipelined_poll(client, target_reader, logger)
                     t_fm = time.monotonic() - t0
                     # Extract the bits from the bytes already received
-                    if target_raw is not None:
+                    # `strategy` only becomes "pipeline" inside the
+                    # `target_reader is not None` branch above, so the reader
+                    # is there; naming it in the guard is what lets that be
+                    # read off this line instead of forty lines up.
+                    if target_raw is not None and target_reader is not None:
                         t0 = time.monotonic()
-                        tgt_digitals = {}
+                        # None for a bit the map cannot place: indeterminate,
+                        # which is not the same as 0.
+                        tgt_digitals: dict[str, int | None] = {}
                         if wanted_digitals == ["*ON"]:
                             for row_idx, names in target_reader.layout.row_to_names.items():
                                 if row_idx >= len(target_raw):

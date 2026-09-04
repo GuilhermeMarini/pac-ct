@@ -140,11 +140,11 @@ class RelayLink:
         # relays: a module-level flag gave the logs to the first relay
         # connected after the restart and silence to all the others.
         self._once = FirstTimeLog(logger)
-        self._poll_thread = None
-        self._poll_stop = None
+        self._poll_thread: threading.Thread | None = None
+        self._poll_stop: threading.Event | None = None
         # Polling thread that did not die inside the join. While it lives,
         # no other one comes up.
-        self._poll_dying = None
+        self._poll_dying: threading.Thread | None = None
         self._poll_interval = 0.5
         # owner -> bits of the open page in that diagram. The TAR mode (3xx)
         # reads only what is on screen; with two diagrams on the same relay,

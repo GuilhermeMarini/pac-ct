@@ -418,14 +418,14 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
             except (json.JSONDecodeError, ValueError):
                 payload = {}
             sha = str(payload.get("sha256") or "").strip()
-            lib = filelib.library_for(sessions, self.session)
-            with self.session.lock:
+            lib = filelib.library_for(sessions, self.require_session())
+            with self.require_session().lock:
                 entry = lib.get(sha)
             if entry is None or entry.kind != filelib.KIND_RDB:
                 self._send_json(404, {
                     "error": "Arquivo nao esta mais no projeto."})
                 return
-            info = entry.rdb
+            info = entry.require_rdb()
             self.sess().rdb = info
             logger.info("[glv] RDB '%s' (%s) escolhido; %d rele(s) com GLE",
                         info.display_name, info.sha256[:16], len(info.relays))
@@ -445,8 +445,8 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
             """
             if not scd_sha:
                 return None
-            lib = filelib.library_for(sessions, self.session)
-            with self.session.lock:
+            lib = filelib.library_for(sessions, self.require_session())
+            with self.require_session().lock:
                 entry = lib.get(scd_sha)
             if entry is None or entry.kind != filelib.KIND_SCD:
                 logger.warning(

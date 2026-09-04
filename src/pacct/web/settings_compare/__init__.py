@@ -27,6 +27,7 @@ from urllib.parse import urlparse
 from selfiles.rdb import RdbInfo
 from selfiles.rdb import short_sha as _short_sha
 from selfiles.selogic.catalog import (
+    Dialect,
     Family,
     family_from_relaytype,
     groups_for_family,
@@ -338,7 +339,7 @@ def _compute_field_row(
     field_name: str,
     kind: CmpKind,
     cells: list[_CellPayload],
-    dialect: str,
+    dialect: Dialect,
 ) -> _FieldRow:
     """Verdict across the N cells present. If any cell is absent, the
     verdict is MISSING (the present ones are not compared).
@@ -438,7 +439,7 @@ def _collect_variables(
         field_rows: list[_FieldRow] = []
         for fn in ordered:
             cells: list[_CellPayload] = []
-            kind_seen: str | None = None
+            kind_seen: CmpKind | None = None
             for relay_key, vs, model in per_relay:
                 v = vs.get(vname)
                 fld = v.get_field(fn) if v else None
@@ -658,12 +659,12 @@ def build_settings_compare_handler(logger: logging.Logger, sessions) -> type:
             """
             st = self.sess()
             for key in keys:
-                with self.session.lock:
+                with self.require_session().lock:
                     if key in st.rdbs:
                         continue
                 entry = self.library_entry(key, filelib.KIND_RDB)
                 if entry is not None and entry.rdb is not None:
-                    with self.session.lock:
+                    with self.require_session().lock:
                         st.rdbs[_short_sha(entry.rdb.sha256)] = entry.rdb
 
         def do_GET(self):
@@ -686,13 +687,13 @@ def build_settings_compare_handler(logger: logging.Logger, sessions) -> type:
                 # file a single click: `/groups` and `/diff` still find the
                 # RDB by its short key with no step at all.
                 st = self.sess()
-                lib = filelib.library_for(sessions, self.session)
-                with self.session.lock:
+                lib = filelib.library_for(sessions, self.require_session())
+                with self.require_session().lock:
                     entries = [e for e in lib.list(filelib.KIND_RDB)
                                if e.rdb is not None]
                     for e in entries:
-                        st.rdbs[_short_sha(e.rdb.sha256)] = e.rdb
-                    rdbs = [_rdb_summary(_short_sha(e.rdb.sha256), e.rdb)
+                        st.rdbs[_short_sha(e.require_rdb().sha256)] = e.require_rdb()
+                    rdbs = [_rdb_summary(_short_sha(e.require_rdb().sha256), e.require_rdb())
                             for e in entries]
                 rdbs.reverse()
                 self._send_json(200, {"rdbs": rdbs})
@@ -710,7 +711,7 @@ def build_settings_compare_handler(logger: logging.Logger, sessions) -> type:
                 refs = body.get("relays") or []
                 pairs = [(r["rdb_key"], r["relay_name"]) for r in refs]
                 self._ensure_rdbs({k for k, _ in pairs})
-                fam, groups = _list_groups_for_relays(self.sess(), self.session.lock, pairs)
+                fam, groups = _list_groups_for_relays(self.sess(), self.require_session().lock, pairs)
                 if fam is None:
                     self._send_json(400, {"error": "familia inconsistente ou rele invalido"})
                     return
@@ -730,7 +731,7 @@ def build_settings_compare_handler(logger: logging.Logger, sessions) -> type:
                                    if r.get("rdb_key")})
                 try:
                     payload = _compute_diff_payload(
-                        self.sess(), self.session.lock, refs, group_keys,
+                        self.sess(), self.require_session().lock, refs, group_keys,
                         on_progress=lambda d, t, st: job.fraction(st, d, t),
                     )
                 except Exception as e:

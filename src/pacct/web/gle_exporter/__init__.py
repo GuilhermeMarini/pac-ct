@@ -29,6 +29,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 from urllib.parse import quote, urlparse
 
 from selfiles import rdb as rdb_loader
@@ -337,8 +338,11 @@ def build_xlsx_for_selections(
     from openpyxl.utils import get_column_letter
 
     wb = Workbook()
+    # A fresh `Workbook()` always has one sheet, but `active` is
+    # Optional in the stubs -- every sheet here is added by name.
     default = wb.active
-    wb.remove(default)
+    if default is not None:
+        wb.remove(default)
 
     used: set[str] = set()
     header_font = Font(bold=True, color="FFFFFFFF")
@@ -435,7 +439,11 @@ def parse_xlsx_to_updates(xlsx_bytes: bytes) -> XlsxUpdates:
                                      values_only=True):
                 if row is None:
                     continue
-                cells = list(row) + [None] * len(_XLSX_HEADERS)
+                # Cells out of a spreadsheet the user uploaded: any of
+                # openpyxl's value types, or None for a short row.
+                # Every read below either `str()`s it or converts
+                # inside a try, which is what makes that safe.
+                cells: list[Any] = list(row) + [None] * len(_XLSX_HEADERS)
                 _page = cells[_COL_PAGE - 1]
                 eid = cells[_COL_EID - 1]
                 _xml_type = cells[_COL_TYPE - 1]
@@ -547,7 +555,9 @@ def apply_xlsx_updates_to_rdb(
     if job:
         job.stage("Conferindo os GLEs alterados", 10)
     for (relay, gle), elem_updates in xlsx_updates.items():
-        entry = {"relay": relay, "gle": gle}
+        # One row of `results`: heterogeneous by design -- the flag, the
+        # stats dict, the byte count and the reason all live in it.
+        entry: dict[str, Any] = {"relay": relay, "gle": gle}
         gle_entry = rdb_loader.find_gle(rdb_info, relay, gle)
         if gle_entry is None or not gle_entry.fs_path.is_file():
             entry["ok"] = False
@@ -754,22 +764,22 @@ def build_gle_exporter_handler(logger: logging.Logger, sessions) -> type:
                 # The body of the old /rdb-upload, from `process_upload`
                 # onward: the file was already received and extracted in
                 # /files/.
-                body = self._read_json_body()
-                sha = (body.get("sha256") or "").strip()
-                lib = filelib.library_for(sessions, self.session)
-                with self.session.lock:
-                    entry = lib.get(sha)
-                if entry is None or entry.kind != filelib.KIND_RDB:
+                payload = self._read_json_body()
+                sha = (payload.get("sha256") or "").strip()
+                lib = filelib.library_for(sessions, self.require_session())
+                with self.require_session().lock:
+                    chosen = lib.get(sha)
+                if chosen is None or chosen.kind != filelib.KIND_RDB:
                     self._send_json(404, {
                         "error": "Arquivo não está mais no projeto."})
                     return
-                info = entry.rdb
+                info = chosen.require_rdb()
                 logger.info("[gle-exporter] RDB '%s' (%s) escolhido; "
                             "%d relé(s) com GLE",
                             info.display_name, info.sha256[:16],
                             len(info.relays))
                 st = self.sess()
-                with self.session.lock:
+                with self.require_session().lock:
                     st.rdb = info
                 self._send_json(200, _state_payload(self.sess()))
                 return
@@ -787,7 +797,7 @@ def build_gle_exporter_handler(logger: logging.Logger, sessions) -> type:
                 if not isinstance(selections, list) or not selections:
                     self._send_json(400, {"error": "selections vazia"})
                     return
-                with self.session.lock:
+                with self.require_session().lock:
                     rdb = self.sess().rdb
                 if rdb is None:
                     self._send_json(409, {"error": "RDB nao carregado"})
@@ -813,11 +823,12 @@ def build_gle_exporter_handler(logger: logging.Logger, sessions) -> type:
                     gle = str(sel.get("gle", "")).strip()
                     if not (relay and gle):
                         continue
-                    entry = rdb_loader.find_gle(rdb, relay, gle)
-                    if entry is None or not entry.fs_path.is_file():
+                    gle_entry = rdb_loader.find_gle(rdb, relay, gle)
+                    if gle_entry is None or not gle_entry.fs_path.is_file():
                         continue
                     resolved.append({
-                        "relay": relay, "gle": gle, "gle_path": entry.fs_path,
+                        "relay": relay, "gle": gle,
+                        "gle_path": gle_entry.fs_path,
                         "relay_model": _model_for(relay),
                     })
                 if not resolved:
@@ -878,7 +889,7 @@ def build_gle_exporter_handler(logger: logging.Logger, sessions) -> type:
                                  f"{_XLSX_MAX_BYTES // (1024*1024)} MB)",
                     })
                     return
-                with self.session.lock:
+                with self.require_session().lock:
                     rdb = self.sess().rdb
                 if rdb is None:
                     self._send_json(409, {"error": "RDB nao carregado"})

@@ -88,7 +88,7 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
                 return info
             entry = self.library_entry(key, filelib.KIND_RDB)
             if entry is not None and entry.rdb is not None:
-                with self.session.lock:
+                with self.require_session().lock:
                     st.rdbs[_short_sha(entry.rdb.sha256)] = entry.rdb
                 return entry.rdb
             self._send_json(404, {"ok": False,
@@ -109,7 +109,7 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
             different key. See `DnpMapState.relay_cache` for the same note.
             """
             st = self.sess()
-            with self.session.lock:
+            with self.require_session().lock:
                 cached = st.relay_cache.get(key)
                 if cached is None:
                     cached = set_dnp.discover(info.extract_dir)
@@ -178,15 +178,15 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
             between choosing a row and seeing its IEDs.
             """
             st = self.sess()
-            lib = filelib.library_for(sessions, self.session)
-            with self.session.lock:
+            lib = filelib.library_for(sessions, self.require_session())
+            with self.require_session().lock:
                 entries = [e for e in lib.list(filelib.KIND_RDB)
                            if e.rdb is not None]
                 for e in entries:
-                    st.rdbs[_short_sha(e.rdb.sha256)] = e.rdb
+                    st.rdbs[_short_sha(e.require_rdb().sha256)] = e.require_rdb()
             out = []
             for e in entries:
-                key = _short_sha(e.rdb.sha256)
+                key = _short_sha(e.require_rdb().sha256)
                 out.append({
                     "rdb": key,
                     "sha256": e.sha256,
@@ -194,7 +194,7 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
                     "size": e.size,
                     "detail": e.detail,
                     "origin": e.origin,
-                    "dirty": model.dirty_summary(st, key, self.session.lock),
+                    "dirty": model.dirty_summary(st, key, self.require_session().lock),
                 })
             # `FileLibrary.list` is in arrival order, so the last upload is last.
             out.reverse()
@@ -209,7 +209,7 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
             self._send_json(200, {
                 "ok": True,
                 "relays": self._relay_payload(key, info),
-                "dirty": model.dirty_summary(self.sess(), key, self.session.lock),
+                "dirty": model.dirty_summary(self.sess(), key, self.require_session().lock),
             })
 
         def _serve_map(self):
@@ -242,11 +242,16 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
                 # BI needs the Relay Word, BO/AO/CO come from the DNP device
                 # profile, and AI is nobody's complete domain. See
                 # `pacct/core/wordbits.py` for the corpus measurements.
-                validates = wbs is not None and wbs.validates(kind)
+                # The set that will judge this block, or None when nothing
+                # can -- carrying the object rather than a flag about it is
+                # what makes the `check` below reachable only when there is
+                # something to check with.
+                checker = wbs if (wbs is not None
+                                  and wbs.validates(kind)) else None
                 rows = []
                 for p, value in zip(points, values, strict=True):
                     warning = ""
-                    if validates and wbs.check(value, kind) == "unknown":
+                    if checker is not None and checker.check(value, kind) == "unknown":
                         warning = "unknown"
                     elif value.strip().upper() in dups:
                         warning = "duplicate"
@@ -272,7 +277,7 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
                 "wordbits_ok": wbs is not None,
                 "wordbits_model": wbs.model if wbs is not None else "",
                 "check_kinds": sorted(wbs.check_kinds) if wbs else [],
-                "dirty": model.dirty_summary(st, key, self.session.lock),
+                "dirty": model.dirty_summary(st, key, self.require_session().lock),
             })
 
         def _serve_download(self):
@@ -444,11 +449,11 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
                 self._send_json(400, {"ok": False, "error": error})
                 return
             stored = model.record_edits(
-                self.sess(), self.session.lock, key, relay_name, session_name,
+                self.sess(), self.require_session().lock, key, relay_name, session_name,
                 changes, parsed[session_name])
             self._send_json(200, {
                 "ok": True, "stored": stored,
-                "dirty": model.dirty_summary(self.sess(), key, self.session.lock),
+                "dirty": model.dirty_summary(self.sess(), key, self.require_session().lock),
             })
 
         def _do_swap(self):
@@ -471,11 +476,11 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
                                       "error": "Somente pontos do mapa podem "
                                                "ser trocados."})
                 return
-            model.swap(self.sess(), self.session.lock, key, relay_name,
+            model.swap(self.sess(), self.require_session().lock, key, relay_name,
                        session_name, a, b, parsed[session_name])
             self._send_json(200, {
                 "ok": True,
-                "dirty": model.dirty_summary(self.sess(), key, self.session.lock),
+                "dirty": model.dirty_summary(self.sess(), key, self.require_session().lock),
             })
 
         def _do_copy_session(self):
@@ -492,7 +497,7 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
                                       "error": "Sessão inexistente."})
                 return
             targets = [s for s in parsed if s != src]
-            touched = model.copy_session(self.sess(), self.session.lock, key,
+            touched = model.copy_session(self.sess(), self.require_session().lock, key,
                                          relay_name, src, targets, parsed)
             self._send_json(200, {"ok": True, "touched": touched,
                                   "sessions": targets})
@@ -600,7 +605,7 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
                     return
 
             outcomes = model.copy_map_to(
-                self.sess(), self.session.lock, key, src_relay, src_session,
+                self.sess(), self.require_session().lock, key, src_relay, src_session,
                 parsed_src[src_session], dst_key, pairs, parsed_by_relay,
                 point_keys)
             logger.info(
@@ -618,7 +623,7 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
                              "touched": o.touched, "missing": o.missing,
                              "extra": o.extra} for o in outcomes],
                 "dirty": model.dirty_summary(self.sess(), dst_key,
-                                             self.session.lock),
+                                             self.require_session().lock),
             })
 
         def _do_export(self):
@@ -638,7 +643,7 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
             # iteration" crash at best and a RDB/TXT pair that disagree at
             # worst. Locking and deep-copying here is the whole fix; nothing
             # downstream touches session state again.
-            with self.session.lock:
+            with self.require_session().lock:
                 edits = copy.deepcopy(st.edits.get(key, {}))
             out_dir = self.sdir("out")
             stem = Path(info.display_name).stem
