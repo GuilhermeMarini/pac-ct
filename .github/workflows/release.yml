@@ -45,8 +45,37 @@ jobs:
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
+        # The generated notes list the commits; this preamble says the things
+        # a commit list cannot -- which zip to take, and why the first public
+        # release is numbered 1.4.0 rather than 1.0.0.
         run: |
+          cat > /tmp/notes.md <<'NOTES'
+          Ferramentas de comissionamento de proteção, automação e controle.
+
+          **Qual arquivo baixar**
+
+          | | |
+          |---|---|
+          | `pac-ct-<versao>-win_amd64.zip` | Windows |
+          | `pac-ct-<versao>.zip` | Linux / macOS |
+
+          Os dois trazem `vendor/` — um wheel por dependência — porque a
+          instalação é **offline**: uma subestação normalmente não tem rede.
+          Descompacte em `PAC-CT/versions/<versao>/` e siga o `INSTALAR.txt`
+          que vem dentro. Requer Python 3.10 ou mais novo.
+
+          Confira o download antes de instalar: os sha256 estão em
+          `SHA256SUMS` e em `manifest.json` — é o mesmo valor que o
+          `--atualizar` verifica sozinho antes de descompactar qualquer coisa.
+
+          **Por que 1.4.0 e não 1.0.0**
+
+          Este é o primeiro lançamento público, mas não o primeiro lançamento:
+          a numeração continua a linha v1.1 / v1.2 / v1.3 que existia no
+          repositório privado de onde o projeto veio.
+          NOTES
           gh release create "$GITHUB_REF_NAME" \
             --title "PAC CT $GITHUB_REF_NAME" \
+            --notes-file /tmp/notes.md \
             --generate-notes \
             dist/pac-ct-*.zip dist/manifest.json dist/SHA256SUMS
