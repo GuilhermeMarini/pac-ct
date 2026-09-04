@@ -12,6 +12,18 @@ Requisito: Python 3.10 ou mais novo (`python3 --version` / `python --version`).
 1. ONDE DESCOMPACTAR
 --------------------
 
+Ha' dois jeitos. Escolha um:
+
+  (A) PASTA UNICA / PORTATIL -- descompacte onde quiser e rode dali. O
+      `config.ini`, o cache e os RDBs ficam DENTRO da pasta, entao a pasta
+      inteira e' copiavel para outro computador ou para um pendrive. Nao
+      precisa do passo 2: rode direto o `app.py --web` (passo 3). Atualizar
+      tambem funciona -- veja o item 5.
+
+  (B) INSTALACAO VERSIONADA -- recomendada para um computador fixo. Separa o
+      programa dos seus dados, de modo que uma atualizacao troque so' o
+      programa. E' o que os passos abaixo descrevem.
+
 O programa e os SEUS DADOS ficam separados de proposito, para que uma
 atualizacao nunca leve junto o `config.ini` (que e' onde ficam as senhas
 ACC/2AC do rele) nem o cache de RDBs:
@@ -58,7 +70,8 @@ atualizacoes.
 
 5. ATUALIZAR
 
-    PAC-CT\pac-ct.cmd --atualizar
+    PAC-CT\pac-ct.cmd --atualizar          (instalacao versionada)
+    python app.py --atualizar              (pasta unica/portatil)
 
 Precisa de internet, e por isso NUNCA acontece sozinho: a verificacao e' um
 comando que voce da'. Ela consulta as releases publicas do projeto, confere o
@@ -68,6 +81,11 @@ meio, `current` continua onde estava.
 
 Voltar para a versao anterior e' repontar o `current` -- `--reverter` faz
 isso, e as versoes antigas continuam em `versions\`.
+
+Na pasta portatil a atualizacao troca o programa ali mesmo e nao encosta no
+`config.ini`, no `cache/`, no `rdbs/` nem no `data/`. Ela guarda a versao
+anterior em `.pacct-backup/`, entao `--reverter` desfaz a ultima atualizacao;
+e se algo falhar no meio, a pasta e' restaurada como estava.
 
 
 PROBLEMAS

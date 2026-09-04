@@ -331,7 +331,10 @@ def run_install() -> None:
     to build one.
     """
     _ensure_import_path()
-    from pacct.update import UpdateError, install_here
+    try:
+        from pacct.update import UpdateError, install_here
+    except ModuleNotFoundError as exc:
+        sys.exit(_explain_import_failure(exc))
     try:
         layout = install_here(ROOT, build=False)
     except UpdateError as exc:
@@ -349,16 +352,19 @@ def run_update(assume_yes: bool = False) -> None:
         Layout,
         UpdateError,
         check_latest,
+        install_kind,
+        perform_portable_update,
         perform_update,
         restart,
         update_available,
     )
     current = read_version_file()
+    kind = install_kind(ROOT)
+    if kind == "checkout":
+        sys.exit("[ERRO] Esta e' uma copia de desenvolvimento (um clone git). "
+                 "A atualizacao automatica nao mexe num clone -- aqui, use "
+                 "git.")
     layout = Layout.detect(ROOT)
-    if layout is None:
-        sys.exit("[ERRO] Esta e' uma copia de desenvolvimento (nao esta' em "
-                 "versions/<versao>/). A atualizacao automatica so' roda numa "
-                 "instalacao versionada -- aqui, use git.")
     try:
         release = check_latest()
     except UpdateError as exc:
@@ -373,11 +379,26 @@ def run_update(assume_yes: bool = False) -> None:
         print("-" * 60)
         print(release.notes.strip()[:2000])
         print("-" * 60)
+    if kind == "portable":
+        print("[INFO] Pasta portatil: a atualizacao troca o codigo aqui mesmo "
+              "e mantem\n"
+              "       config.ini, cache/, rdbs/ e data/ exatamente como estao.")
     if not assume_yes:
         answer = input("Atualizar agora? [s/N] ").strip().lower()
         if answer not in ("s", "sim", "y", "yes"):
             print("[INFO] Nada foi alterado.")
             return
+
+    if kind == "portable" or layout is None:
+        try:
+            perform_portable_update(ROOT, release)
+        except UpdateError as exc:
+            sys.exit(f"[ERRO] {exc}")
+        print(f"[OK] Atualizado para {release.version} nesta pasta. Seus dados "
+              f"continuam onde estavam.")
+        print("[INFO] Rode de novo para subir a versao nova.")
+        return
+
     try:
         target = perform_update(layout, release)
     except UpdateError as exc:
@@ -388,11 +409,26 @@ def run_update(assume_yes: bool = False) -> None:
 
 def run_rollback() -> None:
     _ensure_import_path()
-    from pacct.update import Layout, UpdateError, rollback
+    from pacct.update import (
+        Layout,
+        UpdateError,
+        install_kind,
+        rollback,
+        rollback_portable,
+    )
+    kind = install_kind(ROOT)
+    if kind == "checkout":
+        sys.exit("[ERRO] Esta e' uma copia de desenvolvimento (um clone git); "
+                 "nao ha' o que reverter aqui.")
+    if kind == "portable":
+        try:
+            back = rollback_portable(ROOT)
+        except UpdateError as exc:
+            sys.exit(f"[ERRO] {exc}")
+        print(f"[OK] Pasta revertida para {back}.")
+        return
     layout = Layout.detect(ROOT)
-    if layout is None:
-        sys.exit("[ERRO] Esta e' uma copia de desenvolvimento; nao ha' "
-                 "`current` para repontar.")
+    assert layout is not None      # install_kind said "versioned"
     try:
         target = rollback(layout)
     except UpdateError as exc:

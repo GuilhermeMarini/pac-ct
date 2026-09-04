@@ -377,3 +377,141 @@ def test_the_two_http_answers_that_are_not_a_problem_here(monkeypatch, code,
     with pytest.raises(U.UpdateError) as exc:
         U.check_latest()
     assert expected in str(exc.value)
+
+
+# ---------------------------------------------------------------------------
+# The portable install: one folder, data inside it
+# ---------------------------------------------------------------------------
+
+def make_portable(tmp: Path, version: str = "1.4.0") -> Path:
+    """A folder as an engineer actually keeps it: code and data together."""
+    root = tmp / "pac-ct-portable"
+    (root / "src" / "pacct").mkdir(parents=True)
+    (root / "selprotopy").mkdir()
+    (root / "vendor").mkdir()
+    (root / "config").mkdir()
+    (root / "cache" / "rdb" / "abc").mkdir(parents=True)
+    (root / "rdbs").mkdir()
+    (root / "data" / "wordbits").mkdir(parents=True)
+    (root / "app.py").write_text("# stub\n", encoding="utf-8")
+    (root / "VERSION").write_text(version + "\n", encoding="utf-8")
+    (root / "requirements.txt").write_text("", encoding="utf-8")
+    (root / "src" / "pacct" / "__init__.py").write_text("old\n", encoding="utf-8")
+    (root / "config" / "config.ini.example").write_text("[tcp]\n", encoding="utf-8")
+    # the engineer's half
+    (root / "config" / "config.ini").write_text(
+        "[tcp]\nacc_password = SEGREDO\n", encoding="utf-8")
+    (root / "rdbs" / "projeto.rdb").write_text("bytes", encoding="utf-8")
+    (root / "cache" / "rdb" / "abc" / "meta.json").write_text("{}", encoding="utf-8")
+    (root / "data" / "wordbits" / "SEL-999.json").write_text("{}", encoding="utf-8")
+    return root
+
+
+def user_data(root: Path) -> dict[str, bytes]:
+    keep = ["config/config.ini", "rdbs/projeto.rdb",
+            "cache/rdb/abc/meta.json", "data/wordbits/SEL-999.json"]
+    return {k: (root / k).read_bytes() for k in keep}
+
+
+def test_a_portable_folder_is_told_apart_from_the_other_two(tmp_path):
+    """Three shapes, three answers. A git checkout is refused outright --
+    updating it would throw uncommitted work away, and `git pull` is the right
+    command there."""
+    portable = make_portable(tmp_path)
+    assert U.install_kind(portable) == "portable"
+
+    layout = make_install(tmp_path / "v", ["1.4.0"])
+    assert U.install_kind(layout.version_dir) == "versioned"
+
+    (portable / ".git").mkdir()
+    assert U.install_kind(portable) == "checkout"
+
+
+def test_a_portable_update_replaces_the_code_and_keeps_the_data(tmp_path,
+                                                                monkeypatch):
+    """The whole point of the portable folder: `config.ini` with the relay
+    passwords, the RDB cache, the uploads and an imported DNP profile all live
+    INSIDE it, and an update must walk past every one of them."""
+    root = make_portable(tmp_path, "1.4.0")
+    before = user_data(root)
+
+    bundle = make_bundle(tmp_path, "1.5.0", extra={
+        "pac-ct-1.5.0/src/pacct/__init__.py": "new\n",
+        "pac-ct-1.5.0/config/config.ini.example": "[tcp]\nnovo = 1\n",
+    })
+    digest = U.sha256_of(bundle)
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(
+        {"artifacts": [{"file": "pac-ct-1.5.0.zip", "sha256": digest}]}),
+        encoding="utf-8")
+
+    def fake_download(url: str, dest: Path, timeout: float = 120.0) -> Path:
+        src = manifest_path if url.endswith("manifest.json") else bundle
+        dest.write_bytes(src.read_bytes())
+        return dest
+
+    monkeypatch.setattr(U, "download", fake_download)
+    rel = release_with("1.5.0", {"pac-ct-1.5.0.zip": "https://x.invalid/b.zip",
+                                 "manifest.json": "https://x.invalid/manifest.json"})
+    U.perform_portable_update(root, rel, windows=False)
+
+    assert (root / "VERSION").read_text(encoding="utf-8").strip() == "1.5.0"
+    assert (root / "src" / "pacct" / "__init__.py").read_text() == "new\n"
+    # the .example is code and travels; the config.ini beside it is not.
+    assert "novo" in (root / "config" / "config.ini.example").read_text()
+    assert user_data(root) == before, "the update touched the engineer's data"
+
+
+def test_a_failed_portable_update_puts_the_folder_back(tmp_path, monkeypatch):
+    """Swapping in place is genuinely riskier than repointing a junction, so
+    the failure path is the one that has to work: an interrupted swap must not
+    leave a folder that is half one version and half another."""
+    root = make_portable(tmp_path, "1.4.0")
+    before = user_data(root)
+    old_code = (root / "src" / "pacct" / "__init__.py").read_text()
+
+    bundle = make_bundle(tmp_path, "1.5.0", extra={
+        "pac-ct-1.5.0/src/pacct/__init__.py": "new\n"})
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(
+        {"artifacts": [{"file": "pac-ct-1.5.0.zip",
+                        "sha256": U.sha256_of(bundle)}]}), encoding="utf-8")
+
+    def fake_download(url: str, dest: Path, timeout: float = 120.0) -> Path:
+        dest.write_bytes((manifest_path if url.endswith("manifest.json")
+                          else bundle).read_bytes())
+        return dest
+
+    def boom(*a, **k):
+        raise OSError("disk full halfway through")
+
+    monkeypatch.setattr(U, "download", fake_download)
+    monkeypatch.setattr(U, "_swap_in", boom)
+    rel = release_with("1.5.0", {"pac-ct-1.5.0.zip": "https://x.invalid/b.zip",
+                                 "manifest.json": "https://x.invalid/manifest.json"})
+    with pytest.raises(U.UpdateError):
+        U.perform_portable_update(root, rel, windows=False)
+
+    assert (root / "VERSION").read_text(encoding="utf-8").strip() == "1.4.0"
+    assert (root / "src" / "pacct" / "__init__.py").read_text() == old_code
+    assert user_data(root) == before
+
+
+def test_the_updater_runs_even_when_the_dependencies_are_missing():
+    """An updater that cannot run on a broken install cannot fix one.
+
+    `pacct/__init__` configures `selfiles` at import, so `import pacct.update`
+    used to die with `ModuleNotFoundError: No module named 'selfiles'` --
+    exactly when somebody needs `--atualizar` most. Nothing is silently
+    misconfigured by tolerating it: if `selfiles` is absent then every module
+    that reads an SEL file fails on its own import, at the point of use.
+    """
+    import inspect
+
+    import pacct
+
+    src = inspect.getsource(pacct._configure_selfiles)
+    assert "except ImportError" in src, (
+        "a missing dependency must not stop the updater from importing")
+    # update.py itself must stay free of the app's runtime dependencies.
+    assert "selfiles" not in Path(U.__file__).read_text(encoding="utf-8")

@@ -28,7 +28,18 @@ def _configure_selfiles() -> None:
     come from" is a bug, not a feature -- so the question is settled before
     anything can ask it.
     """
-    import selfiles
+    try:
+        import selfiles
+    except ImportError:
+        # The dependencies are not installed on this machine yet. That state
+        # has to stay usable, because it is exactly when somebody needs
+        # `--versao`, `--instalar` or `--atualizar`: an updater that cannot run
+        # on a broken install cannot fix one. Nothing is silently
+        # misconfigured by returning here -- if `selfiles` is absent then every
+        # module that reads an SEL file fails on its own import, at the point
+        # of use, loudly. There is no path where it imports but stays
+        # unconfigured, which is the case this function exists to prevent.
+        return
 
     from pacct import paths
 

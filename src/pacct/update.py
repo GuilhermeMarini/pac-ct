@@ -151,6 +151,173 @@ class Layout:
 
 
 # ---------------------------------------------------------------------------
+# The portable install: one folder, data inside it, updated in place
+# ---------------------------------------------------------------------------
+#
+# The versioned layout is the safe one and stays the default, but it is not the
+# only way people actually use this. A commissioning engineer copies ONE folder
+# to a laptop or a USB stick, runs it there, and wants that folder to keep
+# working -- with its `config.ini`, its RDB cache and its uploads inside it.
+# `paths.DATA_ROOT` already falls back to `PROJECT_ROOT`, so RUNNING that way
+# has always worked; only updating refused, because `Layout.detect()` demands a
+# `versions/<v>/` parent.
+#
+# So a portable folder updates IN PLACE. That is genuinely less safe than
+# repointing a junction and the difference is not hidden: the swap happens
+# under the running process, so it backs the old code up first and puts it back
+# if anything fails. What it must never touch is listed once, here, and the
+# swap only ever moves paths it can name.
+
+PORTABLE_CODE_DIRS = ("src", "selprotopy", "tools", "vendor")
+PORTABLE_CODE_FILES = ("app.py", "VERSION", "requirements.txt", "LICENSE",
+                       "NOTICE.md", "README.md", "INSTALAR.txt",
+                       "pac-ct.sh", "pac-ct.cmd",
+                       "config/config.ini.example")
+# Never moved, never read, never migrated -- the engineer's half of the folder.
+# `config/config.ini` holds the relay's ACC/2AC passwords, `cache/rdb/` can be
+# gigabytes, and `data/` is the DNP profile they imported by hand.
+PORTABLE_KEEP = ("config/config.ini", "cache", "rdbs", "data", ".venv")
+
+STAGING_DIR = ".pacct-update"
+BACKUP_DIR = ".pacct-backup"
+
+
+def install_kind(root: Path) -> str:
+    """`"versioned"`, `"portable"`, or `"checkout"`.
+
+    A git checkout is refused outright: updating it would throw away
+    uncommitted work, and `git pull` is the right command there.
+    """
+    root = Path(root).resolve()
+    if Layout.detect(root) is not None:
+        return "versioned"
+    if (root / ".git").exists():
+        return "checkout"
+    if (root / "app.py").is_file() and (root / "src").is_dir():
+        return "portable"
+    return "checkout"
+
+
+def _swap_in(staged: Path, root: Path, backup: Path) -> list[tuple[Path, Path]]:
+    """Move every code path from `staged` into `root`, old copy to `backup`.
+
+    Returns what was moved, so a failure can put it all back. Only paths named
+    in PORTABLE_CODE_* are ever touched.
+    """
+    moved: list[tuple[Path, Path]] = []
+    for rel in (*PORTABLE_CODE_DIRS, *PORTABLE_CODE_FILES):
+        new = staged / rel
+        if not new.exists():
+            continue
+        live = root / rel
+        kept = backup / rel
+        kept.parent.mkdir(parents=True, exist_ok=True)
+        if live.exists():
+            shutil.move(str(live), str(kept))
+            moved.append((live, kept))
+        live.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(new), str(live))
+    return moved
+
+
+def _restore(moved: list[tuple[Path, Path]]) -> None:
+    """Put the backed-up copies back where they came from."""
+    for live, kept in reversed(moved):
+        try:
+            if live.exists():
+                shutil.rmtree(live) if live.is_dir() else live.unlink()
+            shutil.move(str(kept), str(live))
+        except OSError:
+            log.exception("Falha ao restaurar %s", live)
+
+
+def perform_portable_update(root: Path, release: Release, *,
+                            windows: bool | None = None) -> Path:
+    """Update a portable folder in place, keeping everything the user put there.
+
+    Same order as the versioned path -- download, verify the sha256, unpack,
+    and only then touch anything that is live. The venv is deliberately NOT
+    replaced: on Windows its `python.exe` is the running interpreter and cannot
+    be overwritten, so the packages inside it are upgraded from the new
+    `vendor/` instead.
+    """
+    root = Path(root).resolve()
+    asset_name = preferred_asset_name(release.version, windows=windows)
+    asset = release.asset(asset_name) or release.asset(
+        preferred_asset_name(release.version, windows=False))
+    if asset is None:
+        raise UpdateError(f"A release {release.tag} nao traz {asset_name}.")
+    manifest_asset = release.asset(MANIFEST_ASSET)
+    if manifest_asset is None:
+        raise UpdateError(
+            f"A release {release.tag} nao traz {MANIFEST_ASSET}; sem ele nao "
+            f"ha' sha256 para conferir e nada sera' descompactado.")
+
+    staging_root = root / STAGING_DIR
+    backup = root / BACKUP_DIR
+    shutil.rmtree(staging_root, ignore_errors=True)
+    shutil.rmtree(backup, ignore_errors=True)
+    staging_root.mkdir(parents=True, exist_ok=True)
+    backup.mkdir(parents=True, exist_ok=True)
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="pacct-dl-") as tmpdir:
+            tmp = Path(tmpdir)
+            manifest = json.loads(
+                download(manifest_asset.url, tmp / MANIFEST_ASSET)
+                .read_text(encoding="utf-8"))
+            digest = expected_sha256(manifest, asset.name)
+            bundle = download(asset.url, tmp / asset.name)
+            verify(bundle, digest)                 # rule 2, before unpack
+            staged = unpack(bundle, staging_root / release.version)
+    except Exception:
+        shutil.rmtree(staging_root, ignore_errors=True)
+        shutil.rmtree(backup, ignore_errors=True)
+        raise
+
+    moved: list[tuple[Path, Path]] = []
+    try:
+        moved = _swap_in(staged, root, backup)
+        target = venv_python(root)
+        if target.exists():
+            # The venv survives the swap; its CONTENTS are brought up to the
+            # new requirements, offline, from the vendor/ that just landed.
+            cmd = [str(target), "-m", "pip", "install", "--quiet",
+                   "-r", str(root / "requirements.txt")]
+            vendor = root / "vendor"
+            if vendor.is_dir():
+                cmd += ["--no-index", "--find-links", str(vendor)]
+            subprocess.check_call(cmd)
+    except Exception as exc:
+        _restore(moved)
+        shutil.rmtree(staging_root, ignore_errors=True)
+        raise UpdateError(
+            f"Falha ao aplicar a atualizacao ({exc}). A pasta foi restaurada "
+            f"como estava; seus dados nao foram tocados."
+        ) from exc
+
+    shutil.rmtree(staging_root, ignore_errors=True)
+    return root
+
+
+def rollback_portable(root: Path) -> str:
+    """Put back the version the last portable update replaced."""
+    root = Path(root).resolve()
+    backup = root / BACKUP_DIR
+    if not backup.is_dir() or not any(backup.iterdir()):
+        raise UpdateError(
+            "Nao ha' backup de uma atualizacao anterior nesta pasta.")
+    moved = []
+    for rel in (*PORTABLE_CODE_DIRS, *PORTABLE_CODE_FILES):
+        kept = backup / rel
+        if kept.exists():
+            moved.append((root / rel, kept))
+    _restore(moved)
+    shutil.rmtree(backup, ignore_errors=True)
+    return version_mod.read_version(root)
+
+
+# ---------------------------------------------------------------------------
 # Rule 1 and 4: checking, and what counts as an offer
 # ---------------------------------------------------------------------------
 
