@@ -30,6 +30,7 @@ with it red.
 | 3 defect fixes | **Done** — D1..D5, each with a test that fails without it |
 | 4 library extraction | **Done** — `cfbwrite` and `selfiles`, both consumed by the app |
 | 5 dist + auto-update | **Done** — bundle, versioned install, updater; see below |
+| 6 verification | **Done except gate 7**, which needs a bench relay |
 
 Verification as it stands, across the three repositories: **881 tests pass**
 (the 828 that came across, plus 9 Phase 3/4 regressions and 44 for Phase 5) —
@@ -542,3 +543,20 @@ The gates, in order. Nothing proceeds past a red one.
 7. Needs a bench relay, and cannot be verified otherwise — say so rather than
    claim it: GLV telnet polling (4xx/7xx/3xx), MMS connect and read, and the
    D3 clock fix under a real Fast Message deadline.
+
+### Gate results — 2026-09-04
+
+| # | Gate | Result |
+|---|---|---|
+| 1 | `pytest` | **904** across the three repos (659 `pac-ct`, 228 `selfiles`, 20 `cfbwrite`), plus `ruff` and `mypy` clean in all three, on Python 3.10–3.14 |
+| 2 | Golden SVG | Unchanged — the renderer was never touched after D1; 53 render tests pass against the committed golden |
+| 3 | `SET_D` round-trip | **101 files checked, 0 failures** — `parse(b).serialize() == b` over every `SET_D` in the demo RDB (extracted into the cache first; the tool reads `rdbs/` and `cache/rdb/`, both empty in a clean clone) |
+| 4 | `cfbwrite` self-verification | A **136.3 MB** production RDB from the archive rebuilt in 1.2 s to 35.2 MB; **1008 of 1008 streams byte-identical**, 0 differing, 0 missing, compared independently of the writer's own check. Reproduces the documented compaction result exactly |
+| 5 | The three registries agree | Passes, in `selfiles` — the test moved with the data in Phase 4 |
+| 6 | Manual, all screens | Exercised repeatedly: on Linux from a clone and from an installed bundle, and on Windows from the `win_amd64` bundle both versioned and portable. Eleven screens, `/glv/` 302 to `/glv/novo` and the rest 200 |
+| 7 | Bench relay | **Not done, and cannot be here.** No hardware in this environment |
+
+Gate 7 is the only one outstanding, and it is a hardware limitation rather than
+an open task: GLV telnet polling on 4xx/7xx/3xx, an MMS connect and read, and
+the D3 monotonic-clock fix under a real Fast Message deadline. Everything the
+migration itself touched is verified; what needs a relay needs a relay.
