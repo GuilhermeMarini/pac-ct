@@ -138,6 +138,61 @@ def split_requirements(req: Path) -> tuple[list[str], list[str]]:
     return direct, indexed
 
 
+# A dependency that only exists on Windows is invisible to a build running on
+# Linux. `pip download --platform win_amd64` selects WHEEL TAGS for the target;
+# environment markers are still evaluated against the interpreter doing the
+# downloading, and pip has no flag that changes that. So `telnetlib3`'s
+# `blessed>=1.41; platform_system == "Windows"` was simply never fetched, and
+# the Windows bundle installed fine on the build machine and died on the
+# target -- which is exactly the machine that has no network to recover with.
+WINDOWS_MARKERS = ("platform_system == 'Windows'", 'platform_system == "Windows"',
+                   "sys_platform == 'win32'", 'sys_platform == "win32"')
+
+
+def wheel_name(filename: str) -> str:
+    """The distribution name a wheel filename carries, normalised."""
+    return filename.split("-")[0].replace("_", "-").lower()
+
+
+def requirement_name(spec: str) -> str:
+    """`blessed>=1.41` -> `blessed`; `foo[bar]>=1` -> `foo`."""
+    for sep in ("[", "(", "=", ">", "<", "!", "~", " "):
+        spec = spec.split(sep, 1)[0]
+    return spec.strip().replace("_", "-").lower()
+
+
+def windows_only_requirements(vendor: Path) -> set[str]:
+    """Requirements the downloaded wheels declare for Windows and nothing else.
+
+    Read from each wheel's own METADATA rather than from an index, so it needs
+    no network of its own and reports exactly what these artefacts ask for.
+    `extra ==` markers are skipped: an optional extra is not a dependency until
+    somebody asks for it.
+    """
+    wanted: set[str] = set()
+    for whl in sorted(vendor.glob("*.whl")):
+        try:
+            with zipfile.ZipFile(whl) as z:
+                metas = [n for n in z.namelist()
+                         if n.endswith(".dist-info/METADATA")]
+                for meta in metas:
+                    text = z.read(meta).decode("utf-8", "replace")
+                    for line in text.splitlines():
+                        if not line.startswith("Requires-Dist:"):
+                            continue
+                        req = line.split(":", 1)[1].strip()
+                        if ";" not in req:
+                            continue
+                        spec, marker = req.split(";", 1)
+                        if "extra" in marker:
+                            continue
+                        if any(m in marker for m in WINDOWS_MARKERS):
+                            wanted.add(spec.strip())
+        except (OSError, zipfile.BadZipFile):
+            continue
+    return wanted
+
+
 def build_vendor(dest: Path, *, windows: bool, python_version: str) -> list[str]:
     """Fill `dest/vendor/` with a wheel for every dependency."""
     vendor = dest / "vendor"
@@ -167,6 +222,30 @@ def build_vendor(dest: Path, *, windows: bool, python_version: str) -> list[str]
             subprocess.check_call(cmd)
         finally:
             tmp.unlink(missing_ok=True)
+
+    if windows:
+        # ... and then whatever those wheels declare for Windows alone, to a
+        # fixed point: `blessed` pulls `jinxed` on Windows, which may pull
+        # more. Bounded, because a resolver loop here would hang a build.
+        for _ in range(5):
+            present = {wheel_name(p.name) for p in vendor.glob("*.whl")}
+            missing = sorted(r for r in windows_only_requirements(vendor)
+                             if requirement_name(r) not in present)
+            if not missing:
+                break
+            print(f"[INFO] dependencias so-Windows ausentes: {', '.join(missing)}")
+            # Deliberately NOT --no-deps: a Windows-only package drags its
+            # own subtree, and that subtree is invisible to the main pass too.
+            # `blessed` requires `jinxed` with no marker at all, so nothing
+            # here would ever ask for it -- pip has to resolve it.
+            subprocess.check_call(
+                [sys.executable, "-m", "pip", "download", "--pre",
+                 "--only-binary=:all:", "--platform", "win_amd64",
+                 "--python-version", python_version, "-d", str(vendor),
+                 *missing])
+        else:
+            raise SystemExit(
+                "[ERRO] As dependencias so-Windows nao fecharam em 5 rodadas.")
 
     return sorted(p.name for p in vendor.iterdir() if p.is_file())
 

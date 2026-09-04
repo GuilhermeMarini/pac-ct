@@ -503,11 +503,22 @@ there, because the shim takes the backport path instead of the stdlib one.
 Three tests now keep the matrix, `requires-python` and the classifiers from
 drifting apart, including one that refuses a *hole* in the matrix.
 
-The one part that cannot be verified here: the Windows half — the `mklink /J`
-junction, `pac-ct.cmd`, and a venv built from `win_amd64` wheels — has been
-written against the documented behaviour and reviewed, but there is no Windows
-machine in this environment. It needs one pass on Windows before 1.4.0 is
-tagged.
+**The Windows half is now verified on Windows**, and it found a real defect
+that no amount of review would have: `pip download --platform win_amd64`
+selects wheel tags but evaluates environment markers against the *building*
+interpreter, so `telnetlib3`'s `blessed>=1.41; platform_system == "Windows"`
+was silently absent from every Windows bundle. It installed fine on Linux and
+failed on Windows with `No matching distribution found for blessed` — on the
+one machine that has no network to recover with. The build now sweeps the
+downloaded wheels' own metadata for Windows-marked requirements and fetches
+them to a fixed point; three rounds, 9 wheels to 12 (`blessed`, `jinxed`,
+`ansicon`).
+
+With that fixed, measured on Windows with Python 3.14.2: offline install of
+all 12 wheels with no index, `current` created as a real `<JUNCTION>` by
+`mklink /J`, the launcher resolving through it, all eleven screens answering,
+and a swap plus rollback with `userdata/config/config.ini` byte-identical
+throughout. Nothing in Phase 5 is unverified now.
 
 ---
 

@@ -223,3 +223,56 @@ def test_a_direct_reference_with_no_wheel_fails_the_build(tmp_path):
         encoding="utf-8")
     with pytest.raises(SystemExit):
         mod.pin_direct_references(stage, ["olefile-0.47-py2.py3-none-any.whl"])
+
+
+def _wheel_with_metadata(path: Path, name: str, version: str, requires: list[str]):
+    """A minimal wheel carrying just the Requires-Dist lines under test."""
+    whl = path / f"{name}-{version}-py3-none-any.whl"
+    meta = "\n".join(["Metadata-Version: 2.1", f"Name: {name}",
+                      f"Version: {version}", *requires]) + "\n"
+    with zipfile.ZipFile(whl, "w") as z:
+        z.writestr(f"{name}-{version}.dist-info/METADATA", meta)
+    return whl
+
+
+def test_a_windows_only_dependency_is_found_in_the_wheels_own_metadata(tmp_path):
+    """`pip download --platform win_amd64` selects wheel TAGS for the target;
+    environment markers are still evaluated against the interpreter doing the
+    downloading, and pip has no flag that changes that.
+
+    Measured, not theorised: `telnetlib3` declares
+    `blessed>=1.41; platform_system == "Windows"`, so a Windows bundle built on
+    Linux shipped without `blessed`. It installed perfectly on the build
+    machine and died on a real Windows box with `No matching distribution
+    found for blessed` -- on the one machine that has no network to recover
+    with. An `extra ==` marker is deliberately NOT followed: an optional extra
+    is not a dependency until somebody asks for it.
+    """
+    mod = _build_module()
+    vendor = tmp_path / "vendor"
+    vendor.mkdir()
+    _wheel_with_metadata(vendor, "telnetlib3", "5.0.0", [
+        'Requires-Dist: blessed>=1.41; platform_system == \'Windows\'',
+        "Requires-Dist: wcwidth>=0.6.0",
+        "Requires-Dist: prettytable; extra == 'extras'",
+        'Requires-Dist: pywin32; sys_platform == "win32"',
+    ])
+    found = mod.windows_only_requirements(vendor)
+    assert found == {"blessed>=1.41", "pywin32"}, found
+
+
+def test_the_windows_sweep_knows_what_is_already_there(tmp_path):
+    """The fixed point is what matters: `blessed` pulls `jinxed`, which pulls
+    `ansicon`. Measured on the real bundle -- three rounds, 9 wheels to 12."""
+    mod = _build_module()
+    vendor = tmp_path / "vendor"
+    vendor.mkdir()
+    _wheel_with_metadata(vendor, "blessed", "1.49.0", [
+        "Requires-Dist: jinxed>=2.1,<3",
+    ])
+    # `jinxed` carries no marker at all, so the marker sweep must NOT be what
+    # finds it -- pip resolving the subtree is (hence no --no-deps there).
+    assert mod.windows_only_requirements(vendor) == set()
+    assert mod.wheel_name("et_xmlfile-2.0.0-py3-none-any.whl") == "et-xmlfile"
+    assert mod.requirement_name("blessed>=1.41") == "blessed"
+    assert mod.requirement_name("foo[bar]>=1,<2") == "foo"
