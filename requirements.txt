@@ -22,7 +22,9 @@ cfbwrite>=1.0
 # cfbwrite -- which it depends on, so it was published second. It was
 # called `selfiles` for 1.x; 2.0.0 is the same library under the name
 # `SELlib`, and the import moved with it (`import sellib`). The old
-# distribution stays on PyPI at 1.1.1 and is not maintained.
+# distribution was deleted from PyPI, so `selfiles` resolves to nothing
+# at all -- an older checkout of this file fails at pip rather than
+# booting on a version from before the rename.
 SELlib>=2.0.0
 openpyxl>=3.1
 # py61850 (the GLV's MMS transport). Until 2026-08-31 this was a commit pin
