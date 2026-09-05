@@ -11,6 +11,7 @@ other tool already guards its own state.
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -37,6 +38,11 @@ SCD_MAX_BYTES = 200 * 1024 * 1024
 
 _EXTENSIONS = {".rdb": KIND_RDB, ".scd": KIND_SCD, ".xml": KIND_SCD}
 
+# C0 and DEL. CR and LF are the two that matter -- they reach a response
+# header -- and the rest are dropped with them because none of them is a
+# character in anyone's filename.
+_CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
+
 
 def kind_for(filename: str) -> str | None:
     """The file's kind, by extension. None means it is not a project file."""
@@ -45,6 +51,33 @@ def kind_for(filename: str) -> str | None:
 
 def max_bytes_for(kind: str) -> int:
     return RDB_MAX_BYTES if kind == KIND_RDB else SCD_MAX_BYTES
+
+
+def display_name_for(raw: str, fallback: str) -> str:
+    """The name to SHOW for a file, which is not the name to store it under.
+
+    A file is stored under its sha256 (`path_for`), so the name it arrived
+    with is only ever displayed, logged, or put in a `Content-Disposition`.
+    That is why this keeps the accents: `subestação.scd` used to go through
+    `selfiles`' `rdb.sanitize_name`, whose allowlist is `[^A-Za-z0-9._\\- ]`,
+    and reached every screen as `subesta__o.scd` -- while `/files/download`
+    encoded it RFC 5987 *because these names carry accents*, with none left
+    to carry. That function is right where it is still used: `dnp_map/export`
+    builds a real filesystem path with it.
+
+    What is dropped is what is not part of a name. `X-Filename` carries
+    whatever the client put in it, and the name does not stop at the screen:
+    the VB Updater derives its output filename from the SCD's
+    (`scd_label`). So a directory goes -- backslash included, which is not a
+    separator here but is what a Windows browser used to prepend -- and so do
+    the control characters, which have no business in a header or a log line.
+    `fallback` covers what that leaves empty, `"."` among it: `Path(".").name`
+    is empty and `with_name` on it raises.
+    """
+    name = (raw or "").strip().replace("\\", "/").rsplit("/", 1)[-1]
+    name = _CONTROL_CHARS.sub("", name).strip()
+    return name if Path(name).name else fallback
+
 
 
 def path_for(files_dir: Path, sha256: str, suffix: str = ".scd") -> Path:

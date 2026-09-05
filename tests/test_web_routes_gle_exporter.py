@@ -9,6 +9,8 @@ session's own directories and must NOT reach the shared RDB cache.
 
 from __future__ import annotations
 
+from urllib.parse import quote, unquote
+
 from pacct.web.gle_exporter import build_gle_exporter_handler
 from pacct.web.project_files import library as filelib
 from tests import gle_fixtures as fx
@@ -164,3 +166,18 @@ def test_download_hands_back_a_file_the_tool_itself_produced(tmp_path):
     assert r.status == 200
     assert r.body[:2] == b"PK"          # an xlsx is a zip
     assert "attachment;" in r.headers["content-disposition"]
+
+
+def test_download_names_an_accented_file_with_rfc_5987(tmp_path):
+    """Same defect and same fix as the VB Updater's `/download`: the plain
+    `filename="..."` header is encoded latin-1 strict by
+    `http.server.send_header`, and the spreadsheet's name is built from the
+    RDB's display name."""
+    h, _ = _harness(tmp_path)
+    out = h.session.subdir("gle-exporter-xlsx")
+    name = "subestação–1_gle_comments.xlsx"        # en-dash: not latin-1
+    (out / name).write_bytes(b"PK\x03\x04")
+    r = h.get("/download?file=" + quote(str(out / name), safe=""))
+    assert r.status == 200
+    disp = r.headers["content-disposition"]
+    assert unquote(disp.split("UTF-8''", 1)[1]) == name

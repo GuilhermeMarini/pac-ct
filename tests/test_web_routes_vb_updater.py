@@ -10,6 +10,8 @@ XML to fit); what is driven here is the refusals in front of it.
 
 from __future__ import annotations
 
+from urllib.parse import quote, unquote
+
 from pacct.web.project_files import library as filelib
 from pacct.web.vb_updater import build_vb_updater_handler
 from tests import gle_fixtures as fx
@@ -213,3 +215,23 @@ def test_exporting_descriptions_produces_a_spreadsheet(tmp_path):
 def test_download_is_sandboxed_to_the_sessions_own_directories(tmp_path):
     h, _, _ = _harness(tmp_path)
     assert h.get("/download?file=/etc/passwd").status == 403
+
+
+def test_download_names_an_accented_file_with_rfc_5987(tmp_path):
+    """The name of the file this tool WRITES comes from the SCD's display
+    name (`scd_label`), which carries accents now that the library no longer
+    strips them. The header used to be a plain `filename="..."`, and
+    `http.server.send_header` encodes latin-1 strict: an en-dash in the
+    substation's name -- or any character outside latin-1 -- raised
+    `UnicodeEncodeError` in the middle of the response, after the status line
+    had gone out. `dnp_map`, the GLV and Arquivos do Projeto already answered
+    in RFC 5987; these two were behind `sanitize_name` and never converted.
+    """
+    h, _, _ = _harness(tmp_path)
+    out = h.session.subdir("vb-updater-out")
+    name = "subestação–1_comments_updated.scd"     # en-dash: not latin-1
+    (out / name).write_bytes(b"<SCL/>")
+    r = h.get("/download?file=" + quote(str(out / name), safe=""))
+    assert r.status == 200
+    disp = r.headers["content-disposition"]
+    assert unquote(disp.split("UTF-8''", 1)[1]) == name

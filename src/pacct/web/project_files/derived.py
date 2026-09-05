@@ -133,7 +133,7 @@ def _scd_entry(data: bytes, name: str, sha: str, origin: str, session):
     base = f"{len(ieds)} IED(s)" if ieds else ""
     return library.FileEntry(
         sha256=sha, kind=library.KIND_SCD,
-        display_name=rdb_loader.sanitize_name(name) or "arquivo.scd",
+        display_name=library.display_name_for(name, "arquivo.scd"),
         size=len(data), detail=base, path=target,
         origin=origin,
     )
@@ -146,6 +146,6 @@ def _plain_entry(data: bytes, name: str, sha: str, origin: str, session,
     target.write_bytes(data)
     return library.FileEntry(
         sha256=sha, kind=kind,
-        display_name=rdb_loader.sanitize_name(name) or f"arquivo{suffix}",
+        display_name=library.display_name_for(name, f"arquivo{suffix}"),
         size=len(data), detail="", path=target, origin=origin,
     )

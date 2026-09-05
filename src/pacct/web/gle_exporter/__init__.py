@@ -743,9 +743,14 @@ def build_gle_exporter_handler(logger: logging.Logger, sessions) -> type:
                 self.send_response(200)
                 self.send_header("Content-Type", ctype)
                 self.send_header("Content-Length", str(len(data)))
+                # RFC 5987, not a plain `filename="..."`: this name is
+                # derived from the source file's DISPLAY name, which carries
+                # accents, and `send_header` encodes latin-1 strict -- an
+                # en-dash in it raised `UnicodeEncodeError` halfway through
+                # the response. Same header as `project_files` and the GLV.
                 self.send_header(
                     "Content-Disposition",
-                    f'attachment; filename="{target.name}"',
+                    "attachment; filename*=UTF-8''" + quote(target.name, safe=""),
                 )
                 self.end_headers()
                 self.wfile.write(data)

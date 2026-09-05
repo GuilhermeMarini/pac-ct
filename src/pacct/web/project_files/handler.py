@@ -272,7 +272,7 @@ def build_project_files_handler(logger: logging.Logger, sessions) -> type:
 
             return library.FileEntry(
                 sha256=sha, kind=library.KIND_SCD,
-                display_name=rdb_loader.sanitize_name(filename) or "arquivo.scd",
+                display_name=library.display_name_for(filename, "arquivo.scd"),
                 size=length, detail=f"{len(ieds)} IED(s)", path=target,
             ), sha
 

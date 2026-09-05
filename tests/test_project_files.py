@@ -40,6 +40,40 @@ def test_each_kind_has_its_own_ceiling():
     assert library.max_bytes_for(library.KIND_SCD) == 200 * 1024 * 1024
 
 
+# -- the name to SHOW -------------------------------------------------------
+
+def test_a_display_name_keeps_its_accents():
+    """The whole point of the function: `subestacao` is not what the user
+    typed, and the library has no reason to insist on ASCII -- it stores a
+    file under its sha256, never under its name."""
+    assert library.display_name_for("subestação.scd", "x.scd") == "subestação.scd"
+    assert library.display_name_for("SE Jaguará R0a.rdb", "x.rdb") == "SE Jaguará R0a.rdb"
+
+
+def test_a_display_name_is_a_name_and_never_a_path():
+    """`X-Filename` carries whatever the client put in it, and the name
+    reaches an output filename in the VB Updater (`scd_label`). Both
+    separators go, backslash included: it is not a path component on this
+    side, it is what a Windows browser used to prepend."""
+    assert library.display_name_for("../../etc/passwd.scd", "x.scd") == "passwd.scd"
+    assert library.display_name_for("C:\\fakepath\\sub.scd", "x.scd") == "sub.scd"
+
+
+def test_a_display_name_carries_no_control_character():
+    """CR and LF reach a `Content-Disposition`. RFC 5987 percent-encodes them
+    and `dnp_map` strips them again on the way out, so this is the third of
+    three -- and the one that keeps them out of the log lines too."""
+    assert library.display_name_for("sub\r\nestação.scd", "x.scd") == "subestação.scd"
+    assert library.display_name_for("sub\x00.scd", "x.scd") == "sub.scd"
+
+
+def test_a_name_with_nothing_left_in_it_falls_back():
+    """`.` in particular: `Path(".").name` is empty, and `with_name` on it
+    raises -- which is what the VB Updater does to build an output name."""
+    for raw in ("", "   ", "/", ".", "\x00"):
+        assert library.display_name_for(raw, "arquivo.scd") == "arquivo.scd"
+
+
 # -- dedup ------------------------------------------------------------------
 
 def test_the_same_content_twice_is_one_entry():

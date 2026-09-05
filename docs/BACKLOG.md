@@ -14,6 +14,8 @@ Every number here was measured on 2026-09-05, not carried over from the review.
 
 **Nothing in this list is load-bearing.** The tree is in a finished state.
 
+Item 1 has since been done, and doing it corrected two things this file asserted about it — see the item.
+
 ---
 
 ## Status of the REVIEW.md findings
@@ -30,36 +32,48 @@ Every number here was measured on 2026-09-05, not carried over from the review.
 
 ---
 
-## 1. `sanitize_name` strips the accents off a display name
+## 1. `sanitize_name` strips the accents off a display name — **done**
 
-**Repo:** `pac-ct`. **Size:** ~20 minutes.
+**Repo:** `pac-ct`. Done on branch `accented-display-names`; the SCD and the
+generated files keep their accents, the RDB does not yet (see below).
 
-A file's name goes through `selfiles`' `rdb.sanitize_name` on the way into the
+A file's name went through `selfiles`' `rdb.sanitize_name` on the way into the
 project library. Its allowlist is `[^A-Za-z0-9._\- ]` — ASCII — so
-`subestação.scd` is stored and shown as `subesta__o.scd`.
+`subestação.scd` was stored and shown as `subesta__o.scd`, while
+`/files/download` built its `Content-Disposition` with RFC 5987
+`filename*=UTF-8''` *because these names carry accents*, with none left to
+carry.
 
-That function serves two purposes and only one of them wants ASCII. Two
-callers build a **filesystem path** (`rdb.py`'s extraction directory,
-`dnp_map/export.py`'s output file) where the conservatism is right. Three use
-it for a **display name**, and there it is only damage:
+The three display call sites now use `project_files.library.display_name_for()`,
+which keeps the accents and drops only what is not part of a name: a directory
+(backslash included — a Windows browser used to prepend one), the control
+characters, and a name that is empty or `.` once those are gone.
 
-- `src/pacct/web/project_files/handler.py:275`
-- `src/pacct/web/project_files/derived.py:136`
-- `src/pacct/web/project_files/derived.py:149`
+**Two things this item said were not true, and one of them mattered:**
 
-The irony: `/files/download` builds its `Content-Disposition` with RFC 5987
-`filename*=UTF-8''` *because these names carry accents*, and by then there are
-none left to carry.
+- *"Nothing keys off `display_name`."* The VB Updater sets
+  `st.scd_name = chosen.display_name` and derives three output **filenames**
+  from it (`_comments_updated`, `_descriptions.xlsx`,
+  `_descriptions_imported`). All three apply `.name`, so there was no
+  traversal — but `vb_updater:1032` and `gle_exporter:748` then served those
+  files with a plain `filename="{target.name}"`, and
+  `http.server.send_header` encodes **latin-1, strict**. Accents survive
+  latin-1; an en-dash does not, and raised `UnicodeEncodeError` after the
+  status line had gone out. Both are RFC 5987 now, which is what made the rest
+  of the change safe. `dnp_map`, the GLV and Arquivos do Projeto already were.
+- *"`rdb.py`'s extraction directory"* builds a path with `sanitize_name`. It
+  does not — the extraction directory is sha-derived. `sanitize_name`'s only
+  remaining path caller is `dnp_map/export.py:130`, where it is right.
 
-**The fix** is to stop calling it on those three lines. Nothing keys off
-`display_name` — the library dedups by sha256 — so it is safe. The current
-behaviour is pinned in
-`tests/test_web_routes_project_files.py::test_an_accented_upload_name_reaches_the_library_stripped`,
-which has to be inverted in the same commit.
-
-**Recommended.** Small, safe, and visible to every user on every upload.
-
----
+**What is left: the RDB's display name, which is stripped inside `selfiles`.**
+`rdb._safe_rdb_name` runs `sanitize_name` and the result is used in exactly two
+places — `meta.json`'s `first_name` ("for human inspection only") and
+`RdbInfo.display_name`. Neither is a path. So the app's *primary* file type
+still shows as `subesta__o.rdb`, for the same non-reason, and three more
+derived filenames come off it (`vb_updater:1113`, `gle_exporter:844`,
+`dnp_map/handler.py:649` — all `.name`/`.stem`-guarded, all now behind an RFC
+5987 header). Fixing it is a `selfiles` change and therefore the full release
+chain for a cosmetic win, which is the only reason it was not done here.
 
 ## 2. `NEG` is declared by nothing and drawn by nothing
 

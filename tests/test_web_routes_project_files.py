@@ -13,6 +13,7 @@ is covered as a unit in `test_project_files.py`.
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.parse import unquote
 
 from pacct.web.project_files import library as filelib
 from pacct.web.project_files.handler import build_project_files_handler
@@ -158,23 +159,38 @@ def test_download_names_the_file_with_rfc_5987(tmp_path):
     assert "SE%20Jaguar%20R0a.scd" in disp
 
 
-def test_an_accented_upload_name_reaches_the_library_stripped(tmp_path):
-    """Current behaviour, pinned because it is WRONG and cheap to regress into
-    silently either way.
+def test_an_accented_upload_name_keeps_its_accents(tmp_path):
+    """`subestação.scd` is shown as `subestação.scd`.
 
-    `_build_scd_entry` runs the upload's name through `selfiles`'
-    `rdb.sanitize_name`, whose allowlist is `[^A-Za-z0-9._\\- ]` -- ASCII
-    only. That is the right rule for the two callers that build a filesystem
-    path (`rdb.py`'s extraction directory, `dnp_map/export.py`'s output file)
-    and the wrong one for a DISPLAY name: `subestação.scd` reaches the screen
-    as `subesta__o.scd`, and the RFC 5987 encoding two tests up then has no
-    accent left to carry. Nothing keys off `display_name` -- the library
-    dedups by sha256 -- so the fix is for the display path to stop calling
-    `sanitize_name`, not for `sanitize_name` to change.
+    It used to reach the library as `subesta__o.scd`: the entry's name went
+    through `selfiles`' `rdb.sanitize_name`, whose allowlist is
+    `[^A-Za-z0-9._\\- ]` -- ASCII only. That is the right rule for the one
+    caller building a FILESYSTEM path (`dnp_map/export.py`) and the wrong one
+    for a name that is only ever shown: the RFC 5987 `filename*=UTF-8''`
+    header two tests up exists *because* these names carry accents, and by
+    then there were none left to carry.
     """
     h = _harness(tmp_path)
     entry = _upload(h, _SCD_BYTES, "subestação.scd").json()["entry"]
-    assert entry["name"] == "subesta__o.scd"
+    assert entry["name"] == "subestação.scd"
+
+
+def test_an_accented_name_survives_the_round_trip_to_the_download_header(tmp_path):
+    """Upload to `Content-Disposition` and back, which is the trip the
+    stripping used to make pointless."""
+    h = _harness(tmp_path)
+    sha = _upload(h, _SCD_BYTES, "subestação.scd").json()["entry"]["sha256"]
+    disp = h.get(f"/download?sha256={sha}").headers["content-disposition"]
+    assert unquote(disp.split("UTF-8''", 1)[1]) == "subestação.scd"
+
+
+def test_an_upload_name_that_is_a_path_is_stored_as_a_name(tmp_path):
+    """The name is not sanitized any more; it is still a NAME. `X-Filename`
+    carries whatever the client put in it, and this one goes on to build an
+    output filename in the VB Updater."""
+    h = _harness(tmp_path)
+    entry = _upload(h, _SCD_BYTES, "../../etc/subestação.scd").json()["entry"]
+    assert entry["name"] == "subestação.scd"
 
 
 def test_downloading_something_the_project_does_not_have_is_404(tmp_path):
