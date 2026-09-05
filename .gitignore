@@ -60,7 +60,18 @@ fixtures/DNP Profiles/
 # e' o unico SCD que os testes (e as medicoes do mapa MMS) tem sempre em maos.
 # Sem esta negacao o `*.scd` acima escondia um arquivo JA RASTREADO, e um
 # `git add -A` depois de edita-lo nao levava a mudanca junto.
-!samples/*.scd
+#
+# Nomeado, e nao `!samples/*.scd`. O curinga negava o ignore para QUALQUER .scd
+# largado em samples/, e foi assim que um SCD nao anonimizado (nomes reais de
+# IED, enderecamento 10.165.77.x) entrou num `git add -A` e foi publicado no
+# repositorio publico. A negacao existe pra UM arquivo; ela nomeia esse arquivo.
+!samples/substation_demo.scd
+
+# Ajustes de rele exportados pelo software do fabricante. Um .urs do GE UR
+# Setup traz o codigo de encomenda, o firmware e os 16.111 ajustes de um vao
+# real -- mesma regra dos ICD acima, e nao havia nenhuma que o pegasse.
+*.urs
+*.URS
 
 # Bundles gerados (Fase 5). O manifesto e' versionado; os .zip nao.
 dist/*
