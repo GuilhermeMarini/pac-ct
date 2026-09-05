@@ -338,6 +338,44 @@ def test_a_generated_scd_enters_the_library_with_its_origin(tmp_path):
     assert library.library_for(mgr, sess).list(library.KIND_SCD) == [entry]
 
 
+def test_a_generated_rdb_enters_the_library_with_its_accents(tmp_path,
+                                                             monkeypatch):
+    """`RdbInfo.display_name` arrives sanitized -- `selfiles` builds it with
+    `_safe_rdb_name`, the same string it records in the cache's `meta.json`,
+    where staying ASCII is its own business. What THIS project shows is
+    pac-ct's decision, and the RDB is the file type it shows most.
+
+    The assert on `entry.rdb` is the point: five screens read the name off the
+    `RdbInfo` rather than off the library entry (`glv/handler.py:184`,
+    `settings_compare:131`, `vb_updater:1113`, `gle_exporter:844`,
+    `dnp_map/handler.py:649`), and two of those build an output filename with
+    it.
+    """
+    from selfiles.rdb import RdbInfo
+
+    from pacct.web.project_files import derived
+
+    mgr, sess = _session(tmp_path)
+    src = tmp_path / "subestação_dnp_updated.rdb"
+    src.write_bytes(b"nao e um OLE de verdade")
+
+    def fake_process_upload(data, filename, **kw):
+        # What selfiles really answers, sanitized name and all. Patched
+        # because the real one writes into the process-wide content cache
+        # rather than into a tmp_path.
+        return RdbInfo(rdb_path=tmp_path / "source.rdb", extract_dir=tmp_path,
+                       sha256="d" * 64, reused=False, relays=[],
+                       display_name="subesta__o_dnp_updated.rdb")
+
+    monkeypatch.setattr(derived.rdb_loader, "process_upload",
+                        fake_process_upload)
+
+    entry, _, err = derived.adopt(mgr, sess, src, origin="DNP Map Editor")
+    assert err == ""
+    assert entry.display_name == "subestação_dnp_updated.rdb"
+    assert entry.rdb.display_name == "subestação_dnp_updated.rdb"
+
+
 def test_adopting_the_same_output_twice_is_one_entry(tmp_path):
     from pacct.web.project_files import derived
 

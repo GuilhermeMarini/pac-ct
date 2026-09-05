@@ -211,6 +211,11 @@ def build_project_files_handler(logger: logging.Logger, sessions) -> type:
                 job.fail(str(e))
                 self._send_json(400, {"ok": False, "error": f"RDB inválido: {e}"})
                 return None
+            # The name to SHOW, over the one `selfiles` sanitized -- on the
+            # `RdbInfo`, because five screens read it from there rather than
+            # from the entry. See `derived._rdb_entry`.
+            info.display_name = library.display_name_for(filename,
+                                                         "arquivo.rdb")
             return library.FileEntry(
                 sha256=info.sha256, kind=library.KIND_RDB,
                 display_name=info.display_name, size=length,

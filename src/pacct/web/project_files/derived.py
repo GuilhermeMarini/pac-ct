@@ -112,6 +112,14 @@ def adopt(sessions, session, path, *, origin: str,
 
 def _rdb_entry(data: bytes, name: str, sha: str, origin: str):
     info = rdb_loader.process_upload(data, name)
+    # The name to SHOW, over the one `selfiles` sanitized. It goes on the
+    # `RdbInfo` and not only on the entry because five screens read it from
+    # there (`glv/handler.py:184`, `settings_compare:131`, `vb_updater:1113`,
+    # `gle_exporter:844`, `dnp_map/handler.py:649`) -- and the field is
+    # documented as "the name THIS upload carried", which is exactly what
+    # this is. What `selfiles` keeps is the cache's own record in
+    # `meta.json`, which no screen reads.
+    info.display_name = library.display_name_for(name, "arquivo.rdb")
     return library.FileEntry(
         sha256=sha, kind=library.KIND_RDB, display_name=info.display_name,
         size=len(data), detail=f"{len(info.relays)} IED(s)",

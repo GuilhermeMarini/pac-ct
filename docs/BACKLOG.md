@@ -34,8 +34,8 @@ Item 1 has since been done, and doing it corrected two things this file asserted
 
 ## 1. `sanitize_name` strips the accents off a display name — **done**
 
-**Repo:** `pac-ct`. Done on branch `accented-display-names`; the SCD and the
-generated files keep their accents, the RDB does not yet (see below).
+**Repo:** `pac-ct`, and only `pac-ct` — every file type keeps its accents
+now, the RDB included, without a `selfiles` release.
 
 A file's name went through `selfiles`' `rdb.sanitize_name` on the way into the
 project library. Its allowlist is `[^A-Za-z0-9._\- ]` — ASCII — so
@@ -65,15 +65,19 @@ characters, and a name that is empty or `.` once those are gone.
   does not — the extraction directory is sha-derived. `sanitize_name`'s only
   remaining path caller is `dnp_map/export.py:130`, where it is right.
 
-**What is left: the RDB's display name, which is stripped inside `selfiles`.**
-`rdb._safe_rdb_name` runs `sanitize_name` and the result is used in exactly two
-places — `meta.json`'s `first_name` ("for human inspection only") and
-`RdbInfo.display_name`. Neither is a path. So the app's *primary* file type
-still shows as `subesta__o.rdb`, for the same non-reason, and three more
-derived filenames come off it (`vb_updater:1113`, `gle_exporter:844`,
-`dnp_map/handler.py:649` — all `.name`/`.stem`-guarded, all now behind an RFC
-5987 header). Fixing it is a `selfiles` change and therefore the full release
-chain for a cosmetic win, which is the only reason it was not done here.
+**The RDB's display name went with it, and it needed no `selfiles` release.**
+`rdb._safe_rdb_name` still sanitizes — that string is the cache's own record
+in `meta.json`'s `first_name`, where staying ASCII is its own business, and it
+is not a path either way. What changed is that pac-ct now overwrites
+`RdbInfo.display_name` at the two places it builds an RDB entry
+(`handler.py:_build_rdb_entry`, `derived.py:_rdb_entry`), which is legitimate:
+`RdbInfo` is a plain dataclass, it is rebuilt by every `process_upload` call
+rather than cached, and the field is documented as "the name THIS upload
+carried". Setting it there rather than only on the `FileEntry` is what reaches
+the five screens that read the name off the `RdbInfo` — `glv/handler.py:184`,
+`settings_compare:131`, `vb_updater:1113`, `gle_exporter:844` and
+`dnp_map/handler.py:649`, the last two of which build an output filename with
+it.
 
 ## 2. `NEG` is declared by nothing and drawn by nothing
 

@@ -193,6 +193,32 @@ def test_an_upload_name_that_is_a_path_is_stored_as_a_name(tmp_path):
     assert entry["name"] == "subestação.scd"
 
 
+def test_an_uploaded_rdb_keeps_its_accents(tmp_path, monkeypatch):
+    """The RDB is the upload this app sees most, and its name was stripped a
+    layer further in than the SCD's: `selfiles` sanitizes it inside
+    `process_upload_stream`. The name it hands back is the cache's business;
+    the one this project shows is not.
+    """
+    from selfiles.rdb import RdbInfo
+
+    from pacct.web.project_files import handler as files_handler
+
+    def fake_stream(source, length, filename, **kw):
+        source.read(length)               # the route hands over `rfile`
+        return RdbInfo(rdb_path=tmp_path / "source.rdb", extract_dir=tmp_path,
+                       sha256="e" * 64, reused=False, relays=[],
+                       display_name="subesta__o.rdb")
+
+    monkeypatch.setattr(files_handler.rdb_loader, "process_upload_stream",
+                        fake_stream)
+    h = _harness(tmp_path)
+    entry = _upload(h, b"nao e um OLE de verdade",
+                    "subestação.rdb").json()["entry"]
+    assert entry["name"] == "subestação.rdb"
+    with h.session.lock:
+        assert h.library().get(entry["sha256"]).rdb.display_name == "subestação.rdb"
+
+
 def test_downloading_something_the_project_does_not_have_is_404(tmp_path):
     assert _harness(tmp_path).get("/download?sha256=" + "f" * 64).status == 404
 
