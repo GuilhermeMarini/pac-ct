@@ -14,7 +14,12 @@ Every number here was measured on 2026-09-05, not carried over from the review.
 
 **Nothing in this list is load-bearing.** The tree is in a finished state.
 
-Item 1 has since been done, and doing it corrected two things this file asserted about it — see the item.
+Amended since it was written: item 1 is **done**, and doing it corrected two
+things this file had asserted about it. Item 9 is new here — S4 was recorded
+in the table below as open but never became an item, so a reading of "the
+eight items" missed it. S6, S7 and the L1–L3 extractions were in neither the
+table nor the items and are now in the table, all resolved. The last section
+records a check that only a machine with the archive can run.
 
 ---
 
@@ -24,11 +29,17 @@ Item 1 has since been done, and doing it corrected two things this file asserted
 |---|---|---|
 | D1–D5 | defects | **fixed** before the migration |
 | E1 | SCD parsed three times | **fixed** — `selfiles.scl.read.ScdDocument`, 1406 ms → 682 ms on a 22 MB SCD |
+| E2 | `element_info()` recomputed per element | open, and worth nothing on its own — item 5 |
 | S1 | renderer vs. relay profiles | **half done** — see item 3 |
 | S2 | routes untestable in factory closures | **premise was wrong** — see the note at the end |
-| S4 | `session.py` ↔ `mount.py` cycle | still open, untouched, and small |
+| S3 | three tools never got the package split | open, deliberately opportunistic — item 4 |
+| S4 | `session.py` ↔ `mount.py` cycle | open, and the smallest thing here — item 9 |
+| S5 | three registries, three loaders | open, and **should stay open** — item 6 |
+| S6 | `pacct.paths` blocks library extraction | **resolved by the extraction itself** — neither library imports `pacct`, and `pacct/__init__._configure_selfiles()` is the inversion S6 asked for |
+| S7 | stale names in code | **fixed** — no `SELProtoPy` outside the vendored `selprotopy/`, no `examples/relay_models` in any docstring, `__version__` reads the `VERSION` file |
 | S8 | mypy backlog | **fixed** — `mypy.ini` silences no package; the whole of `src/pacct` is clean |
 | G1 | sample files carry a substation's identity | resolved by the migration (the public repo ships neither) |
+| L1–L3 | what should become a library | **done** for L1 and L2 (`cfbwrite`, `selfiles`, both on PyPI); L3 (`sclread`) stayed deferred and lives on as `selfiles.scl` |
 
 ---
 
@@ -227,6 +238,64 @@ Two things have been added to it since:
 - `cli/runner.py`'s serial branch had a real defect fixed: it read the TCP
   branch's `port` variable. The CLI serial path has never been exercised
   without hardware.
+
+---
+
+## 9. S4 — `session.py` and `mount.py` import each other
+
+**Repo:** `pac-ct`. **Size:** ~30 minutes. **Risk:** low, and fully guarded.
+
+This one was in the table above from the start and never became an item, which
+is how a summary of "the eight items" drops it. It is the smallest piece of
+open work in this file.
+
+`session.py:47` does `from pacct.web.mount import inject_head` at module level;
+`mount.py` imports `build_cookie` from `session.py` **inside** `_dispatch()` to
+break the cycle at runtime. It works, and the function-local import is the
+tell: `inject_head` and what it needs are HTML rendering, not routing.
+
+Measured: the rendering half of `mount.py` is `_PREFIX_SHIM`, `_THEME_PICKER`,
+`_picker_script`, `_resolve_markup`, `inject_head`, the `inject_prefix_shim`
+alias and four regexes — **about 170 of its 527 lines**. Moving them to
+`pacct/web/inject.py` leaves `mount.py` at roughly 350 doing dispatch and
+`serve`, and removes the cycle in both directions.
+
+**It is cheap because almost nothing imports it.** Two importers exist in the
+whole tree — `session.py` (`inject_head`) and `dashboard.py` (`Mount`,
+`serve`) — and no test imports `mount` at all. The move is still covered:
+`inject_head`'s markup resolution runs for real in every harness-driven route
+test (`tests/web_harness.py` says so deliberately), and `mypy` reads the whole
+of `src/pacct`.
+
+**Recommended**, with the caveat that it buys the reader something and the
+user nothing.
+
+---
+
+## A check that only a machine with the archive can run
+
+Not a task, and not a defect — a verification that CI structurally cannot do,
+recorded so it is not forgotten at the next `selfiles` release.
+
+`selfiles`' suite has exactly one skipped test:
+
+```
+tests/test_mms_tables.py:133  ICD corpus unavailable; set SELFILES_ICD_FIXTURES
+```
+
+It checks all ten shipped MMS tables, bit by bit, against the factory ICD
+source they were generated from. That source is 231 MB of vendor files, is in
+no repository, and lives in the private archive at `fixtures/ICD files/`. So
+the test skips everywhere except a machine that has it:
+
+```
+SELFILES_ICD_FIXTURES=<archive>/fixtures python -m pytest tests/test_mms_tables.py
+42 passed          # instead of the usual 41 passed, 1 skipped
+```
+
+Run and green. It is the only thing that checks the shipped tables against
+their source, so it belongs in the pre-release pass for `selfiles` — the one
+place where "247 passed, 1 skipped" is not the whole answer.
 
 ---
 
