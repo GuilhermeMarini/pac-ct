@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from selfiles.scl.read import sel_short_addresses
+from sellib.scl.read import sel_short_addresses
 
 FIXTURE = Path(__file__).parent / "fixtures" / "saddr_min.scd"
 
@@ -104,7 +104,7 @@ def test_no_bit_of_that_ied_keeps_a_control_da_when_a_status_one_exists():
     at all -- those are the map layer's problem, not the parser's."""
     import xml.etree.ElementTree as ET
 
-    from selfiles.scl.mms_tables import da_rank, parse_saddr
+    from sellib.scl.mms_tables import da_rank, parse_saddr
 
     root = ET.parse(SAMPLE).getroot()
     ied = next(e for e in root.iter()
@@ -141,7 +141,7 @@ def test_the_tools_reuse_the_parser_instead_of_reimplementing_it():
     import sys
 
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
-    from selfiles.scl.mms_tables import norm_part
+    from sellib.scl.mms_tables import norm_part
 
     import _sel61850 as maps
 
@@ -254,7 +254,7 @@ class TestDecoratedAddressesInTheRealScd:
 class TestDaFunctionalConstraints:
 
     def test_it_resolves_the_fc_of_an_instance_da(self):
-        from selfiles.scl.read import sel_da_fcs
+        from sellib.scl.read import sel_da_fcs
         fcs = sel_da_fcs(FIXTURE)["REL_A"]
         assert fcs[("ANN", "PLT1GGIO1", "Ind01", "stVal")] == "ST"
         assert fcs[("ANN", "BKR1CSWI1", "Pos", "stVal")] == "ST"
@@ -262,12 +262,12 @@ class TestDaFunctionalConstraints:
 
     def test_a_control_da_keeps_its_own_fc(self):
         """`Oper` is `CO` on the DOType, and `ctlVal` descends inside it."""
-        from selfiles.scl.read import sel_da_fcs
+        from sellib.scl.read import sel_da_fcs
         fcs = sel_da_fcs(FIXTURE)["REL_A"]
         assert fcs[("ANN", "RBGGIO1", "SPCSO01", "Oper.ctlVal")] == "CO"
 
     def test_an_unresolvable_da_is_absent_rather_than_guessed(self):
-        from selfiles.scl.read import sel_da_fcs
+        from sellib.scl.read import sel_da_fcs
         fcs = sel_da_fcs(FIXTURE)["REL_A"]
         assert ("ANN", "PLT1GGIO1", "Ind01", "naoExiste") not in fcs
 

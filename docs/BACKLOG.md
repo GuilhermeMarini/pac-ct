@@ -2,7 +2,7 @@
 
 Everything the migration and the public release needed is done. This is the
 list of what was deliberately **not** done, why, and what doing it would
-involve. Written 2026-09-05, against `pac-ct` 1.5.1, `selfiles` 1.1.1 and
+involve. Written 2026-09-05, against `pac-ct` 1.5.1, `sellib` 1.1.1 and
 `cfbwrite` 1.0.1 — all three released, all three `main` clean and in sync.
 
 It supersedes the open findings in `REVIEW.md`, which is a historical record
@@ -28,27 +28,27 @@ records a check that only a machine with the archive can run.
 | | | |
 |---|---|---|
 | D1–D5 | defects | **fixed** before the migration |
-| E1 | SCD parsed three times | **fixed** — `selfiles.scl.read.ScdDocument`, 1406 ms → 682 ms on a 22 MB SCD |
+| E1 | SCD parsed three times | **fixed** — `sellib.scl.read.ScdDocument`, 1406 ms → 682 ms on a 22 MB SCD |
 | E2 | `element_info()` recomputed per element | open, and worth nothing on its own — item 5 |
 | S1 | renderer vs. relay profiles | **half done** — see item 3 |
 | S2 | routes untestable in factory closures | **premise was wrong** — see the note at the end |
 | S3 | three tools never got the package split | open, deliberately opportunistic — item 4 |
 | S4 | `session.py` ↔ `mount.py` cycle | open, and the smallest thing here — item 9 |
 | S5 | three registries, three loaders | open, and **should stay open** — item 6 |
-| S6 | `pacct.paths` blocks library extraction | **resolved by the extraction itself** — neither library imports `pacct`, and `pacct/__init__._configure_selfiles()` is the inversion S6 asked for |
+| S6 | `pacct.paths` blocks library extraction | **resolved by the extraction itself** — neither library imports `pacct`, and `pacct/__init__._configure_sellib()` is the inversion S6 asked for |
 | S7 | stale names in code | **fixed** — no `SELProtoPy` outside the vendored `selprotopy/`, no `examples/relay_models` in any docstring, `__version__` reads the `VERSION` file |
 | S8 | mypy backlog | **fixed** — `mypy.ini` silences no package; the whole of `src/pacct` is clean |
 | G1 | sample files carry a substation's identity | resolved by the migration (the public repo ships neither) |
-| L1–L3 | what should become a library | **done** for L1 and L2 (`cfbwrite`, `selfiles`, both on PyPI); L3 (`sclread`) stayed deferred and lives on as `selfiles.scl` |
+| L1–L3 | what should become a library | **done** for L1 and L2 (`cfbwrite`, `sellib`, both on PyPI); L3 (`sclread`) stayed deferred and lives on as `sellib.scl` |
 
 ---
 
 ## 1. `sanitize_name` strips the accents off a display name — **done**
 
 **Repo:** `pac-ct`, and only `pac-ct` — every file type keeps its accents
-now, the RDB included, without a `selfiles` release.
+now, the RDB included, without a `sellib` release.
 
-A file's name went through `selfiles`' `rdb.sanitize_name` on the way into the
+A file's name went through `sellib`' `rdb.sanitize_name` on the way into the
 project library. Its allowlist is `[^A-Za-z0-9._\- ]` — ASCII — so
 `subestação.scd` was stored and shown as `subesta__o.scd`, while
 `/files/download` built its `Content-Disposition` with RFC 5987
@@ -76,7 +76,7 @@ characters, and a name that is empty or `.` once those are gone.
   does not — the extraction directory is sha-derived. `sanitize_name`'s only
   remaining path caller is `dnp_map/export.py:130`, where it is right.
 
-**The RDB's display name went with it, and it needed no `selfiles` release.**
+**The RDB's display name went with it, and it needed no `sellib` release.**
 `rdb._safe_rdb_name` still sanitizes — that string is the cache's own record
 in `meta.json`'s `first_name`, where staying ASCII is its own business, and it
 is not a path either way. What changed is that pac-ct now overwrites
@@ -92,7 +92,7 @@ it.
 
 ## 2. `NEG` is declared by nothing and drawn by nothing
 
-**Repo:** `selfiles`. **Size:** small, but blocked on a question.
+**Repo:** `sellib`. **Size:** small, but blocked on a question.
 
 Measured: the 418-file reference corpus contains **2** `<element type="NEG">`.
 **0 of the 7 relay profiles declare it. The renderer has 0 branches for it.**
@@ -115,7 +115,7 @@ AcSELerator QuickSet and look at what QuickSet draws.
 
 ## 3. S1's second half — the renderer still holds geometry twice
 
-**Repo:** `selfiles`. **Size:** medium. **Risk:** low, guarded.
+**Repo:** `sellib`. **Size:** medium. **Risk:** low, guarded.
 
 `data/relay_models/*.json` declares each block's `geometry`; `gle.py` holds
 `ELEMENT_MIN_SIZE`, `PORT_FIRST_OFFSET` and `DEFAULT_PORTS`. Both describe the
@@ -169,7 +169,7 @@ in place. It buys no user-visible thing on its own.
 
 ## 5. E2 — `element_info()` is recomputed per element
 
-**Repo:** `selfiles`. **Size:** small. **Value:** almost none.
+**Repo:** `sellib`. **Size:** small. **Value:** almost none.
 
 Measured on a real 36-element page: `element_info` is called **180 times, 5.0×
 per element** (`REVIEW.md` estimated ~4×). And the cost:
@@ -189,7 +189,7 @@ touches the same call sites.
 
 ## 6. S5 — three registries, three hand-rolled loaders
 
-**Repo:** `selfiles`. **Recommendation: do not do this.**
+**Repo:** `sellib`. **Recommendation: do not do this.**
 
 `relay_models`, `wordbits` and `mms_tables` each glob a directory, parse JSON
 per model, normalise a RELAYTYPE into lookup keys, memoise and expose
@@ -275,12 +275,12 @@ user nothing.
 ## A check that only a machine with the archive can run
 
 Not a task, and not a defect — a verification that CI structurally cannot do,
-recorded so it is not forgotten at the next `selfiles` release.
+recorded so it is not forgotten at the next `sellib` release.
 
-`selfiles`' suite has exactly one skipped test:
+`sellib`' suite has exactly one skipped test:
 
 ```
-tests/test_mms_tables.py:133  ICD corpus unavailable; set SELFILES_ICD_FIXTURES
+tests/test_mms_tables.py:133  ICD corpus unavailable; set SELLIB_ICD_FIXTURES
 ```
 
 It checks all ten shipped MMS tables, bit by bit, against the factory ICD
@@ -289,12 +289,12 @@ no repository, and lives in the private archive at `fixtures/ICD files/`. So
 the test skips everywhere except a machine that has it:
 
 ```
-SELFILES_ICD_FIXTURES=<archive>/fixtures python -m pytest tests/test_mms_tables.py
+SELLIB_ICD_FIXTURES=<archive>/fixtures python -m pytest tests/test_mms_tables.py
 42 passed          # instead of the usual 41 passed, 1 skipped
 ```
 
 Run and green. It is the only thing that checks the shipped tables against
-their source, so it belongs in the pre-release pass for `selfiles` — the one
+their source, so it belongs in the pre-release pass for `sellib` — the one
 place where "247 passed, 1 skipped" is not the whole answer.
 
 ---

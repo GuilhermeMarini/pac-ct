@@ -329,7 +329,7 @@ exactly the same size — a limitation anyone touching `.doc`, `.xls`, `.msi` or
 `.rdb` files in Python runs into. The one piece here with an audience outside
 this project.
 
-### L2 — `selfiles` (SEL AcSELerator file formats) — the domain library
+### L2 — `sellib` (SEL AcSELerator file formats) — the domain library
 
 `parsers/{rdb, rdb_cache, sel_settings, set_dnp, gle, dnp_profile}` +
 `core/{relay_models, settings_model, settings_catalog, selogic_parser,
@@ -346,7 +346,7 @@ extraction, ExtRef subscriptions, `DataTypeTemplates` FC resolution, and the
 claims for its 61850 tools. Deferred because the `db:` `sAddr` grammar is SEL's
 convention inside SCL, so a clean split needs a vendor seam designed first —
 and because a fourth repo is a fourth release process for one maintainer.
-Ships as `selfiles.scl` now, extractable later without moving code again if the
+Ships as `sellib.scl` now, extractable later without moving code again if the
 subpackage boundary is respected.
 
 ### Not a library

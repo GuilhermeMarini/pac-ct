@@ -28,7 +28,7 @@ Project layout (a summary; the full map is in the README):
     +-- selprotopy/             (vendored, patched MIT library -- do not edit)
 
 The file formats live in two libraries extracted from this project, not here:
-`selfiles` (RDB, SET_*.TXT, DNP maps, GLE, SELOGIC, IEC 61850 SCL, and the
+`sellib` (RDB, SET_*.TXT, DNP maps, GLE, SELOGIC, IEC 61850 SCL, and the
 per-model registries) and `cfbwrite` (the Compound File writer).
 
 The tools do NOT come up one at a time: `mount.py` puts them all on the same
@@ -249,7 +249,7 @@ def _explain_import_failure(exc: ModuleNotFoundError) -> str:
 
     A traceback ending in `No module named 'pacct'` tells a commissioning
     engineer nothing about what to do, and the two causes need opposite
-    answers: an incomplete unzip is a broken copy, a missing `selfiles` is
+    answers: an incomplete unzip is a broken copy, a missing `sellib` is
     dependencies that were never installed. The distinction is on disk, so it
     costs one `is_file()` to say which.
     """
@@ -314,7 +314,7 @@ def read_version_file() -> str:
     """`VERSION`, read straight from disk.
 
     `--versao` deliberately does not import `pacct`: importing the package
-    configures `selfiles`, so asking a bundle what version it is would require
+    configures `sellib`, so asking a bundle what version it is would require
     its dependencies to be installed. Printing a version must work on a broken
     install -- that is usually when somebody asks.
     """

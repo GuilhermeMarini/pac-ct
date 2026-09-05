@@ -18,7 +18,7 @@ import io
 import json
 import logging
 
-from selfiles.rdb import GleEntry, RdbInfo, RelayEntry
+from sellib.rdb import GleEntry, RdbInfo, RelayEntry
 
 from pacct.web.glv.handler import GlvDefaults, build_glv_handler
 from pacct.web.glv.transport import DEFAULT_PORTS, SCAN_MMS, SCAN_TELNET

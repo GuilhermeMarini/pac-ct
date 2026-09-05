@@ -18,8 +18,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from olefile.olefile import OleFileError
-from selfiles import rdb as rdb_loader
-from selfiles.scl import read as scd_loader
+from sellib import rdb as rdb_loader
+from sellib.scl import read as scd_loader
 
 from pacct.web.project_files import library, load_template
 from pacct.web.session import SessionHandler
@@ -211,7 +211,7 @@ def build_project_files_handler(logger: logging.Logger, sessions) -> type:
                 job.fail(str(e))
                 self._send_json(400, {"ok": False, "error": f"RDB inválido: {e}"})
                 return None
-            # The name to SHOW, over the one `selfiles` sanitized -- on the
+            # The name to SHOW, over the one `sellib` sanitized -- on the
             # `RdbInfo`, because five screens read it from there rather than
             # from the entry. See `derived._rdb_entry`.
             info.display_name = library.display_name_for(filename,

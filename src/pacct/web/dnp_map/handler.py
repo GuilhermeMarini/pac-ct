@@ -14,11 +14,11 @@ import logging
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-import selfiles
-from selfiles import dnp_map as set_dnp
-from selfiles import dnp_profile
-from selfiles.models import wordbits
-from selfiles.rdb import short_sha as _short_sha
+import sellib
+from sellib import dnp_map as set_dnp
+from sellib import dnp_profile
+from sellib.models import wordbits
+from sellib.rdb import short_sha as _short_sha
 
 from pacct.paths import is_within
 from pacct.web.dnp_map import export as exporter
@@ -103,7 +103,7 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
             that on every keystroke just to resolve one relay's sessions.
             Caching it for the session's lifetime is sound because `key`
             names a sha256-addressed extraction directory
-            (`cache/rdb/<sha256>/`, see `selfiles.rdb`): the files
+            (`cache/rdb/<sha256>/`, see `sellib.rdb`): the files
             under it cannot change while this key is in use -- any change in
             content would produce a different sha256 and therefore a
             different key. See `DnpMapState.relay_cache` for the same note.
@@ -370,7 +370,7 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
                 return
             # The library owns the registry; the host owns the overlay it
             # writes into, and `writable_data_dir` is where the two meet.
-            dest = selfiles.writable_data_dir("wordbits") / f"SEL-{base}.json"
+            dest = sellib.writable_data_dir("wordbits") / f"SEL-{base}.json"
             existing = {}
             if dest.is_file():
                 try:

@@ -23,8 +23,8 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from selfiles import dnp_map as set_dnp
-from selfiles.rdb import sanitize_name
+from sellib import dnp_map as set_dnp
+from sellib.rdb import sanitize_name
 
 from pacct.web import rdb_write
 from pacct.web.dnp_map.model import apply_edits

@@ -557,18 +557,18 @@ def test_a_failed_portable_update_puts_the_folder_back(tmp_path, monkeypatch):
 def test_the_updater_runs_even_when_the_dependencies_are_missing():
     """An updater that cannot run on a broken install cannot fix one.
 
-    `pacct/__init__` configures `selfiles` at import, so `import pacct.update`
-    used to die with `ModuleNotFoundError: No module named 'selfiles'` --
+    `pacct/__init__` configures `sellib` at import, so `import pacct.update`
+    used to die with `ModuleNotFoundError: No module named 'sellib'` --
     exactly when somebody needs `--atualizar` most. Nothing is silently
-    misconfigured by tolerating it: if `selfiles` is absent then every module
+    misconfigured by tolerating it: if `sellib` is absent then every module
     that reads an SEL file fails on its own import, at the point of use.
     """
     import inspect
 
     import pacct
 
-    src = inspect.getsource(pacct._configure_selfiles)
+    src = inspect.getsource(pacct._configure_sellib)
     assert "except ImportError" in src, (
         "a missing dependency must not stop the updater from importing")
     # update.py itself must stay free of the app's runtime dependencies.
-    assert "selfiles" not in Path(U.__file__).read_text(encoding="utf-8")
+    assert "sellib" not in Path(U.__file__).read_text(encoding="utf-8")

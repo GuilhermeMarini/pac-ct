@@ -98,7 +98,7 @@ def test_requirements_and_pyproject_pin_the_same_libraries():
     of difference nobody notices until a relay is on the bench."""
     req = (ROOT / "requirements.txt").read_text(encoding="utf-8")
     proj = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    for name in ("cfbwrite", "selfiles"):
+    for name in ("cfbwrite", "SELlib"):
         req_line = _pins(req, name)
         assert len(req_line) == 1, f"{name} must appear once in requirements.txt"
         pin = req_line[0].split("#", 1)[0].strip()
@@ -112,7 +112,7 @@ def test_the_unpublished_libraries_are_pinned_to_a_commit_not_a_branch():
     into "no tool boots at all". A direct reference has to name a commit or a
     tag: `@main` is not a dependency, it is a wish."""
     req = (ROOT / "requirements.txt").read_text(encoding="utf-8")
-    for name in ("cfbwrite", "selfiles"):
+    for name in ("cfbwrite", "SELlib"):
         line = _pins(req, name)[0].split("#", 1)[0].strip()
         if " @ git+" not in line:
             continue  # published; a plain specifier is right again

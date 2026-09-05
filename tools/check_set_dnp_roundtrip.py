@@ -26,7 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import cfbwrite  # noqa: E402
 import olefile  # noqa: E402
-from selfiles import dnp_map as set_dnp  # noqa: E402
+from sellib import dnp_map as set_dnp  # noqa: E402
 
 from pacct.paths import RDB_CACHE_DIR, RDBS_DIR  # noqa: E402
 

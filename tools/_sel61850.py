@@ -30,9 +30,9 @@ import json
 import re
 from pathlib import Path
 
-from selfiles.scl.mms_tables import norm_part  # noqa: F401  (re-exportado)
-from selfiles.scl.read import load_scd as _ied_infos
-from selfiles.scl.read import sel_short_addresses
+from sellib.scl.mms_tables import norm_part  # noqa: F401  (re-exportado)
+from sellib.scl.read import load_scd as _ied_infos
+from sellib.scl.read import sel_short_addresses
 
 
 def load_scd(path: Path) -> dict:

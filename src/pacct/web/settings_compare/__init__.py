@@ -24,18 +24,18 @@ import re
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
-from selfiles.rdb import RdbInfo
-from selfiles.rdb import short_sha as _short_sha
-from selfiles.selogic.catalog import (
+from sellib.rdb import RdbInfo
+from sellib.rdb import short_sha as _short_sha
+from sellib.selogic.catalog import (
     Dialect,
     Family,
     family_from_relaytype,
     groups_for_family,
     is_relay_device,
 )
-from selfiles.selogic.compare import Kind as CmpKind
-from selfiles.selogic.compare import compare
-from selfiles.selogic.model import (
+from sellib.selogic.compare import Kind as CmpKind
+from sellib.selogic.compare import compare
+from sellib.selogic.model import (
     RelayModel,
     Variable,
     normalize_relay,

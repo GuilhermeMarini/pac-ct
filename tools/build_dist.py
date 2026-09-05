@@ -126,7 +126,7 @@ def split_requirements(req: Path) -> tuple[list[str], list[str]]:
 
     `pip download --only-binary=:all:` refuses a direct reference -- it has to
     build one -- so the two halves are fetched by different commands. Both
-    `cfbwrite` and `selfiles` are pure Python, so the `py3-none-any` wheel
+    `cfbwrite` and `sellib` are pure Python, so the `py3-none-any` wheel
     built here is the same wheel Windows needs.
     """
     direct, indexed = [], []
@@ -200,7 +200,7 @@ def build_vendor(dest: Path, *, windows: bool, python_version: str) -> list[str]
     direct, indexed = split_requirements(ROOT / "requirements.txt")
 
     for ref in direct:
-        # `--no-deps`: the dependencies of cfbwrite/selfiles are in
+        # `--no-deps`: the dependencies of cfbwrite/sellib are in
         # requirements.txt too, and the indexed pass below fetches them with
         # the platform flags this pass cannot use.
         subprocess.check_call([sys.executable, "-m", "pip", "wheel",

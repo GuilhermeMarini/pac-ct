@@ -17,7 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from selfiles.gle import parse_gle
+from sellib.gle import parse_gle
 
 from pacct.web.glv import connectors
 
@@ -31,7 +31,7 @@ def nets():
 
 @pytest.fixture(scope="module")
 def svg():
-    from selfiles.gle import render_page
+    from sellib.gle import render_page
     return render_page(parse_gle(FIXTURE).findall(".//page")[0])
 
 
@@ -142,7 +142,7 @@ class TestRendering:
         UNIDAS`. An `&` in a label must not break the SVG."""
         import xml.etree.ElementTree as ET
 
-        from selfiles.gle import element_info, render_element
+        from sellib.gle import element_info, render_element
         el = ET.fromstring(
             '<element id="9" type="Connector" left="0" top="0">'
             '<label>A &amp; B</label></element>')

@@ -163,7 +163,7 @@ def test_an_accented_upload_name_keeps_its_accents(tmp_path):
     """`subestação.scd` is shown as `subestação.scd`.
 
     It used to reach the library as `subesta__o.scd`: the entry's name went
-    through `selfiles`' `rdb.sanitize_name`, whose allowlist is
+    through `sellib`' `rdb.sanitize_name`, whose allowlist is
     `[^A-Za-z0-9._\\- ]` -- ASCII only. That is the right rule for the one
     caller building a FILESYSTEM path (`dnp_map/export.py`) and the wrong one
     for a name that is only ever shown: the RFC 5987 `filename*=UTF-8''`
@@ -195,11 +195,11 @@ def test_an_upload_name_that_is_a_path_is_stored_as_a_name(tmp_path):
 
 def test_an_uploaded_rdb_keeps_its_accents(tmp_path, monkeypatch):
     """The RDB is the upload this app sees most, and its name was stripped a
-    layer further in than the SCD's: `selfiles` sanitizes it inside
+    layer further in than the SCD's: `sellib` sanitizes it inside
     `process_upload_stream`. The name it hands back is the cache's business;
     the one this project shows is not.
     """
-    from selfiles.rdb import RdbInfo
+    from sellib.rdb import RdbInfo
 
     from pacct.web.project_files import handler as files_handler
 

@@ -19,7 +19,7 @@ it, so a visitor can never download a file another one generated, and cleaning
 up on expiry is one `rmtree` -- no reference counting.
 
 RDBs are the exception, on purpose: they go to the content-addressed cache
-(see `selfiles.rdb_cache`), which is shared and read-only to the tools. Two
+(see `sellib.rdb_cache`), which is shared and read-only to the tools. Two
 identical files are the same file, so keeping a 40-140 MB copy per session
 only cost disk and extraction time.
 

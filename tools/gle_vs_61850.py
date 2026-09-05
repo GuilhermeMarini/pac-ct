@@ -29,8 +29,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from selfiles import rdb  # noqa: E402
-from selfiles.gle import parse_gle  # noqa: E402
+from sellib import rdb  # noqa: E402
+from sellib.gle import parse_gle  # noqa: E402
 
 import _sel61850 as maps  # noqa: E402
 from pacct.paths import FIXTURES_DIR, RDB_CACHE_DIR, RDBS_DIR  # noqa: E402

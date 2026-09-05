@@ -1,6 +1,6 @@
 """A minimal SET_D map, for the tests of the DNP map EDITOR.
 
-The parser and its round-trip contract live in `selfiles.dnp_map` and are
+The parser and its round-trip contract live in `sellib.dnp_map` and are
 tested there. What is tested here is the editor built on top of it -- the
 per-session diffs, the export, the cross-relay copy -- and those need a file
 to edit. This is that file, kept small and local rather than reached for

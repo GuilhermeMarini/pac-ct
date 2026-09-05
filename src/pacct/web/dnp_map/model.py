@@ -16,8 +16,8 @@ from __future__ import annotations
 import copy
 from dataclasses import dataclass, field
 
-from selfiles.dnp_map import DnpRelay, SetDnpFile
-from selfiles.rdb import RdbInfo
+from sellib.dnp_map import DnpRelay, SetDnpFile
+from sellib.rdb import RdbInfo
 
 
 @dataclass

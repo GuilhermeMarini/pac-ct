@@ -289,7 +289,7 @@ class TestApplyXlsxUpdatesToRdb:
 
     @pytest.fixture
     def project(self, rdb, tmp_path):
-        from selfiles.rdb import GleEntry, RdbInfo, RelayEntry
+        from sellib.rdb import GleEntry, RdbInfo, RelayEntry
 
         extract = tmp_path / "extracted"
         misc = extract / "Relays" / RELAY / "Misc"

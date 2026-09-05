@@ -35,7 +35,7 @@ dependencies = [
     # other is the kind of difference nobody notices until a relay is on the
     # bench.
     "cfbwrite>=1.0",
-    "selfiles>=1.1.1",
+    "SELlib>=2.0.0",
     "openpyxl>=3.1",
     # PRE-RELEASE on purpose: the MMS client the GLV calls exists from
     # 0.2.0.dev1 and 0.2.0 final does not exist. Naming a pre-release in the

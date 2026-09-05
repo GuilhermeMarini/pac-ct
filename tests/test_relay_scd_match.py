@@ -23,8 +23,8 @@ from pathlib import Path
 
 import cfbwrite as cfb
 import pytest
-from selfiles import match as m
-from selfiles.rdb import RelayEntry
+from sellib import match as m
+from sellib.rdb import RelayEntry
 
 from tests import gle_fixtures as fx
 

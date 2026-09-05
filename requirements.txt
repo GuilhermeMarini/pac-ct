@@ -16,11 +16,14 @@ cfbwrite>=1.0
 # SELOGIC, SCL/IEC 61850, and the per-model registries. This was
 # `pacct/parsers/`, `pacct/core/` and `pacct/matchers/` -- the layer that
 # already did not know the web existed:
-# https://github.com/GuilhermeMarini/selfiles
+# https://github.com/GuilhermeMarini/sellib
 #
 # Published on PyPI on 2026-09-03, same day and for the same reason as
-# cfbwrite -- which it depends on, so it was published second.
-selfiles>=1.1.1
+# cfbwrite -- which it depends on, so it was published second. It was
+# called `selfiles` for 1.x; 2.0.0 is the same library under the name
+# `SELlib`, and the import moved with it (`import sellib`). The old
+# distribution stays on PyPI at 1.1.1 and is not maintained.
+SELlib>=2.0.0
 openpyxl>=3.1
 # py61850 (the GLV's MMS transport). Until 2026-08-31 this was a commit pin
 # (`py61850 @ git+https://...@<sha>`), because PyPI carried only 0.0.1 and the

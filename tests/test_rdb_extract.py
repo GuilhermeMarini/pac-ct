@@ -29,7 +29,7 @@ from pathlib import Path
 
 import cfbwrite as cfb
 import pytest
-from selfiles import rdb
+from sellib import rdb
 
 from tests import gle_fixtures as fx
 

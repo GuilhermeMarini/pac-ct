@@ -3,6 +3,12 @@
 Source: `/home/guilh/py_projects/pac-ct`, branch `dnp-map-copiar` (`f975396`).
 Target: `/home/guilh/py_projects/comissioning-project/`, one folder per repo.
 
+> **A name in here has changed since.** The library extracted below was
+> published as `selfiles` (1.0.0–1.1.1) and renamed to **SELlib** at 2.0.0,
+> importing as `sellib`. This document has been rewritten to the current
+> name throughout, so that a reader can find the package; it was called
+> `selfiles` at the time everything here was done.
+
 Decisions already taken (2026-09-03):
 
 | | |
@@ -24,17 +30,17 @@ with it red.
 | Phase | State |
 |---|---|
 | 0.1 samples | **Done** — anonymised, see below |
-| 0.2 library split | **Decided** — `cfbwrite` + `selfiles`, both repos created |
+| 0.2 library split | **Decided** — `cfbwrite` + `sellib`, both repos created |
 | 1 skeleton | **Done** — `src/` layout, `pyproject.toml`, ruff, mypy, CI |
 | 2 what moves | **Done** — 319 files; the vendor documents stayed behind |
 | 3 defect fixes | **Done** — D1..D5, each with a test that fails without it |
-| 4 library extraction | **Done** — `cfbwrite` and `selfiles`, both consumed by the app |
+| 4 library extraction | **Done** — `cfbwrite` and `sellib`, both consumed by the app |
 | 5 dist + auto-update | **Done** — bundle, versioned install, updater; see below |
 | 6 verification | **Done except gate 7**, which needs a bench relay |
 
 Verification as it stands, across the three repositories: **881 tests pass**
 (the 828 that came across, plus 9 Phase 3/4 regressions and 44 for Phase 5) —
-639 in `pac-ct`, 225 in `selfiles`, 17 in `cfbwrite`, conserved exactly by the
+639 in `pac-ct`, 225 in `sellib`, 17 in `cfbwrite`, conserved exactly by the
 split. `ruff` and `mypy` are clean in all three, and the app boots and serves
 all eleven screens with both libraries behind it.
 
@@ -43,9 +49,9 @@ Phase 4 as built, with three departures from the plan above worth naming:
 - **The corpus stayed in one place.** The plan implied tests move with their
   code; the ones that need the 63 MB sample corpus stayed in `pac-ct`, where
   the corpus lives, rather than duplicating it into a second public repo. So
-  `selfiles`'s own suite is self-contained (it builds its fixtures with
+  `sellib`'s own suite is self-contained (it builds its fixtures with
   `cfbwrite`), and the corpus-driven tests exercise the library from the app.
-- **`selfiles.gle` was not split into `parse.py` + `render.py`.** The two
+- **`sellib.gle` was not split into `parse.py` + `render.py`.** The two
   halves share the geometry constants and always travel together, and the
   refactor that actually earns a split is REVIEW.md S1 (drive the renderer
   from the model registry, which is where the black-counter bug came from).
@@ -113,10 +119,10 @@ Recommended: extract **two** now, defer the third with the reason written down.
 | repo | from | why now |
 |---|---|---|
 | `cfbwrite` | `parsers/ole_rebuild.py` | Zero domain knowledge, one dependency, 326 lines of tests, and an audience outside this project |
-| `selfiles` | `parsers/*` + `core/*` + `matchers/*` | The whole domain layer is already web-free; `selfiles.scl` holds the 61850 half so `sclread` can leave later without moving code twice |
+| `sellib` | `parsers/*` + `core/*` + `matchers/*` | The whole domain layer is already web-free; `sellib.scl` holds the 61850 half so `sclread` can leave later without moving code twice |
 
 Names must be checked on PyPI before the repos are created. If either is taken:
-`cfbwrite` → `olecfb-write`, `selfiles` → `selquickset`.
+`cfbwrite` → `olecfb-write`, `sellib` → `selquickset`.
 
 ---
 
@@ -135,7 +141,7 @@ comissioning-project/
 │   ├── LICENSE  NOTICE.md  README.md  ENGINEERING-NOTES.md  VERSION
 │   └── .github/workflows/ci.yml
 ├── cfbwrite/                   ← new public repo
-└── selfiles/                   ← new public repo
+└── sellib/                   ← new public repo
 ```
 
 1. `git mv pacct src/pacct` (src layout: the installed package is what the
@@ -243,11 +249,11 @@ Then in `pac-ct`: `pacct/parsers/ole_rebuild.py` becomes a 3-line re-export
 shim so `pacct.web.rdb_write` and `tests/test_rdb_write.py` keep working, and
 `cfbwrite` joins `requirements.txt`.
 
-### 4.2 `selfiles` → `/home/guilh/py_projects/comissioning-project/selfiles/`
+### 4.2 `sellib` → `/home/guilh/py_projects/comissioning-project/sellib/`
 
 ```
-selfiles/
-├── src/selfiles/
+sellib/
+├── src/sellib/
 │   ├── rdb.py  rdb_cache.py          ← parsers/rdb*.py
 │   ├── settings.py  dnp_map.py       ← parsers/sel_settings.py, set_dnp.py
 │   ├── gle/  (parse.py, render.py)   ← parsers/gle.py, split at the seam
@@ -266,12 +272,12 @@ The one structural change required (**S6**): every registry takes its directory
 instead of importing `pacct.paths`.
 
 ```python
-# selfiles
+# sellib
 def load_relay_models(models_dir: Path | None = None) -> dict[str, RelayModel]:
-    ...   # None -> the packaged selfiles/data/relay_models
+    ...   # None -> the packaged sellib/data/relay_models
 
 # pac-ct, at boot
-selfiles.configure(data_dir=paths.DATA_DIR)   # user-supplied profiles win
+sellib.configure(data_dir=paths.DATA_DIR)   # user-supplied profiles win
 ```
 
 This matters beyond tidiness: the DNP map editor's "Importar perfil DNP" writes
@@ -289,8 +295,8 @@ test app behaviour.
 
 ### 4.3 `sclread` — deferred, deliberately
 
-`selfiles.scl` is kept as a self-contained subpackage with no imports from the
-rest of `selfiles`, so the later split is a `git mv`. The reason to wait is in
+`sellib.scl` is kept as a self-contained subpackage with no imports from the
+rest of `sellib`, so the later split is a `git mv`. The reason to wait is in
 REVIEW.md §4/L3: the `db:` `sAddr` grammar is SEL's convention living inside a
 vendor-neutral format, and that seam should be designed before it is published
 as a vendor-neutral library.
@@ -330,7 +336,7 @@ pac-ct-1.4.0.zip
 ├── config/config.ini.example
 ├── requirements.txt  VERSION  LICENSE  NOTICE.md
 ├── vendor/*.whl        ← pyserial, telnetlib3, olefile, openpyxl,
-│                         py61850, cfbwrite, selfiles
+│                         py61850, cfbwrite, sellib
 └── INSTALAR.txt
 ```
 
@@ -400,18 +406,18 @@ Everything in §5.1–5.5 landed as decided. Six things are worth naming, becaus
 they are either a departure or a fact the plan did not have.
 
 **Both libraries were published on 2026-09-03**, which retires the workaround
-described immediately below. `cfbwrite 1.0.0` and `selfiles 1.0.0` are on PyPI
-(cfbwrite first — selfiles depends on it), each tagged `v1.0.0` in its own
+described immediately below. `cfbwrite 1.0.0` and `sellib 1.0.0` are on PyPI
+(cfbwrite first — sellib depends on it), each tagged `v1.0.0` in its own
 repository so the source the uploaded artefacts were built from is recorded.
 `requirements.txt` and `pyproject.toml` are back to `cfbwrite>=1.0` /
-`selfiles>=1.0`, which was always the one-line change. Verified before upload
-against the exact artefacts, and again after: `pip install selfiles` into an
+`sellib>=1.0`, which was always the one-line change. Verified before upload
+against the exact artefacts, and again after: `pip install sellib` into an
 empty venv with `--no-cache-dir` pulls `cfbwrite` transitively, finds the 7
 packaged relay models, and `pac-ct`'s 647 tests pass against the built wheels
 with nothing editable and nothing from git.
 
 **A blocker the plan did not price: neither library was on PyPI.** `cfbwrite`
-and `selfiles` were extracted, committed and pushed in Phase 4, and
+and `sellib` were extracted, committed and pushed in Phase 4, and
 `requirements.txt` was left saying `cfbwrite>=1.0`. That resolves to nothing.
 CI had been **red on every push since Phase 4** (`No matching distribution
 found for cfbwrite>=1.0`), a fresh venv could not be built, and
@@ -460,12 +466,12 @@ versioned and a machine that never ran `tools/install_hooks.sh` must still not
 be able to cut a release whose bundle does not build.
 
 **The repository has its own `.venv` now.** Until this phase it borrowed the
-archive repo's, which is where `cfbwrite` and `selfiles` were installed
+archive repo's, which is where `cfbwrite` and `sellib` were installed
 editable — the only reason anything ran at all while `requirements.txt` was
 unresolvable. It is built from the pins, exactly as CI builds one, which is
 also what proved the pins work: 639 tests, `ruff` and `mypy` green in it with
 the two libraries installed as regular wheels rather than editable checkouts.
-When working *on* a library, `pip install -e ../selfiles` is one command away.
+When working *on* a library, `pip install -e ../sellib` is one command away.
 
 **`dist/snapshot/` is where the hook writes.** `dist/manifest.json` is the one
 path under `dist/` that git tracks, and it describes a *published* release; a
@@ -548,11 +554,11 @@ The gates, in order. Nothing proceeds past a red one.
 
 | # | Gate | Result |
 |---|---|---|
-| 1 | `pytest` | **904** across the three repos (659 `pac-ct`, 228 `selfiles`, 20 `cfbwrite`), plus `ruff` and `mypy` clean in all three, on Python 3.10–3.14 |
+| 1 | `pytest` | **904** across the three repos (659 `pac-ct`, 228 `sellib`, 20 `cfbwrite`), plus `ruff` and `mypy` clean in all three, on Python 3.10–3.14 |
 | 2 | Golden SVG | Unchanged — the renderer was never touched after D1; 53 render tests pass against the committed golden |
 | 3 | `SET_D` round-trip | **101 files checked, 0 failures** — `parse(b).serialize() == b` over every `SET_D` in the demo RDB (extracted into the cache first; the tool reads `rdbs/` and `cache/rdb/`, both empty in a clean clone) |
 | 4 | `cfbwrite` self-verification | A **136.3 MB** production RDB from the archive rebuilt in 1.2 s to 35.2 MB; **1008 of 1008 streams byte-identical**, 0 differing, 0 missing, compared independently of the writer's own check. Reproduces the documented compaction result exactly |
-| 5 | The three registries agree | Passes, in `selfiles` — the test moved with the data in Phase 4 |
+| 5 | The three registries agree | Passes, in `sellib` — the test moved with the data in Phase 4 |
 | 6 | Manual, all screens | Exercised repeatedly: on Linux from a clone and from an installed bundle, and on Windows from the `win_amd64` bundle both versioned and portable. Eleven screens, `/glv/` 302 to `/glv/novo` and the rest 200 |
 | 7 | Bench relay | **Not done, and cannot be here.** No hardware in this environment |
 

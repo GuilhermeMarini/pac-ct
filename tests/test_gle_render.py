@@ -38,8 +38,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
-from selfiles import gle
-from selfiles.models import relay_models
+from sellib import gle
+from sellib.models import relay_models
 
 FIXTURES = Path(__file__).parent / "fixtures"
 GLE_FIXTURE = FIXTURES / "render_page.gle.xml"

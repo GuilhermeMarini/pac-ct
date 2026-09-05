@@ -68,9 +68,9 @@ import time
 
 from py61850 import MmsClient
 from py61850.errors import Iec61850Error
-from selfiles.scl import mms_tables
-from selfiles.scl.mms_tables import decode_bit
-from selfiles.scl.read import sel_short_addresses
+from sellib.scl import mms_tables
+from sellib.scl.mms_tables import decode_bit
+from sellib.scl.read import sel_short_addresses
 
 from pacct.web.glv.mms_map import ld_suffixes, resolve_map
 from pacct.web.glv.poll import FirstTimeLog

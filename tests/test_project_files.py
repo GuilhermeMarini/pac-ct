@@ -254,7 +254,7 @@ def test_a_non_ole_file_is_a_client_error_not_a_server_error():
     mistake -- a corrupt or wrong file -- into an HTTP 500."""
     import pytest
     from olefile.olefile import OleFileError
-    from selfiles import rdb as rdb_loader
+    from sellib import rdb as rdb_loader
 
     with pytest.raises(OleFileError):
         rdb_loader.process_upload(b"nao sou um OLE2" * 100, "lixo.rdb")
@@ -340,7 +340,7 @@ def test_a_generated_scd_enters_the_library_with_its_origin(tmp_path):
 
 def test_a_generated_rdb_enters_the_library_with_its_accents(tmp_path,
                                                              monkeypatch):
-    """`RdbInfo.display_name` arrives sanitized -- `selfiles` builds it with
+    """`RdbInfo.display_name` arrives sanitized -- `sellib` builds it with
     `_safe_rdb_name`, the same string it records in the cache's `meta.json`,
     where staying ASCII is its own business. What THIS project shows is
     pac-ct's decision, and the RDB is the file type it shows most.
@@ -351,7 +351,7 @@ def test_a_generated_rdb_enters_the_library_with_its_accents(tmp_path,
     `dnp_map/handler.py:649`), and two of those build an output filename with
     it.
     """
-    from selfiles.rdb import RdbInfo
+    from sellib.rdb import RdbInfo
 
     from pacct.web.project_files import derived
 
@@ -360,7 +360,7 @@ def test_a_generated_rdb_enters_the_library_with_its_accents(tmp_path,
     src.write_bytes(b"nao e um OLE de verdade")
 
     def fake_process_upload(data, filename, **kw):
-        # What selfiles really answers, sanitized name and all. Patched
+        # What sellib really answers, sanitized name and all. Patched
         # because the real one writes into the process-wide content cache
         # rather than into a tmp_path.
         return RdbInfo(rdb_path=tmp_path / "source.rdb", extract_dir=tmp_path,
@@ -440,7 +440,7 @@ def test_the_payload_says_whether_a_file_was_generated():
 def test_the_download_source_follows_the_kind(tmp_path):
     """An SCD lives in the session's files/; an RDB lives in the shared
     content cache and has no session path at all."""
-    from selfiles.rdb import RdbInfo
+    from sellib.rdb import RdbInfo
 
     scd = tmp_path / "abc.scd"
     e = _entry("a" * 64, kind=library.KIND_SCD, name="sub.scd", path=scd)

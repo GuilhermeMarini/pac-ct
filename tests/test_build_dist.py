@@ -147,7 +147,7 @@ def test_the_two_halves_of_requirements_are_fetched_by_different_commands():
     to build one. So a direct reference is built with `pip wheel` and the rest
     downloaded with the platform flags, and the split is by SHAPE rather than
     by name -- which is what lets it keep working now that `cfbwrite` and
-    `selfiles` are published and neither is a direct reference any more."""
+    `sellib` are published and neither is a direct reference any more."""
     mod = _build_module()
     direct, indexed = mod.split_requirements(tmp_requirements())
     assert [d.split(" @ ")[0] for d in direct] == ["somelib"]
@@ -200,16 +200,16 @@ def test_the_bundle_pins_direct_references_to_the_wheel_beside_them(tmp_path):
     (stage / "requirements.txt").write_text(
         "olefile>=0.47\n"
         "cfbwrite @ git+https://example.invalid/cfbwrite@abc123\n"
-        "selfiles @ git+https://example.invalid/selfiles@def456\n",
+        "sellib @ git+https://example.invalid/sellib@def456\n",
         encoding="utf-8")
     pinned = mod.pin_direct_references(
         stage, ["cfbwrite-1.0.0-py3-none-any.whl",
-                "selfiles-1.0.0-py3-none-any.whl",
+                "sellib-1.0.0-py3-none-any.whl",
                 "olefile-0.47-py2.py3-none-any.whl"])
-    assert pinned == ["cfbwrite==1.0.0", "selfiles==1.0.0"]
+    assert pinned == ["cfbwrite==1.0.0", "sellib==1.0.0"]
     text = (stage / "requirements.txt").read_text(encoding="utf-8")
     assert "git+" not in text
-    assert "cfbwrite==1.0.0" in text and "selfiles==1.0.0" in text
+    assert "cfbwrite==1.0.0" in text and "sellib==1.0.0" in text
     assert "olefile>=0.47" in text
 
 

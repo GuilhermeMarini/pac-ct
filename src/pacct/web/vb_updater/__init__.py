@@ -5,7 +5,7 @@ of the <ExtRef intAddr="VBxxx"> under the matching IED).
 
 Flow:
   1. The user uploads an RDB and an SCD.
-  2. The app cross-matches RDB <-> SCD using `selfiles.match`.
+  2. The app cross-matches RDB <-> SCD using `sellib.match`.
   3. For each matched pair it shows a GLE selector + a "Verify GLE comments"
      button.
   4. Clicking the button opens a dedicated page with the comparison table
@@ -27,11 +27,11 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-from selfiles import match as matcher
-from selfiles import rdb as rdb_loader
-from selfiles.gle import parse_gle
-from selfiles.rdb import RdbInfo
-from selfiles.scl import read as scd_loader
+from sellib import match as matcher
+from sellib import rdb as rdb_loader
+from sellib.gle import parse_gle
+from sellib.rdb import RdbInfo
+from sellib.scl import read as scd_loader
 
 from pacct.paths import VB_UPDATER_TEMPLATES_DIR, is_within
 from pacct.web import rdb_write

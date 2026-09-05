@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
-from selfiles.scl.mms_tables import (
+from sellib.scl.mms_tables import (
     da_parts,
     fc_rank,
     is_boolean_status,
@@ -167,7 +167,7 @@ def _rule_from_table(entry):
     """
     if len(entry) < 3 or not entry[2]:
         return None
-    from selfiles.scl.mms_tables import BitRule
+    from sellib.scl.mms_tables import BitRule
     try:
         alternatives, index, nbits = entry[2]
         return BitRule(alternatives=tuple(int(a) for a in alternatives),

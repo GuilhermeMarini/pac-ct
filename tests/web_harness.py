@@ -170,7 +170,7 @@ def fake_rdb(tmp_path: Path, relays: dict[str, dict[str, bytes]],
     """An extraction on disk plus the `RdbInfo` that points at it.
 
     `relays` is `{relay_name: {filename: contents}}`, laid out the way
-    `selfiles.rdb` extracts a real RDB -- `Relays/<relay>/<file>` -- because
+    `sellib.rdb` extracts a real RDB -- `Relays/<relay>/<file>` -- because
     that is what `dnp_map.discover()` walks, deliberately, instead of reusing
     `RdbInfo.relays` (a relay with settings but no `.gle`, like a SEL-2440
     concentrator, has no `RelayEntry` and its DNP map is exactly what someone
@@ -179,7 +179,7 @@ def fake_rdb(tmp_path: Path, relays: dict[str, dict[str, bytes]],
     Built by hand rather than through `rdb.process_upload`, which would write
     into the process-wide `cache/rdb/<sha256>/` instead of this `tmp_path`.
     """
-    from selfiles.rdb import GleEntry, RdbInfo, RelayEntry
+    from sellib.rdb import GleEntry, RdbInfo, RelayEntry
 
     sha = sha or ("c" * 64)
     extract_dir = tmp_path / "extract" / sha[:12]

@@ -34,7 +34,7 @@ def _find_project_root() -> Path:
         return Path(env).expanduser().resolve()
     # The marker is `config/config.ini.example` plus `app.py`: both exist in
     # every install and every clone. It is no longer `data/` -- the per-model
-    # registries changed owner to the `selfiles` library, and the directory
+    # registries changed owner to the `sellib` library, and the directory
     # left here is an overlay that starts out absent.
     for parent in PACKAGE_DIR.parents:
         if (parent / "config" / "config.ini.example").is_file() \
@@ -72,7 +72,7 @@ DEFAULT_CONFIG_FILE: Path = CONFIG_DIR / "config.ini"
 EXAMPLE_CONFIG_FILE: Path = PROJECT_ROOT / "config" / "config.ini.example"
 
 # The per-model data OVERLAY. The registries themselves (relay profiles, the
-# valid Relay Word names, the bit -> MMS item tables) belong to the `selfiles`
+# valid Relay Word names, the bit -> MMS item tables) belong to the `sellib`
 # LIBRARY and travel inside it: they are knowledge about relays, not
 # configuration of this app. What lives here is whatever the USER added at
 # runtime -- the DNP map editor's "Importar perfil DNP" writes a

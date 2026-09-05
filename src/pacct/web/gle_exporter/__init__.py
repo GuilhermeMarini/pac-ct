@@ -32,9 +32,9 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote, urlparse
 
-from selfiles import rdb as rdb_loader
-from selfiles.gle import parse_gle
-from selfiles.rdb import RdbInfo
+from sellib import rdb as rdb_loader
+from sellib.gle import parse_gle
+from sellib.rdb import RdbInfo
 
 from pacct.paths import GLE_EXPORTER_TEMPLATES_DIR, is_within
 from pacct.web import rdb_write
@@ -532,7 +532,7 @@ def apply_xlsx_updates_to_rdb(
     Returns {ok, output_path, results, succeeded, failed, totals, method}.
     With `ok: False`, NO file was written and `output_path` does not exist.
     """
-    from selfiles.models import relay_models as _rm
+    from sellib.models import relay_models as _rm
 
     # RelayModel cache by name (resolved only once per relay).
     model_cache: dict[str, object] = {}
@@ -807,7 +807,7 @@ def build_gle_exporter_handler(logger: logging.Logger, sessions) -> type:
                 if rdb is None:
                     self._send_json(409, {"error": "RDB nao carregado"})
                     return
-                from selfiles.models import relay_models as _rm
+                from sellib.models import relay_models as _rm
                 model_cache: dict[str, object] = {}
                 def _model_for(relay_name: str):
                     if relay_name in model_cache:

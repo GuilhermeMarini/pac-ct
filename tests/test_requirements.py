@@ -135,15 +135,15 @@ def test_a_bundle_installs_from_its_own_wheels_without_being_asked():
 
 
 def test_a_missing_dependency_is_explained_not_traced():
-    """`ModuleNotFoundError: No module named 'selfiles'` plus a traceback tells
+    """`ModuleNotFoundError: No module named 'sellib'` plus a traceback tells
     a commissioning engineer nothing, and the two causes need opposite
     answers: an incomplete unzip is a broken copy, a missing dependency is an
     install that never ran. The distinction is on disk, so it costs one
     `is_file()` to say which."""
     app = _app_module()
     msg = app._explain_import_failure(
-        ModuleNotFoundError("No module named 'selfiles'", name="selfiles"))
-    assert "selfiles" in msg and "app.py --web" in msg
+        ModuleNotFoundError("No module named 'sellib'", name="sellib"))
+    assert "sellib" in msg and "app.py --web" in msg
     assert "Traceback" not in msg
     # ... and the other cause names the real problem instead of a dependency.
     broken = app._explain_import_failure(

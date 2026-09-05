@@ -39,7 +39,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from selfiles.models.wordbits import (  # noqa: E402
+from sellib.models.wordbits import (  # noqa: E402
     DEFAULT_ALWAYS_VALID,
     KINDS,
     check_kinds_for,

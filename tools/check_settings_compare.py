@@ -26,8 +26,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from selfiles.selogic.compare import compare
-from selfiles.settings import parse_settings_file
+from sellib.selogic.compare import compare
+from sellib.settings import parse_settings_file
 
 from pacct.paths import RDB_CACHE_DIR, RDBS_DIR
 

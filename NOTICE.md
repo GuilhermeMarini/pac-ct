@@ -47,7 +47,7 @@ Both are AGPL-3.0-or-later, same copyright holder, and were part of this
 repository before they were split out:
 
 - **cfbwrite** — <https://github.com/GuilhermeMarini/cfbwrite>
-- **selfiles** — <https://github.com/GuilhermeMarini/selfiles>
+- **sellib** — <https://github.com/GuilhermeMarini/sellib>
 
 ## Dependencies
 
@@ -67,5 +67,5 @@ reason for the licence on this project.
 
 SEL instruction manuals and DNP3 device profile bundles are the
 manufacturer's copyrighted material and are **not** in this repository. The
-per-model data derived from them (`selfiles`'s `wordbits/`) is ours; the source
+per-model data derived from them (`sellib`'s `wordbits/`) is ours; the source
 documents are not redistributed.

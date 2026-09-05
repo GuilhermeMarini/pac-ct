@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from selfiles.rdb import RdbInfo, short_sha
+from sellib.rdb import RdbInfo, short_sha
 
 # The key the library lives under in `Session.data`. It is deliberately the
 # SAME for every tool: that is what makes the library one library.
@@ -59,7 +59,7 @@ def display_name_for(raw: str, fallback: str) -> str:
     A file is stored under its sha256 (`path_for`), so the name it arrived
     with is only ever displayed, logged, or put in a `Content-Disposition`.
     That is why this keeps the accents: `subestação.scd` used to go through
-    `selfiles`' `rdb.sanitize_name`, whose allowlist is `[^A-Za-z0-9._\\- ]`,
+    `sellib`' `rdb.sanitize_name`, whose allowlist is `[^A-Za-z0-9._\\- ]`,
     and reached every screen as `subesta__o.scd` -- while `/files/download`
     encoded it RFC 5987 *because these names carry accents*, with none left
     to carry. That function is right where it is still used: `dnp_map/export`

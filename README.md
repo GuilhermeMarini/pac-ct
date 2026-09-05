@@ -282,11 +282,11 @@ python3 app.py --no-venv              # without a virtualenv (--break-system-pac
 With the cwd at the project's root directory:
 
 ```python
-from selfiles.rdb import process_upload
-from selfiles.scl.read import (
+from sellib.rdb import process_upload
+from sellib.scl.read import (
     load_scd, extract_gse_communication_map, extract_goose_subscriptions_by_ied,
 )
-from selfiles.match import compare_rdb_to_scd
+from sellib.match import compare_rdb_to_scd
 from pacct.core import relay_models
 from pacct.web.vb_updater import (
     extract_vb_instances_from_gle, extract_vb_descriptions_from_scd_ied,
@@ -367,7 +367,7 @@ the same extraction.
 ```
 
 639 tests, all passing, ~14 s. (881 across the three repositories: 639 here,
-225 in `selfiles`, 17 in `cfbwrite`.) `app.py` only bootstraps
+225 in `sellib`, 17 in `cfbwrite`.) `app.py` only bootstraps
 `requirements.txt`, so `requirements-dev.txt` is the one `pip` you run by
 hand.
 
@@ -404,7 +404,7 @@ files (`SEL-411L.json`, `SEL-487E.json`, `SEL-751.json`). The JSON declares:
 - `analog_symbols` / `analog_name_aliases` -- families of analog channels
   (AMV, MV, MAG, ...) and GLE -> Fast Meter aliasing rules (e.g. IAS -> IA1)
 
-The loader in `selfiles.models.relay_models` discovers the JSON automatically.
+The loader in `sellib.models.relay_models` discovers the JSON automatically.
 
 ## Known limitations
 

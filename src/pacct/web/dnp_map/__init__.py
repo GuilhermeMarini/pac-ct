@@ -5,7 +5,7 @@
     handler.py  the routes
     templates/  landing.html and editor.html
 
-The SET_D parser lives in `selfiles.dnp_map` and the Compound File writer in
+The SET_D parser lives in `sellib.dnp_map` and the Compound File writer in
 `cfbwrite`: neither one knows the web exists.
 """
 
