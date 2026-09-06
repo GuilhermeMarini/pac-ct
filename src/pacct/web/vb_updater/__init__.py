@@ -73,6 +73,22 @@ _EMPTY_LABEL = "&lt;Without description&gt;"
 # "reserva" (spare) -- they mark a VB foreseen but not used.
 _RESERVA_LABEL = "reserva"
 
+# A VB named by a GOOSE subscription's `pubRxStatus` does not carry a signal
+# out of the dataset: it goes to 1 when the publisher stops arriving. It is
+# the health of the subscription, and SEL Architect declares which VB gets it
+# (see `sellib.scl.read.GooseRxStatus`).
+#
+# Two things follow, and both are why it cannot be left to look like an
+# ordinary VB. Its ExtRef has no `doName`/`daName` -- there is no data
+# attribute to point at -- so the Signal column used to render it as
+# `IED/CFG/LLN0/GoSB00....`, four bare dots and no explanation. And when its
+# `desc` is empty it used to be renamed "reserva", calling a live GOOSE
+# supervision bit a spare (5 of the 202 in `samples/substation_demo.scd`).
+#
+# English, like the spreadsheet's own headers, and the same string on the web
+# pages so the two never disagree about what one row is.
+_MESSAGE_QUALITY_LABEL = "Message Quality"
+
 
 # -----------------------------------------------------------------------------
 # Extractors
@@ -135,44 +151,96 @@ def extract_vb_instances_from_gle(gle_path: Path) -> dict[str, list[GleVbInstanc
     return out
 
 
-def extract_vb_descriptions_from_scd_ied(scd_path: Path, ied_name: str) -> dict[str, str]:
-    """Read an SCD and return {VBxxx: extref_desc} for the given IED.
+@dataclass(frozen=True)
+class ScdVbMap:
+    """What one IED's SCD says about its VBs, from a single parse.
 
-    Looks for every <ExtRef> inside <IED name=ied_name> whose `intAddr`
-    matches VBnnn. Maps VBnnn -> the first non-empty `desc` found (several
-    ExtRefs can reference the same intAddr).
+    `descs` is what it always was: {VBxxx: extref_desc}, "" when the ExtRef
+    carries none. `quality` names the subset that receives a GOOSE
+    subscription's health rather than a signal -- see
+    `_MESSAGE_QUALITY_LABEL`.
     """
-    out: dict[str, str] = {}
-    try:
-        tree = ET.parse(str(scd_path))
-    except (OSError, ET.ParseError) as e:
-        _logger.warning("erro lendo SCD %s: %s", scd_path, e)
-        return out
+    descs: dict[str, str]
+    quality: frozenset[str]
 
-    root = tree.getroot()
-    target_ied = None
+
+def _find_ied(root: ET.Element, ied_name: str, scd_path: Path) -> ET.Element | None:
+    """The <IED name=...> element, or None with a log line."""
     # _iter_local ignores the namespace, so 'IED' matches '{ns}IED'.
     for el in scd_loader._iter_local(root, "IED"):
         if el.attrib.get("name") == ied_name:
-            target_ied = el
-            break
-    if target_ied is None:
-        _logger.info("IED %r nao encontrado no SCD %s", ied_name, scd_path)
-        return out
+            return el
+    _logger.info("IED %r nao encontrado no SCD %s", ied_name, scd_path)
+    return None
 
+
+def _quality_vbs(doc: scd_loader.ScdDocument, ied_name: str) -> frozenset[str]:
+    """The IED's VBs that receive a GOOSE subscription's health.
+
+    Comes from `sellib`, which reads them off the `pubRxStatus` SEL Architect
+    declares -- never off the shape of the ExtRef. `pubRxStatus` also names
+    remote bits (5 of the 202 in `samples/substation_demo.scd` are `RBnn`);
+    those fall outside `_VB_NUMERIC_RE` and stay outside this tool, exactly
+    as they were before.
+
+    Normalised like every other VB key in this module: an SCD that writes
+    `pubRxStatus="VB050"` against `intAddr="VB50"` must still line up.
+    """
+    out: set[str] = set()
+    for bit in doc.goose_rx_status_by_ied().get(ied_name, {}):
+        m = _VB_NUMERIC_RE.match(bit)
+        if m:
+            out.add(f"VB{int(m.group(1))}")
+    return frozenset(out)
+
+
+def _vb_map_from_doc(
+    doc: scd_loader.ScdDocument, ied_name: str, scd_path: Path,
+) -> ScdVbMap:
+    target_ied = _find_ied(doc.root, ied_name, scd_path)
+    if target_ied is None:
+        return ScdVbMap(descs={}, quality=frozenset())
+    health = _quality_vbs(doc, ied_name)
+    out: dict[str, str] = {}
+    quality: set[str] = set()
     for ext in scd_loader._iter_local(target_ied, "ExtRef"):
         addr = (ext.attrib.get("intAddr") or "").strip()
         m = _VB_NUMERIC_RE.match(addr)
         if not m:
             continue
         key = f"VB{int(m.group(1))}"
+        if key in health:
+            quality.add(key)
         desc = (ext.attrib.get("desc") or "").strip()
         existing = out.get(key, "")
         if existing and not desc:
             continue
         if desc or key not in out:
             out[key] = desc
-    return out
+    return ScdVbMap(descs=out, quality=frozenset(quality))
+
+
+def extract_vb_map_from_scd_ied(scd_path: Path, ied_name: str) -> ScdVbMap:
+    """Read an SCD once and return this IED's VB descriptions plus the VBs
+    that carry a GOOSE subscription's health.
+
+    Looks for every <ExtRef> inside <IED name=ied_name> whose `intAddr`
+    matches VBnnn. Maps VBnnn -> the first non-empty `desc` found (several
+    ExtRefs can reference the same intAddr).
+    """
+    doc = scd_loader.ScdDocument.load(scd_path)
+    if doc is None:
+        return ScdVbMap(descs={}, quality=frozenset())
+    return _vb_map_from_doc(doc, ied_name, scd_path)
+
+
+def extract_vb_descriptions_from_scd_ied(scd_path: Path, ied_name: str) -> dict[str, str]:
+    """Read an SCD and return {VBxxx: extref_desc} for the given IED.
+
+    The descriptions alone; `extract_vb_map_from_scd_ied` is the same parse
+    with the message-quality VBs alongside.
+    """
+    return extract_vb_map_from_scd_ied(scd_path, ied_name).descs
 
 
 # ExtRef fields describing the GOOSE "signature". Order used to compose the
@@ -183,11 +251,17 @@ _EXTREF_FIELDS = (
 )
 
 
-def _format_extref_signal(attrs: dict[str, str]) -> str:
+def _format_extref_signal(attrs: dict[str, str], *, quality: bool = False) -> str:
     """Build the Signal string out of an ExtRef's attributes.
 
     Returns "" when there is no `iedName` -- those ExtRefs are placeholders
     (intAddr defined but with no real subscription).
+
+    A message-quality VB names a control block and nothing inside it, so the
+    signature stops at the control block and says what it is. The old string
+    ran the full template over the absent halves and produced
+    `IED/CFG/LLN0/GoSB00....` -- four bare dots standing in for a logical
+    node, a data object and a data attribute that do not exist.
     """
     ied = (attrs.get("iedName") or "").strip()
     if not ied:
@@ -195,6 +269,8 @@ def _format_extref_signal(attrs: dict[str, str]) -> str:
     src_ld = (attrs.get("srcLDInst") or "").strip()
     src_ln = (attrs.get("srcLNClass") or "").strip()
     src_cb = (attrs.get("srcCBName") or "").strip()
+    if quality:
+        return f"{_MESSAGE_QUALITY_LABEL} — {ied}/{src_ld}/{src_ln}/{src_cb}"
     ld = (attrs.get("ldInst") or "").strip()
     prefix = (attrs.get("prefix") or "").strip()
     ln_cls = (attrs.get("lnClass") or "").strip()
@@ -209,28 +285,32 @@ def _format_extref_signal(attrs: dict[str, str]) -> str:
 def extract_vb_extref_rows_from_scd_ied(
     scd_path: Path, ied_name: str,
 ) -> list[dict]:
-    """Read an SCD and return a list of dicts {vb, signal, desc} -- one row
-    per VBxxx found in the ExtRefs of the given IED.
+    """Read an SCD and return a list of dicts {vb, signal, desc, quality} --
+    one row per VBxxx found in the ExtRefs of the given IED.
 
     If one VB shows up in several ExtRefs (typical: 1 placeholder + 1 with a
     subscription), we prefer the one with `iedName` filled in (the real
     signal). If none has it, we keep the first (empty signal).
-    """
-    rows_by_vb: dict[str, dict] = {}
-    try:
-        tree = ET.parse(str(scd_path))
-    except (OSError, ET.ParseError) as e:
-        _logger.warning("erro lendo SCD %s: %s", scd_path, e)
-        return []
 
-    root = tree.getroot()
-    target_ied = None
-    for el in scd_loader._iter_local(root, "IED"):
-        if el.attrib.get("name") == ied_name:
-            target_ied = el
-            break
+    `quality` is True for a VB that receives a GOOSE subscription's health
+    (`pubRxStatus`); its Signal says so instead of naming a data attribute
+    that does not exist.
+    """
+    doc = scd_loader.ScdDocument.load(scd_path)
+    if doc is None:
+        return []
+    return _vb_rows_from_doc(doc, ied_name, scd_path)
+
+
+def _vb_rows_from_doc(
+    doc: scd_loader.ScdDocument, ied_name: str, scd_path: Path,
+) -> list[dict]:
+    rows_by_vb: dict[str, dict] = {}
+    target_ied = _find_ied(doc.root, ied_name, scd_path)
     if target_ied is None:
         return []
+
+    health = _quality_vbs(doc, ied_name)
 
     for ext in scd_loader._iter_local(target_ied, "ExtRef"):
         addr = (ext.attrib.get("intAddr") or "").strip()
@@ -238,10 +318,11 @@ def extract_vb_extref_rows_from_scd_ied(
         if not m:
             continue
         vb = f"VB{int(m.group(1))}"
+        quality = vb in health
         attrs = {k: ext.attrib.get(k, "") for k in _EXTREF_FIELDS}
-        signal = _format_extref_signal(attrs)
+        signal = _format_extref_signal(attrs, quality=quality)
         desc = (ext.attrib.get("desc") or "").strip()
-        row = {"vb": vb, "signal": signal, "desc": desc}
+        row = {"vb": vb, "signal": signal, "desc": desc, "quality": quality}
         existing = rows_by_vb.get(vb)
         if existing is None:
             rows_by_vb[vb] = row
@@ -413,28 +494,46 @@ def _gle_stream_path(extract_dir: Path, relay_name: str, gle_name: str,
     )
 
 
-def _new_comments_from_scd(scd_path: Path, ied_name: str) -> tuple[dict, int, int]:
-    """The descriptions the SCD sends to the GLE, plus the report's two
-    counts.
+def _new_comments_from_scd(
+    scd_path: Path, ied_name: str,
+) -> tuple[dict, int, int, int]:
+    """The descriptions the SCD sends to the GLE, plus the report's counts.
 
     A VB that exists as an ExtRef but with an empty `desc` becomes "reserva":
     it is a slot foreseen and unused, and leaving the old comment there would
     be worse -- it would describe a signal that no longer exists.
+
+    Unless it is a message-quality VB, which is the opposite case: it is in
+    use, just not carrying a signal, so it gets `_MESSAGE_QUALITY_LABEL`
+    instead. 5 of the 202 in `samples/substation_demo.scd` have no `desc` and
+    were being labelled spare.
+
+    A `desc` the engineer wrote always wins, message-quality or not -- the
+    other 197 keep "FALHA GOOSE LT2 UPC1" and the marker never overwrites it.
+    The returned `quality` count therefore spans both branches: it says how
+    many of this IED's VBs are message quality, not how many were relabelled.
     """
     new_comments: dict[str, str] = {}
     reserva = 0
     with_desc = 0
-    for vb, desc in extract_vb_descriptions_from_scd_ied(scd_path, ied_name).items():
+    quality = 0
+    vb_map = extract_vb_map_from_scd_ied(scd_path, ied_name)
+    for vb, desc in vb_map.descs.items():
+        is_quality = vb in vb_map.quality
+        if is_quality:
+            quality += 1
         if desc:
             new_comments[vb] = desc
             with_desc += 1
+        elif is_quality:
+            new_comments[vb] = _MESSAGE_QUALITY_LABEL
         else:
             new_comments[vb] = _RESERVA_LABEL
             reserva += 1
-    return new_comments, with_desc, reserva
+    return new_comments, with_desc, reserva, quality
 
 
-def _apply_stats(sub_stats: dict, with_desc: int, reserva: int,
+def _apply_stats(sub_stats: dict, with_desc: int, reserva: int, quality: int,
                  original_size: int) -> dict:
     return {
         "instances_updated": sub_stats["updated"],
@@ -443,6 +542,11 @@ def _apply_stats(sub_stats: dict, with_desc: int, reserva: int,
         "vbs_in_scd_with_desc": with_desc,
         "vbs_in_scd_renamed_to_reserva": reserva,
         "reserva_label": _RESERVA_LABEL,
+        # How many of this IED's VBs carry a GOOSE subscription's health.
+        # Overlaps `vbs_in_scd_with_desc` on purpose: the ones that already
+        # have a description keep it, and are still message quality.
+        "vbs_message_quality": quality,
+        "message_quality_label": _MESSAGE_QUALITY_LABEL,
         "original_stream_bytes": original_size,
     }
 
@@ -470,7 +574,8 @@ def update_rdb_with_scd_descs(
 
     With `ok: False`, no file was written.
     """
-    new_comments, with_desc, reserva = _new_comments_from_scd(scd_path, ied_name)
+    new_comments, with_desc, reserva, quality = _new_comments_from_scd(
+        scd_path, ied_name)
     if not new_comments:
         return {
             "ok": False,
@@ -486,14 +591,16 @@ def update_rdb_with_scd_descs(
             rdb_path, output_path, {tuple(stream_parts): updated}, job=job)
     except rdb_write.RdbWriteError as e:
         return {"ok": False, "error": str(e),
-                "stats": _apply_stats(sub_stats, with_desc, reserva, len(original))}
+                "stats": _apply_stats(sub_stats, with_desc, reserva, quality,
+                                      len(original))}
 
     return {
         "ok": True,
         "output_path": str(output_path),
         "method": method,
         "stream": "/".join(stream_parts),
-        "stats": _apply_stats(sub_stats, with_desc, reserva, len(original)),
+        "stats": _apply_stats(sub_stats, with_desc, reserva, quality,
+                              len(original)),
     }
 
 
@@ -532,7 +639,8 @@ def update_rdb_with_scd_descs_batch(
         gle_fs_path = Path(sel["gle_fs_path"])
         entry_result: dict = {"relay": relay, "ied": ied, "gle": gle_name}
 
-        new_comments, with_desc, reserva = _new_comments_from_scd(scd_path, ied)
+        new_comments, with_desc, reserva, quality = _new_comments_from_scd(
+            scd_path, ied)
         if not new_comments:
             entry_result["ok"] = False
             entry_result["error"] = f"SCD sem ExtRef VBnnn para IED {ied!r}."
@@ -553,7 +661,7 @@ def update_rdb_with_scd_descs_batch(
         streams[stream_parts] = updated
         entry_result["ok"] = True
         entry_result["stats"] = _apply_stats(sub_stats, with_desc, reserva,
-                                             len(original))
+                                             quality, len(original))
         results.append(entry_result)
 
     succeeded = sum(1 for r in results if r.get("ok"))
@@ -696,8 +804,14 @@ def build_vb_descriptions_xlsx(
     header_fill = PatternFill("solid", fgColor="FF1F6FEB")
     meta_font = Font(bold=True)
 
+    # One parse for every sheet. This used to be one `ET.parse` per IED, and
+    # a real substation SCD is 22 MB and 27 IEDs -- see `ScdDocument`, which
+    # exists for exactly this. `None` (an unreadable file) gives empty sheets
+    # and a log line, the behaviour a per-IED read already had.
+    doc = scd_loader.ScdDocument.load(scd_path)
+
     for ied in ied_names:
-        rows = extract_vb_extref_rows_from_scd_ied(scd_path, ied)
+        rows = [] if doc is None else _vb_rows_from_doc(doc, ied, scd_path)
         ws = wb.create_sheet(title=_sanitize_sheet_name(ied, used))
         ws["A1"] = _XLSX_IED_MARKER
         ws["B1"] = ied
@@ -896,7 +1010,8 @@ def _render_compare_page(rdb_relay: str, ied_name: str, gle_name: str,
     empty GLE.
     """
     gle_map = extract_vb_instances_from_gle(gle_path)
-    scd_map = extract_vb_descriptions_from_scd_ied(scd_path, ied_name)
+    vb_map = extract_vb_map_from_scd_ied(scd_path, ied_name)
+    scd_map = vb_map.descs
 
     all_vbs = sorted(
         set(gle_map.keys()) | set(scd_map.keys()),
@@ -919,10 +1034,17 @@ def _render_compare_page(rdb_relay: str, ied_name: str, gle_name: str,
         g_cls = "cell" + ("" if gle_comment else " empty")
         s_cls = "cell" + ("" if scd_desc else " empty")
         loc_html = f'<div class="loc">{escape(loc)}</div>' if loc else ""
+        # The tag, not the description, is what says this VB carries the
+        # subscription's health: the description belongs to the engineer and
+        # both columns keep showing exactly what each file holds.
+        tag_html = (
+            f'<div class="tag">{escape(_MESSAGE_QUALITY_LABEL)}</div>'
+            if vb in vb_map.quality else ""
+        )
         cls = ' class="diff"' if is_diff else ""
         return (
             f'<tr{cls}>'
-            f'<td class="vb">{escape(vb)}{loc_html}</td>'
+            f'<td class="vb">{escape(vb)}{tag_html}{loc_html}</td>'
             f'<td class="{g_cls}">{g_html}</td>'
             f'<td class="{s_cls}">{s_html}</td>'
             f'</tr>'
@@ -941,11 +1063,16 @@ def _render_compare_page(rdb_relay: str, ied_name: str, gle_name: str,
             rows.append(_row(vb, inst.comment, scd_desc, loc))
 
     total_rows = equal_count + diff_count
+    quality_shown = sum(1 for vb in all_vbs if vb in vb_map.quality)
+    quality_html = (
+        f' &middot; {quality_shown} {escape(_MESSAGE_QUALITY_LABEL)}'
+        if quality_shown else ""
+    )
     summary = (
         f'<span class="ok">{equal_count} iguais</span> &nbsp; '
         f'<span class="warn">{diff_count} divergentes</span> &nbsp; '
         f'<span class="muted">{total_rows} instancia(s) &middot; '
-        f'{len(all_vbs)} VB(s) unico(s)</span>'
+        f'{len(all_vbs)} VB(s) unico(s){quality_html}</span>'
     )
 
     body_rows = "\n".join(rows) if rows else (

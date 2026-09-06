@@ -121,20 +121,60 @@ def scd(*ieds: bytes, ips: dict[str, str] | None = None) -> bytes:
                 + b'    </SubNetwork>\r\n'
                 b'  </Communication>\r\n')
     return (b'<?xml version="1.0" encoding="UTF-8"?>\r\n'
-            b'<SCL xmlns="http://www.iec.ch/61850/2003/SCL">\r\n'
+            b'<SCL xmlns="http://www.iec.ch/61850/2003/SCL" '
+            b'xmlns:esel="http://www.selinc.com/2005/SCL">\r\n'
             + comm
             + b"".join(ieds)
             + b'</SCL>\r\n')
 
 
-def ied(name: str, *extrefs: bytes) -> bytes:
+def ied(name: str, *extrefs: bytes, private: bytes = b"") -> bytes:
+    """One `<IED>`. `private` is the SEL private block, if any -- see
+    `goose_subscriptions`."""
     return (b'  <IED name="' + name.encode() + b'" type="SEL-411L">\r\n'
-            b'    <AccessPoint name="S1">\r\n'
+            + private
+            + b'    <AccessPoint name="S1">\r\n'
             b'      <Inputs>\r\n'
             + b"".join(extrefs)
             + b'      </Inputs>\r\n'
             b'    </AccessPoint>\r\n'
             b'  </IED>\r\n')
+
+
+def goose_subscriptions(*subs: tuple[str, str]) -> bytes:
+    """The `<Private type="SEL_GooseSubscription">` block SEL Architect
+    regenerates on every save.
+
+    Each `(cb_name, pub_rx_status)` becomes one `<esel:GooseSubscription>`;
+    an empty `pub_rx_status` writes no attribute, which is a real
+    subscription whose health simply is not mapped to a bit.
+    """
+    body = b""
+    for cb, rx in subs:
+        attr = b' pubRxStatus="' + rx.encode() + b'"' if rx else b""
+        body += (b'      <esel:GooseSubscription iedName="QPC1_UPC2" '
+                 b'ldInst="ANN" cbName="' + cb.encode() + b'" '
+                 b'datSet="GOPB_138"' + attr + b' confRev="1" />\r\n')
+    return (b'    <Private type="SEL_GooseSubscription">\r\n'
+            + body
+            + b'    </Private>\r\n')
+
+
+def rx_status_extref(vb: str, desc: str | None = None,
+                     cb: str = "GoSB00") -> bytes:
+    """The `<ExtRef>` twin of a `pubRxStatus` bit.
+
+    Publisher and control block filled in, and NO `doName`/`daName`: there is
+    no data attribute to point at, because the bit carries the subscription's
+    health rather than a value out of its dataset. Also no `serviceType`,
+    which is the shape all 202 of `samples/substation_demo.scd` carry.
+    """
+    head = b'        <ExtRef '
+    if desc is not None:
+        head += b'desc="' + desc.encode("utf-8") + b'" '
+    return (head + b'iedName="QPC1_UPC2" srcLDInst="ANN" srcLNClass="LLN0" '
+            b'srcCBName="' + cb.encode() + b'" '
+            b'intAddr="' + vb.encode() + b'" />\r\n')
 
 
 def extref(vb: str, desc: str | None = None) -> bytes:

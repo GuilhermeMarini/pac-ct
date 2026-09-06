@@ -39,6 +39,21 @@
     font-size: .72em; color: var(--text-2); font-weight: normal;
     margin-top: 3px; line-height: 1.3;
   }}
+  /* A VB named by a GOOSE subscription's pubRxStatus: it carries the health
+     of the subscription, not a signal from its dataset. Tokens only -- no
+     colour of this tool's own. */
+  table.cmp td.vb .tag {{
+    display: inline-block; font-family: var(--sans);
+    /* .72em, the same as `.loc` right below it -- two secondary labels in one
+       cell at two sizes reads as a mistake. `--text` and not `--text-2`,
+       though: `.loc` is metadata you glance at, this is a classification the
+       engineer has to see, and on regua's dark palette --text-2 on
+       --surface-2 measures 4.12:1 at this size. */
+    font-size: .72em; font-weight: 500; letter-spacing: 0.02em;
+    color: var(--text); background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1px 6px; margin-top: 4px; line-height: 1.4;
+  }}
   table.cmp td.cell {{ font-family: var(--mono); font-size: .88em; vertical-align: top; }}
   table.cmp td.cell.empty {{ color: var(--text-2); font-style: italic; }}
   table.cmp tr.diff td {{ background: var(--tint-equiv); }}
@@ -186,6 +201,12 @@
       const reservaN = st.vbs_in_scd_renamed_to_reserva||0;
       const reservaLabel = st.reserva_label || 'reserva';
       lines.push('VBs vazios no SCD renomeados para <code>' + escHtml(reservaLabel) + '</code>: <strong>' + reservaN + '</strong>');
+      const qualityN = st.vbs_message_quality||0;
+      if (qualityN) {{
+        // Overlaps "com desc": a message-quality VB with a description keeps
+        // it, so this counts what they ARE, not what was relabelled.
+        lines.push('VBs de qualidade da mensagem (<code>pubRxStatus</code>): <strong>' + qualityN + '</strong>');
+      }}
       lines.push('VBs do GLE sem ExtRef no SCD (não tocados): ' + (st.vbs_in_gle_not_in_scd||0));
       lines.push('Stream original/novo: ' + (st.original_stream_bytes||0).toLocaleString() + ' bytes (preservado)');
     }} else {{
