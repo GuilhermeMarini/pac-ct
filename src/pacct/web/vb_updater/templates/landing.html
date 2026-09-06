@@ -534,7 +534,12 @@ function renderBatchResult(data, isError) {
         + (st.instances_updated || 0) + ' instancias atualizadas, '
         + (st.vbs_in_scd_with_desc || 0) + ' com desc, '
         + (st.vbs_in_scd_renamed_to_reserva || 0) + ' renomeados para <code>'
-        + escapeHtml(st.reserva_label || 'reserva') + '</code></li>';
+        + escapeHtml(st.reserva_label || 'reserva') + '</code>'
+        + ((st.vbs_message_quality || 0)
+           ? ', ' + st.vbs_message_quality + ' <code>'
+             + escapeHtml(st.message_quality_label || 'Message Quality') + '</code>'
+           : '')
+        + '</li>';
     }
     return '<li><strong>' + escapeHtml(r.relay) + '</strong> &middot; '
       + escapeHtml(r.gle || '') + ' &middot; '
