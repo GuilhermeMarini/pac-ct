@@ -723,11 +723,36 @@ def perform_update(layout: Layout, release: Release, *,
 
 
 def rollback(layout: Layout) -> Path:
-    """Point `current` at the newest installed version that is not the current one."""
+    """Point `current` at the newest installed version BELOW the running one.
+
+    Below, and not merely "not the running one". `installed_versions` is
+    ascending, so `others[-1]` picked the newest of the REST: with 1.3.0,
+    1.4.0 and 1.5.0 installed and 1.4.0 running, `--reverter` moved the
+    engineer FORWARD to 1.5.0, while `app.py` advertises it as "aponta
+    `current` para a versao anterior". The two-version case -- roll back after
+    a bad update, which is the one an engineer actually hits -- was right by
+    accident, which is why it never showed.
+
+    A version this module cannot place is skipped rather than guessed at, for
+    the same reason `is_newer` refuses one: going backwards from a version you
+    cannot order is how an install ends up somewhere nobody chose.
+    """
     running = current_version(layout)
-    others = [v for v in installed_versions(layout) if v != running]
-    if not others:
-        raise UpdateError("Nao ha' outra versao instalada para voltar.")
-    target = layout.versions / others[-1]
+    running_key = version_mod.ordering_key(running or "")
+    older = []
+    for name in installed_versions(layout):
+        if name == running:
+            continue
+        key = version_mod.ordering_key(name)
+        if key is None:
+            continue
+        if running_key is not None and key >= running_key:
+            continue
+        older.append(name)
+    if not older:
+        raise UpdateError(
+            "Nao ha' versao anterior instalada para voltar"
+            + (f" (a atual e' {running})." if running else "."))
+    target = layout.versions / older[-1]
     point_current(layout, target)
     return target
