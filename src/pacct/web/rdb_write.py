@@ -50,6 +50,26 @@ class RdbWriteError(RuntimeError):
 # Naming and stream resolution
 # -----------------------------------------------------------------------------
 
+def xml_text_escape(s: str) -> str:
+    """Escape a string for XML TEXT content (between tags).
+
+    Here, beside `write_streams`, because the two tools that put a comment
+    inside a `.gle` both need it and only one of them had it. The GLE Exporter
+    escaped; the VB Updater dropped the SCD's `desc` in raw, so an ampersand --
+    ordinary in a signal name ("50/62BF & LT1", "TRIP & BLOCK") -- produced a
+    malformed GLE that went into the output RDB and then into the project
+    library, where nothing distinguishes it from a good file. `write_streams`
+    verifies the CONTAINER, never the XML inside a stream, so nothing
+    downstream would have caught it.
+
+    One definition, in the module that owns writing into an RDB, so there is
+    no third copy to forget.
+    """
+    return (s.replace("&", "&amp;")
+             .replace("<", "&lt;")
+             .replace(">", "&gt;"))
+
+
 def with_suffix_before_ext(path: Path, suffix: str) -> Path:
     """``foo.rdb`` + ``_comments_updated`` -> ``foo_comments_updated.rdb``."""
     path = Path(path)

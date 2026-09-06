@@ -154,11 +154,16 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
             }
 
         def _body(self):
-            try:
-                length = int(self.headers.get("Content-Length", "0"))
-            except ValueError:
-                length = 0
-            return self.rfile.read(length) if length > 0 else b"", length
+            """The request body and its length, under `MAX_JSON_BODY`.
+
+            Every GLV POST comes through here and none of them is large: the
+            biggest is a notepad's HTML, itself capped at `NOTE_MAX_BYTES`.
+            The ceiling was missing entirely, so `/note` read whatever the
+            client declared and only THEN compared the length against its own
+            limit. `/values` is a GET and never reaches this.
+            """
+            body = self.read_body()
+            return body, len(body)
 
         def _landing_state(self) -> dict:
             st = self.sess()

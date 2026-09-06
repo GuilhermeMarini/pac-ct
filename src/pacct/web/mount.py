@@ -406,6 +406,9 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
                 # `{"theme": "caderno"}` -- a body bigger than this is not a
                 # theme choice, and the Content-Length comes from the client.
                 if n > 4096:
+                    # Refused without reading, so the body stays on the
+                    # socket; see `SessionHandler._read_json_body`.
+                    self.close_connection = True
                     raise ValueError("corpo grande demais para /theme")
                 payload = json.loads(self.rfile.read(n) or b"{}")
                 chosen = themes.normalize(payload.get("theme"), default_theme)

@@ -359,16 +359,24 @@ def test_a_generated_rdb_enters_the_library_with_its_accents(tmp_path,
     src = tmp_path / "subestação_dnp_updated.rdb"
     src.write_bytes(b"nao e um OLE de verdade")
 
-    def fake_process_upload(data, filename, **kw):
+    def fake_process_upload_stream(source, length, filename, **kw):
         # What sellib really answers, sanitized name and all. Patched
         # because the real one writes into the process-wide content cache
         # rather than into a tmp_path.
+        #
+        # The seam is `process_upload_STREAM` on purpose: `adopt` used to read
+        # the whole file in and hand it to a `BytesIO`, which for a 140 MB
+        # exported RDB kept that size resident twice over. It reads the length
+        # off the file and streams the handle now. `length` is asserted here
+        # so a refactor back to the buffering call fails loudly instead of
+        # quietly reinstating the allocation.
+        assert length == src.stat().st_size
         return RdbInfo(rdb_path=tmp_path / "source.rdb", extract_dir=tmp_path,
                        sha256="d" * 64, reused=False, relays=[],
                        display_name="subesta__o_dnp_updated.rdb")
 
-    monkeypatch.setattr(derived.rdb_loader, "process_upload",
-                        fake_process_upload)
+    monkeypatch.setattr(derived.rdb_loader, "process_upload_stream",
+                        fake_process_upload_stream)
 
     entry, _, err = derived.adopt(mgr, sess, src, origin="DNP Map Editor")
     assert err == ""

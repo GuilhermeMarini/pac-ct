@@ -288,18 +288,13 @@ def build_dnp_map_handler(logger: logging.Logger, sessions) -> type:
             if not is_within(target, [self.sdir("out")]) or not target.is_file():
                 self._send(403, "Proibido", "text/plain; charset=utf-8")
                 return
-            data = target.read_bytes()
-            # Defence in depth: the name on disk should already be sanitized
-            # (`export.py` runs it through `rdb.sanitize_name`), but nothing
-            # here should ever put CR/LF into a response header.
-            safe_name = target.name.replace("\r", "").replace("\n", "")
-            self.send_response(200)
-            self.send_header("Content-Type", "application/octet-stream")
-            self.send_header("Content-Disposition",
-                             f'attachment; filename="{safe_name}"')
-            self.send_header("Content-Length", str(len(data)))
-            self.end_headers()
-            self.wfile.write(data)
+            # Streamed, not `read_bytes()`: an exported RDB is 40-140 MB and
+            # the server is threaded. Defence in depth on the name: the file
+            # on disk is already sanitized (`export.py` runs it through
+            # `rdb.sanitize_name`), and `send_file` encodes it RFC 5987, so
+            # nothing here can put CR/LF into a response header.
+            self.send_file(target, "application/octet-stream",
+                           download_name=target.name)
 
         # -- POST -------------------------------------------------------
 

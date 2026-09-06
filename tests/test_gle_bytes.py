@@ -264,6 +264,25 @@ class TestUpdateScdExtrefs:
             self._doc(), "QPC1_UPC2", {"VB1": "NOVO"})
         assert b'desc="NAO MEXER"' in out
 
+    def test_the_gle_side_escapes_the_scd_desc_too(self):
+        """The SCD -> GLE direction writes `desc` into `<comment>`, and it was
+        the one of the three writers that did not escape. An ampersand is
+        ordinary in a signal name ("50/62BF & LT1"), and the malformed GLE
+        went into the output RDB and then into the project library, where
+        nothing tells it apart from a good file -- `write_streams` verifies
+        the CONTAINER, never the XML inside a stream.
+
+        Fails if `xml_text_escape` is bypassed in
+        `_substitute_vb_comments_in_gle_bytes`."""
+        raw = (b'<logic_element type="SYMBOL" physical_instance_name="VB001">'
+               b'<port index="0"><comment>antigo</comment></port>'
+               b'</logic_element>')
+        out, stats = _substitute_vb_comments_in_gle_bytes(
+            raw, {"VB1": "TRIP & BLOCK <A>"})
+        assert stats["updated"] == 1
+        root = ET.fromstring(out.decode("latin-1"))
+        assert root.find(".//comment").text == "TRIP & BLOCK <A>"
+
     def test_an_unknown_ied_changes_nothing(self):
         """Fails if a missing IED starts falling through to a global replace."""
         doc = self._doc()

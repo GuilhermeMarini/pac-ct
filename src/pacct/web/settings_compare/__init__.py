@@ -636,15 +636,17 @@ def build_settings_compare_handler(logger: logging.Logger, sessions) -> type:
         server_sessions = sessions
 
         def _read_json(self) -> dict | None:
-            try:
-                length = int(self.headers.get("Content-Length", "0"))
-            except ValueError:
-                return None
-            if length <= 0:
+            """The request's JSON, under `MAX_JSON_BODY`.
+
+            `None` means malformed; `{}` means empty. The ceiling comes from
+            `SessionHandler.read_body` -- this used to allocate whatever the
+            client's `Content-Length` claimed.
+            """
+            raw = self.read_body()
+            if not raw:
                 return {}
-            raw = self.rfile.read(length)
             try:
-                return json.loads(raw or b"{}")
+                return json.loads(raw)
             except (json.JSONDecodeError, ValueError):
                 return None
 
