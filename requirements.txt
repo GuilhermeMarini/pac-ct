@@ -25,7 +25,7 @@ cfbwrite>=1.0
 # distribution was deleted from PyPI, so `selfiles` resolves to nothing
 # at all -- an older checkout of this file fails at pip rather than
 # booting on a version from before the rename.
-SELlib>=2.0.0
+SELlib>=2.1.0
 openpyxl>=3.1
 # py61850 (the GLV's MMS transport). Until 2026-08-31 this was a commit pin
 # (`py61850 @ git+https://...@<sha>`), because PyPI carried only 0.0.1 and the
