@@ -26,7 +26,7 @@ from sellib.models import relay_models
 from sellib.rdb import find_gle, relays_to_dict
 
 from pacct.paths import resolve_gle_path
-from pacct.web.glv import load_template
+from pacct.web.glv import events, load_template
 from pacct.web.glv.diagram import build_diagram
 from pacct.web.glv.link import LinkPool
 from pacct.web.glv.notes import NOTE_MAX_BYTES
@@ -242,6 +242,13 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
                 self._send(200, json.dumps(d.values(page)), "application/json")
                 return
 
+            if path == "/events":
+                st, d = self._diagram(qs)
+                if d is None:
+                    return
+                self._stream_events(d, (qs.get("page") or [""])[0])
+                return
+
             if path.startswith("/pages/"):
                 st, d = self._diagram(qs)
                 if d is None:
@@ -256,7 +263,15 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
                     # strip click and the variable search's navigation go
                     # through it. See `GlvDiagram.remember_page`.
                     d.remember_page(safe_id)
-                    self._send(200, svg, "image/svg+xml")
+                    if (qs.get("have") or [""])[0]:
+                        # The client already has this page's SVG parsed and
+                        # only came to say which page it opened -- so the
+                        # invariant above still holds and ~48 kB stays home.
+                        self.send_response(204)
+                        self.send_header("Content-Length", "0")
+                        self.end_headers()
+                    else:
+                        self._send(200, svg, "image/svg+xml")
                 return
 
             if path == "/group-state":
@@ -335,6 +350,39 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
             self.send_header("Location", location)
             self.send_header("Content-Length", "0")
             self.end_headers()
+
+        def _stream_events(self, d, page: str) -> None:
+            """Hold the connection open and write what `event_frames` yields.
+
+            This is the whole of the transport change. The screen used to ask
+            every 100-500 ms for values that had not moved; now one connection
+            per open tab stays up and a frame goes out when the relay says
+            something -- so the latency is the round trip (1 ms on loopback)
+            instead of the wait for the next turn of a clock.
+
+            No `Content-Length`: the body ends when the connection does, and
+            `Connection: close` says so. A dead tab surfaces as a write that
+            raises, which is how a stream normally ends -- not an error.
+            """
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            # Named because a reverse proxy that buffers turns a push back into
+            # a poll with extra steps. Nothing in front of this server today,
+            # but the header costs nothing and the failure it prevents is a
+            # screen that updates in bursts for no visible reason.
+            self.send_header("X-Accel-Buffering", "no")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.close_connection = True
+            try:
+                for frame in events.event_frames(d, page):
+                    self.wfile.write(frame.encode("utf-8"))
+                    self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            except OSError as e:                 # pragma: no cover - socket
+                logger.debug("[glv] stream %s encerrado: %s", d.id, e)
 
         # -- POST -----------------------------------------------------------
 

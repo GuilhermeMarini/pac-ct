@@ -12,7 +12,9 @@ down: it stays open and disconnected, with the reason on the badge.
 
 from __future__ import annotations
 
+import json
 import threading
+import zlib
 
 from sellib.gle import parse_gle, render_page
 
@@ -529,6 +531,22 @@ class GlvDiagram:
                 for nm in sorted(wanted_an)
             }
             snap["analog_groups"] = self.analog_groups_meta
+        # What the DRAWING is a function of, and nothing else. The screen
+        # repaints on a clock, so the client needs to know whether repainting
+        # would change a pixel: on the heaviest page of the corpus (118
+        # elements, 83 connections) one repaint is ~806 `classList` writes and
+        # ~1238 `getAttribute` reads, and at rest none of them moves anything.
+        #
+        # It cannot be a checksum of the payload. `ts` and `age` differ on
+        # every single read by construction -- `age` is recomputed from the
+        # monotonic clock inside `snapshot()` -- so a payload checksum would
+        # change every tick and buy exactly nothing. Hence these three fields
+        # named explicitly, and `sort_keys` so two equal readings serialise
+        # the same way whatever order the dicts were built in.
+        snap["rev"] = zlib.crc32(json.dumps(
+            [page, snap.get("digitals"), snap.get("analogs")],
+            sort_keys=True, default=str, separators=(",", ":"),
+        ).encode("utf-8"))
         snap["status"] = self.status
         snap["connected"] = self.connected
         return snap
