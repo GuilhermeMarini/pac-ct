@@ -42,6 +42,7 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from pacct.web import theme as themes
 from pacct.web.mount import inject_head
@@ -454,12 +455,75 @@ class SessionHandler(BaseHTTPRequestHandler):
         except ValueError:
             return {}
         if length <= 0 or length > max_bytes:
+            if length > max_bytes:
+                # The body is NOT read, so whatever the client already sent is
+                # still on the socket. Today every response closes its
+                # connection anyway (`protocol_version` is left at the
+                # BaseHTTPRequestHandler default of HTTP/1.0), but that makes
+                # the protocol version load-bearing for correctness -- and
+                # HTTP/1.1 is named in the engineering notes as the next lever
+                # for the screen's cadence. Saying so here means switching it
+                # cannot silently turn a refused body into the next request.
+                self.close_connection = True
             return {}
         try:
             body = json.loads(self.rfile.read(length) or b"{}")
         except ValueError:
             return {}
         return body if isinstance(body, dict) else {}
+
+    def read_body(self, max_bytes: int = MAX_JSON_BODY) -> bytes:
+        """The raw request body, never more than `max_bytes`.
+
+        The counterpart of `_read_json_body` for the handlers that parse the
+        body themselves. Three of them read `self.rfile.read(Content-Length)`
+        with no ceiling at all -- and the length comes from the client, so it
+        chose how much memory the server allocated and how long a
+        `ThreadingHTTPServer` thread sat on a read that may never complete.
+        """
+        try:
+            length = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            return b""
+        if length <= 0:
+            return b""
+        if length > max_bytes:
+            self.close_connection = True
+            return b""
+        return self.rfile.read(length)
+
+    #: Streaming chunk for `send_file`. An RDB runs 40-140 MB.
+    DOWNLOAD_CHUNK = 1 << 20
+
+    def send_file(self, path, ctype: str,
+                  download_name: str | None = None) -> None:
+        """Stream a file out, instead of holding all of it in memory.
+
+        `project_files` already did this, with the reason in a comment: an RDB
+        is 40-140 MB and `read_bytes()` keeps that resident per concurrent
+        download, on a threaded server. The three tools that write RDBs each
+        served their own output with `target.read_bytes()`.
+
+        The name is RFC 5987 (`filename*=UTF-8''`) because these names carry
+        accents and `send_header` encodes latin-1 strict -- a plain
+        `filename="..."` with an en-dash in it raises after the status line
+        has already gone out, which is a torn response rather than a 500.
+        """
+        path = Path(path)
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(path.stat().st_size))
+        if download_name:
+            self.send_header(
+                "Content-Disposition",
+                "attachment; filename*=UTF-8''" + quote(download_name, safe=""))
+        self.end_headers()
+        with open(path, "rb") as fh:
+            while True:
+                chunk = fh.read(self.DOWNLOAD_CHUNK)
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
 
 
 def build_cookie(sid: str, ttl_seconds: float) -> str:

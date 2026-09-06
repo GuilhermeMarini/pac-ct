@@ -33,11 +33,12 @@ from sellib.gle import parse_gle
 from sellib.rdb import RdbInfo
 from sellib.scl import read as scd_loader
 
-from pacct.paths import VB_UPDATER_TEMPLATES_DIR, is_within
+from pacct.paths import VB_UPDATER_TEMPLATES_DIR, atomic_write_bytes, is_within
 from pacct.web import rdb_write
 from pacct.web.project_files import library as filelib
 from pacct.web.rdb_write import (
     resolve_gle_stream_path,
+    xml_text_escape,
 )
 from pacct.web.rdb_write import (
     with_suffix_before_ext as _with_suffix_before_ext,
@@ -315,9 +316,16 @@ def _substitute_vb_comments_in_gle_bytes(
         if new_text is None:
             stats["untouched"] += 1
             return m.group(0)
-        # Encode in latin-1 to match the rest of the GLE (Quickset writes
-        # latin-1 even though it declares utf-8 in the header).
-        new_text_bytes = new_text.encode("latin-1", errors="replace")
+        # ESCAPED, then encoded latin-1 to match the rest of the GLE
+        # (QuickSet writes latin-1 even though it declares utf-8 in the
+        # header). The text is an SCD's `ExtRef desc`, which ElementTree hands
+        # over already unescaped -- so a signal called "50/62BF & LT1" wrote a
+        # bare `&` into `<comment>` and the GLE stopped being well-formed.
+        # Both siblings already did this: `_update_scd_extrefs_for_ied` below
+        # (`_xml_attr_escape`) and the GLE Exporter's own comment writer. This
+        # was the one of the three that did not.
+        new_text_bytes = xml_text_escape(new_text).encode(
+            "latin-1", errors="replace")
         new_body, count = _GLE_PORT_COMMENT_RE.subn(
             lambda pm: pm.group(1) + new_text_bytes + pm.group(3),
             body,
@@ -618,8 +626,10 @@ def update_scd_with_gle_comments(
             "error": f"IED {ied_name!r} nao encontrado no SCD ou sem ExtRef VBnnn.",
         }
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(updated)
+    # Atomic, like every RDB write in this project: the corrected SCD is
+    # adopted into the project library right after, and a truncated one there
+    # is indistinguishable from a whole one.
+    atomic_write_bytes(output_path, updated)
 
     return {
         "ok": True,
@@ -1016,7 +1026,6 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                 if not target.is_file():
                     self._send(404, "file not found", "text/plain")
                     return
-                data = target.read_bytes()
                 ext = target.suffix.lower()
                 if ext == ".rdb":
                     ctype = "application/octet-stream"
@@ -1024,20 +1033,8 @@ def build_vb_updater_handler(logger: logging.Logger, sessions) -> type:
                     ctype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 else:
                     ctype = "application/xml"
-                self.send_response(200)
-                self.send_header("Content-Type", ctype)
-                self.send_header("Content-Length", str(len(data)))
-                # RFC 5987, not a plain `filename="..."`: this name is
-                # derived from the source file's DISPLAY name, which carries
-                # accents, and `send_header` encodes latin-1 strict -- an
-                # en-dash in it raised `UnicodeEncodeError` halfway through
-                # the response. Same header as `project_files` and the GLV.
-                self.send_header(
-                    "Content-Disposition",
-                    "attachment; filename*=UTF-8''" + quote(target.name, safe=""),
-                )
-                self.end_headers()
-                self.wfile.write(data)
+                # Streamed, and RFC 5987 named -- see `SessionHandler.send_file`.
+                self.send_file(target, ctype, download_name=target.name)
                 return
             if path == "/compare":
                 relay = (qs.get("relay") or [""])[0]

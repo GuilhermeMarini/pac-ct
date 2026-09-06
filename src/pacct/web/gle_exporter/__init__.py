@@ -45,6 +45,9 @@ from pacct.web.rdb_write import (
 from pacct.web.rdb_write import (
     with_suffix_before_ext as _with_suffix_before_ext,
 )
+from pacct.web.rdb_write import (
+    xml_text_escape,
+)
 from pacct.web.session import SessionHandler
 from pacct.web.xlsx_names import sanitize_sheet_name as _sanitize_sheet_name
 
@@ -201,20 +204,13 @@ def _port_by_index_re(idx: int) -> re.Pattern[bytes]:
     return re.compile(pat, re.DOTALL)
 
 
-def _xml_text_escape(s: str) -> str:
-    """Escape special characters for XML text content."""
-    return (s.replace("&", "&amp;")
-             .replace("<", "&lt;")
-             .replace(">", "&gt;"))
-
-
 def _build_comment_node(new_comment: str) -> bytes:
     """Build the new <comment...> node as latin-1 bytes.
     Empty -> self-closing ` />`; non-empty -> `>TEXT</comment>`.
     """
     if not new_comment:
         return b" />"
-    text_bytes = _xml_text_escape(new_comment).encode("latin-1", errors="replace")
+    text_bytes = xml_text_escape(new_comment).encode("latin-1", errors="replace")
     return b">" + text_bytes + b"</comment>"
 
 
@@ -732,28 +728,18 @@ def build_gle_exporter_handler(logger: logging.Logger, sessions) -> type:
                 if not target.is_file():
                     self._send(404, "file not found", "text/plain")
                     return
-                data = target.read_bytes()
                 ext = target.suffix.lower()
-                if ext == ".rdb":
-                    ctype = "application/octet-stream"
-                elif ext == ".xlsx":
+                if ext == ".xlsx":
                     ctype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 else:
                     ctype = "application/octet-stream"
-                self.send_response(200)
-                self.send_header("Content-Type", ctype)
-                self.send_header("Content-Length", str(len(data)))
-                # RFC 5987, not a plain `filename="..."`: this name is
-                # derived from the source file's DISPLAY name, which carries
-                # accents, and `send_header` encodes latin-1 strict -- an
-                # en-dash in it raised `UnicodeEncodeError` halfway through
-                # the response. Same header as `project_files` and the GLV.
-                self.send_header(
-                    "Content-Disposition",
-                    "attachment; filename*=UTF-8''" + quote(target.name, safe=""),
-                )
-                self.end_headers()
-                self.wfile.write(data)
+                # Streamed: an exported RDB is 40-140 MB, and `read_bytes()`
+                # held all of it per concurrent download on a threaded server.
+                # `send_file` also writes the RFC 5987 name -- these names come
+                # from a DISPLAY name and carry accents, and `send_header`
+                # encodes latin-1 strict, so a plain `filename="..."` with an
+                # en-dash raises after the status line has gone out.
+                self.send_file(target, ctype, download_name=target.name)
                 return
 
             self._send(404, "not found", "text/plain")

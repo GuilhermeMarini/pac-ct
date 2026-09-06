@@ -433,7 +433,11 @@ def run_rollback() -> None:
         print(f"[OK] Pasta revertida para {back}.")
         return
     layout = Layout.detect(ROOT)
-    assert layout is not None      # install_kind said "versioned"
+    if layout is None:             # install_kind said "versioned"
+        # Not an `assert`: `python -O` strips those, and the next line would
+        # raise AttributeError on None instead of saying anything useful.
+        sys.exit("[ERRO] Nao consegui localizar o layout versionado a partir "
+                 f"de {ROOT}.")
     try:
         target = rollback(layout)
     except UpdateError as exc:

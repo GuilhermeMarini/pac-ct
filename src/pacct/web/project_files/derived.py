@@ -25,6 +25,9 @@ works.
 from __future__ import annotations
 
 import logging
+import os
+import shutil
+import tempfile
 from pathlib import Path
 
 from sellib import rdb as rdb_loader
@@ -69,14 +72,18 @@ def adopt(sessions, session, path, *, origin: str,
     kind = kind_for_output(name)
     if kind is None:
         return None, False, f"tipo não guardado no projeto: {name}"
+    # Hashed and copied from DISK, never loaded whole. `process_upload`'s
+    # docstring says it exists for callers that ALREADY hold the bytes; this
+    # one holds a path, and an exported RDB is 40-140 MB -- reading it in only
+    # to hand it to a `BytesIO` kept that size resident twice over, on the
+    # same threaded server that may be serving another download.
     try:
-        data = src.read_bytes()
+        size = src.stat().st_size
+        sha = rdb_loader.sha256_file(src)
     except OSError as e:
         return None, False, f"não foi possível ler {name}: {e}"
-    if not data:
+    if not size:
         return None, False, f"{name} está vazio"
-
-    sha = rdb_loader.sha256_bytes(data)
     lib = library.library_for(sessions, session)
     with session.lock:
         existing = lib.get(sha)
@@ -91,11 +98,11 @@ def adopt(sessions, session, path, *, origin: str,
 
     try:
         if kind == library.KIND_RDB:
-            entry = _rdb_entry(data, name, sha, origin)
+            entry = _rdb_entry(src, size, name, sha, origin)
         elif kind == library.KIND_SCD:
-            entry = _scd_entry(data, name, sha, origin, session)
+            entry = _scd_entry(src, size, name, sha, origin, session)
         else:
-            entry = _plain_entry(data, name, sha, origin, session, kind)
+            entry = _plain_entry(src, size, name, sha, origin, session, kind)
     except Exception as e:                       # noqa: BLE001 - best effort
         if logger is not None:
             logger.warning("[files] '%s' não entrou no projeto: %s", name, e)
@@ -110,8 +117,31 @@ def adopt(sessions, session, path, *, origin: str,
     return entry, duplicate, ""
 
 
-def _rdb_entry(data: bytes, name: str, sha: str, origin: str):
-    info = rdb_loader.process_upload(data, name)
+def _copy_atomic(src: Path, dst: Path) -> None:
+    """Copy `src` onto `dst` so a reader never sees a half-written file.
+
+    Same temp-then-`os.replace` the RDB writer and the SCD upload use. It
+    matters here for the same reason it matters there: the file is named after
+    its own sha256, so a truncated one looks exactly like the real one to
+    every later lookup.
+    """
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(dir=str(dst.parent),
+                                    prefix=f".{dst.name}.", suffix=".part")
+    os.close(fd)
+    tmp = Path(tmp_name)
+    try:
+        shutil.copyfile(src, tmp)
+        os.chmod(tmp, 0o644)
+        os.replace(tmp, dst)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
+def _rdb_entry(src: Path, size: int, name: str, sha: str, origin: str):
+    with open(src, "rb") as fh:
+        info = rdb_loader.process_upload_stream(fh, size, name)
     # The name to SHOW, over the one `sellib` sanitized. It goes on the
     # `RdbInfo` and not only on the entry because five screens read it from
     # there (`glv/handler.py:184`, `settings_compare:131`, `vb_updater:1113`,
@@ -122,14 +152,14 @@ def _rdb_entry(data: bytes, name: str, sha: str, origin: str):
     info.display_name = library.display_name_for(name, "arquivo.rdb")
     return library.FileEntry(
         sha256=sha, kind=library.KIND_RDB, display_name=info.display_name,
-        size=len(data), detail=f"{len(info.relays)} IED(s)",
+        size=size, detail=f"{len(info.relays)} IED(s)",
         rdb=info, origin=origin,
     )
 
 
-def _scd_entry(data: bytes, name: str, sha: str, origin: str, session):
+def _scd_entry(src: Path, size: int, name: str, sha: str, origin: str, session):
     target = library.path_for(library.files_dir(session), sha, ".scd")
-    target.write_bytes(data)
+    _copy_atomic(src, target)
     try:
         ieds = scd_loader.load_scd(target)
     except Exception:
@@ -142,18 +172,18 @@ def _scd_entry(data: bytes, name: str, sha: str, origin: str, session):
     return library.FileEntry(
         sha256=sha, kind=library.KIND_SCD,
         display_name=library.display_name_for(name, "arquivo.scd"),
-        size=len(data), detail=base, path=target,
+        size=size, detail=base, path=target,
         origin=origin,
     )
 
 
-def _plain_entry(data: bytes, name: str, sha: str, origin: str, session,
-                 kind: str):
+def _plain_entry(src: Path, size: int, name: str, sha: str, origin: str,
+                 session, kind: str):
     suffix = Path(name).suffix.lower() or ".bin"
     target = library.path_for(library.files_dir(session), sha, suffix)
-    target.write_bytes(data)
+    _copy_atomic(src, target)
     return library.FileEntry(
         sha256=sha, kind=kind,
         display_name=library.display_name_for(name, f"arquivo{suffix}"),
-        size=len(data), detail="", path=target, origin=origin,
+        size=size, detail="", path=target, origin=origin,
     )

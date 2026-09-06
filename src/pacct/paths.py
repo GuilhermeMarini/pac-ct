@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import tempfile
 from pathlib import Path
 
 # The PACKAGE's directory. Everything that travels INSIDE it -- the .html
@@ -164,6 +165,38 @@ def ensure_dirs() -> None:
     """Create the mutable directories (cache, rdbs) if they do not exist yet."""
     for d in (CACHE_DIR, RDB_CACHE_DIR, RDBS_DIR):
         d.mkdir(parents=True, exist_ok=True)
+
+
+def atomic_write_bytes(path: Path, data: bytes) -> None:
+    """Write `data` at `path` so nobody ever reads a half-written file.
+
+    The same temp-then-`os.replace` idiom `web/rdb_write.py` and
+    `cfbwrite.rebuild` already use, extracted because three more places
+    needed it and were doing a plain `write_bytes`. A kill, an OOM or a power
+    cut mid-write then left a truncated file -- and for the GLV's notes, whose
+    loaders treat unreadable JSON as "no notes", that is an engineer's
+    commissioning annotations disappearing without a word.
+
+    Same directory as the destination, so the replace is atomic.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(dir=str(path.parent),
+                                    prefix=f".{path.name}.", suffix=".part")
+    tmp = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(data)
+        os.chmod(tmp, 0o644)
+        os.replace(tmp, path)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
+def atomic_write_text(path: Path, text: str, encoding: str = "utf-8") -> None:
+    """`atomic_write_bytes` for text."""
+    atomic_write_bytes(path, text.encode(encoding))
 
 
 def is_within(target: Path, roots) -> bool:

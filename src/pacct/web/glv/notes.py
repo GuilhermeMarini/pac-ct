@@ -25,7 +25,7 @@ import os
 import re
 import threading
 
-from pacct.paths import CACHE_DIR
+from pacct.paths import CACHE_DIR, atomic_write_text
 
 # Limite de seguranca para o HTML do notepad (evita DoS via /note POST).
 NOTE_MAX_BYTES = 256 * 1024
@@ -149,9 +149,11 @@ class NoteStore:
             })
 
     def _write(self, kind: str, payload: dict) -> None:
-        p = _path(kind, self.key)
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        # Atomic, like every other write in this project that a reader can
+        # race: `_load_note` and friends treat unreadable JSON as an empty
+        # file, so a truncated write is not an error the user ever sees -- it
+        # is their notes quietly gone.
+        atomic_write_text(_path(kind, self.key), json.dumps(payload, indent=2))
 
     # -- reading ------------------------------------------------------------
 

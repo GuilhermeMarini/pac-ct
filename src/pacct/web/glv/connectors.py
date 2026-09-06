@@ -32,10 +32,11 @@ there is nothing to simulate. Measured, it is also what keeps the equation at
 from __future__ import annotations
 
 import logging
-import re
 from dataclasses import dataclass
 
 from sellib.gle import element_info, is_const_symbol_name
+
+from pacct.web.glv.gle_pages import safe_page_id
 
 _logger = logging.getLogger(__name__)
 
@@ -72,11 +73,6 @@ class ConnectorNet:
     tree: dict             # a expressao, em JSON, pro avaliador do cliente
     bits: frozenset        # folhas nomeadas da Relay Word -- o que polar
     equation: str          # the SELOGIC text, for the legend
-
-
-def _safe_page_id(name: str, fallback: int = 0) -> str:
-    """Same rule as `gle_pages.list_pages`, so the keys match."""
-    return re.sub(r"[^A-Za-z0-9_-]", "_", name or "") or f"page_{fallback}"
 
 
 def _named_bit(el, relay_model) -> str:
@@ -133,7 +129,7 @@ class _Graph:
         self.is_source: set = set()   # ids que aparecem como origem
         self.is_sink: set = set()     # ids que aparecem como destino
         for i, page in enumerate(gle_root.findall(".//page")):
-            safe = _safe_page_id(page.get("name", ""), i)
+            safe = safe_page_id(page.get("name", ""), i)
             for el in page.findall(".//element"):
                 eid = el.get("id") or ""
                 self.el[eid] = el

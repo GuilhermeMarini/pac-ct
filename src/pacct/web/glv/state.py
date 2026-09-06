@@ -16,6 +16,14 @@ class LiveState:
     """Keeps the last snapshot of values read from the relay."""
     def __init__(self):
         self.lock = threading.Lock()
+        # Counts READINGS, so a thread can block on one instead of asking for
+        # one. The condition shares `self.lock` on purpose: the four poll
+        # loops already write their values under it and `mark_updated` is
+        # documented as being called with it in hand, which is exactly the
+        # critical section the notify has to happen inside. A waiter releases
+        # the lock while it sleeps, so `snapshot()` is never held up by it.
+        self._changed = threading.Condition(self.lock)
+        self.version = 0
         self.digitals: dict[str, int] = {}
         self.analogs: dict[str, float] = {}
         # A reading is stamped by TWO clocks, and the second is not a luxury.
@@ -46,6 +54,33 @@ class LiveState:
         the stamp has to go into the same critical section as they do."""
         self.last_update_ts = time.time()
         self.last_update_mono = time.monotonic()
+        self._bump()
+
+    def _bump(self) -> None:
+        """Count one change and release everyone waiting for it.
+
+        Call it WITH `self.lock` held -- `Condition.notify_all` requires it,
+        and every caller is already inside that critical section.
+        """
+        self.version += 1
+        self._changed.notify_all()
+
+    def wait_for_change(self, last_version: int, timeout: float):
+        """Block until `version` leaves `last_version`, or until `timeout`.
+
+        Returns the new version, or `None` if the timeout expired with
+        nothing having moved. A caller whose `last_version` is already stale
+        is answered immediately and never parked -- that is the race between a
+        reading landing and the next turn of an `/events` loop starting.
+
+        The timeout is the heartbeat, not a safety net: the badge shows the
+        reading's AGE, which has to keep ageing on screen while no bit moves.
+        """
+        with self._changed:
+            if self.version != last_version:
+                return self.version
+            self._changed.wait(timeout)
+            return self.version if self.version != last_version else None
 
     def snapshot(self):
         with self.lock:
@@ -75,3 +110,7 @@ class LiveState:
             self.last_update_ts = 0.0
             self.last_update_mono = 0.0
             self.error = ""
+            # A disconnect is a change like any other: the screen has to
+            # repaint to indeterminate. Without this the last drawing stays
+            # up with nothing to trigger the repaint -- a value nobody read.
+            self._bump()

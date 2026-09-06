@@ -12,8 +12,9 @@ down: it stays open and disconnected, with the reason on the badge.
 
 from __future__ import annotations
 
-import re
+import json
 import threading
+import zlib
 
 from sellib.gle import parse_gle, render_page
 
@@ -24,6 +25,7 @@ from pacct.web.glv.gle_pages import (
     collect_bit_names,
     collect_bits_per_page,
     list_pages,
+    safe_page_id,
 )
 from pacct.web.glv.link import TooManyLinks
 from pacct.web.glv.notes import NOTES, note_key
@@ -243,13 +245,21 @@ class GlvDiagram:
             # First connection: adopt whatever was written under the DEVID.
             self.notes.adopt_devid(link.devid, self.logger)
             with self._lock:
-                if gen != self._gen:
-                    link_to_drop, link = link, None
-                    self._abandon(link_to_drop, pool, job)
-                    return
-                self.link = link
-                self.status = LIVE
-                self.error = ""
+                cancelled = gen != self._gen
+                if not cancelled:
+                    self.link = link
+                    self.status = LIVE
+                    self.error = ""
+            if cancelled:
+                # Released OUTSIDE `_lock`, for the reason `connect_async`
+                # states forty lines up: `release` may `close()` the link, and
+                # `close()` joins the polling thread for up to
+                # POLL_JOIN_TIMEOUT (4 s). `disconnect()` wants this same
+                # lock, so holding it across the join is Desconectar looking
+                # dead again, through a narrower door.
+                link_to_drop, link = link, None
+                self._abandon(link_to_drop, pool, job)
+                return
             job.finish(f"Conectado ({link.fid or link.key})")
             self.logger.info("[glv] diagrama %s ao vivo em %s (modo %s)",
                              self.id, link.key, link.mode)
@@ -521,6 +531,22 @@ class GlvDiagram:
                 for nm in sorted(wanted_an)
             }
             snap["analog_groups"] = self.analog_groups_meta
+        # What the DRAWING is a function of, and nothing else. The screen
+        # repaints on a clock, so the client needs to know whether repainting
+        # would change a pixel: on the heaviest page of the corpus (118
+        # elements, 83 connections) one repaint is ~806 `classList` writes and
+        # ~1238 `getAttribute` reads, and at rest none of them moves anything.
+        #
+        # It cannot be a checksum of the payload. `ts` and `age` differ on
+        # every single read by construction -- `age` is recomputed from the
+        # monotonic clock inside `snapshot()` -- so a payload checksum would
+        # change every tick and buy exactly nothing. Hence these three fields
+        # named explicitly, and `sort_keys` so two equal readings serialise
+        # the same way whatever order the dicts were built in.
+        snap["rev"] = zlib.crc32(json.dumps(
+            [page, snap.get("digitals"), snap.get("analogs")],
+            sort_keys=True, default=str, separators=(",", ":"),
+        ).encode("utf-8"))
         snap["status"] = self.status
         snap["connected"] = self.connected
         return snap
@@ -591,10 +617,9 @@ def build_diagram(diagram_id: str, gle_path, relay_name: str, gle_name: str,
     logger.info("[glv] carregando GLE: %s", gle_path)
     gle_root = parse_gle(gle_path)
     d.pages_meta = list_pages(gle_root)
-    for p in gle_root.findall(".//page"):
-        name = p.get("name", "")
-        safe = re.sub(r"[^A-Za-z0-9_-]", "_", name) or f"page_{len(d.svgs)}"
-        d.svgs[safe] = render_page(p, relay_model=relay_model)
+    for i, p in enumerate(gle_root.findall(".//page")):
+        d.svgs[safe_page_id(p.get("name", ""), i)] = render_page(
+            p, relay_model=relay_model)
     logger.info("  %d paginas renderizadas", len(d.svgs))
 
     d.bits_per_page = collect_bits_per_page(gle_root, relay_model=relay_model)

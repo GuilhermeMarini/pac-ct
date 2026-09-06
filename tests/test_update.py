@@ -284,6 +284,30 @@ def test_rollback_with_nowhere_to_go_says_so(tmp_path):
         U.rollback(layout)
 
 
+@pytest.mark.skipif(os.name == "nt", reason="junctions, not symlinks")
+def test_rollback_goes_back_and_never_forward(tmp_path):
+    """`--reverter` promises "a versao anterior", and it used to take the
+    newest version that merely was not the running one. With three installed
+    and the middle one running, that is FORWARD -- an engineer asking to undo
+    an update got the update.
+    """
+    layout = make_install(tmp_path, ["1.3.0", "1.4.0", "1.5.0"])
+    U.point_current(layout, layout.versions / "1.4.0")
+    assert U.current_version(layout) == "1.4.0"
+
+    assert U.rollback(layout).name == "1.3.0"
+    assert layout.current.resolve().name == "1.3.0"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="junctions, not symlinks")
+def test_rollback_from_the_oldest_installed_refuses(tmp_path):
+    """Nothing below it, even though newer versions are installed."""
+    layout = make_install(tmp_path, ["1.4.0", "1.5.0"])
+    U.point_current(layout, layout.versions / "1.4.0")
+    with pytest.raises(U.UpdateError):
+        U.rollback(layout)
+
+
 # ---------------------------------------------------------------------------
 # Rule 5: userdata is never touched
 # ---------------------------------------------------------------------------

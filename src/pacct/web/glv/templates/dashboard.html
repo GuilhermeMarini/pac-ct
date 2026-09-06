@@ -788,14 +788,60 @@ const pollStatus = document.getElementById('poll-status');
   });
 })();
 
+// Cache do SVG por pagina, no cliente. `/pages/<id>` devolve sempre os mesmos
+// bytes -- o servidor renderiza todas as paginas quando o diagrama abre e
+// guarda as strings prontas -- entao ir e voltar entre duas paginas baixava e
+// RE-PARSEAVA ~48 kB de SVG a cada troca. Guardamos o no ja' parseado: voltar
+// a uma pagina ja' vista e' um `replaceChildren`, sem rede e sem parse.
+//
+// O GET continua acontecendo, agora com `have=1`. `/pages/<id>` e' o UNICO
+// caminho pelo qual o servidor descobre que pagina o visitante abriu
+// (`GlvDiagram.remember_page`, que e' o que faz a aba lembrar onde estava), e
+// essa invariante nao pode depender de o cliente ter ou nao os bytes. Com
+// `have=1` a resposta e' 204 sem corpo, e ninguem espera por ela.
+const PAGE_CACHE_MAX = 12;
+const pageSvgCache = new Map();
+
 async function loadPage(safeId, name) {
-  const r = await fetch(withD(`/pages/${safeId}`));
-  const svg = await r.text();
-  document.getElementById('viewer').innerHTML = svg;
+  const viewer = document.getElementById('viewer');
+  const key = `${activeDiagram}|${safeId}`;
+  let node = pageSvgCache.get(key);
+  if (node) {
+    pageSvgCache.delete(key);            // reordena o LRU
+    pageSvgCache.set(key, node);
+    fetch(withD(`/pages/${safeId}?have=1`)).catch(() => {});
+    // Um no que volta do cache traz os overlays que tinha quando saiu.
+    // `applyHighlightsForCurrentPage` so' ADICIONA (e cada `apply*Highlight`
+    // se protege de duplicar), entao um marcador apagado enquanto a pagina
+    // estava fora ficaria na tela para sempre. Zerar aqui e deixar o reapply
+    // reconstruir e' o que mantem o desenho igual ao estado do servidor.
+    node.querySelectorAll('.hl-overlay, .hl-line-overlay, .search-hit, .search-hit-line')
+        .forEach(n => n.remove());
+    node.querySelectorAll('.highlighted').forEach(n => n.classList.remove('highlighted'));
+  } else {
+    const r = await fetch(withD(`/pages/${safeId}`));
+    const text = await r.text();
+    const holder = document.createElement('div');
+    holder.innerHTML = text;
+    node = holder.querySelector('svg');
+    if (node) {
+      pageSvgCache.set(key, node);
+      // LRU curto: 42 paginas de um GLE grande sao ~2 MB de SVG parseado, e
+      // ninguem navega entre doze paginas ao mesmo tempo.
+      while (pageSvgCache.size > PAGE_CACHE_MAX) {
+        pageSvgCache.delete(pageSvgCache.keys().next().value);
+      }
+    }
+  }
+  if (node) viewer.replaceChildren(node);
+  else viewer.innerHTML = '';
   if (zoomCtl) zoomCtl.onPageChange();
   document.querySelectorAll('#pages button').forEach(b => b.classList.remove('active'));
-  document.querySelector(`#pages button[data-page="${safeId}"]`).classList.add('active');
+  const btn = document.querySelector(`#pages button[data-page="${safeId}"]`);
+  if (btn) btn.classList.add('active');
   currentPage = safeId;
+  // O stream segue a PAGINA: `/events` filtra pelos bits dela, como `/values`.
+  startStream();
   applyValues(lastValues);
   applyGroupState();
   applyHighlightsForCurrentPage();
@@ -2078,137 +2124,190 @@ function evalConnectorTree(node, digitals) {
   }
 }
 
-function evaluatePage(svg, digitals, analogs, netValue) {
-  // 1. Mapa: element_id -> {type, value}
-  // SYMBOLs ja tem valor (dos digitais OU dos analogicos). Gates a avaliar.
-  // elValue carrega 0/1 para sinais digitais e numeros reais (float/int) para
-  // entradas analogicas (AMVs) e constantes numericas (literais como 60, 600).
-  // Comparadores (EQ/NE/LT/LE/GT/GE) usam o numerico bruto; demais gates
-  // logicos tratam apenas 0/1.
-  const elValue = {};      // id -> 0/1 OR número real (analog/const)
-  const elType = {};       // id -> 'SYMBOL' | 'AND' | 'OR' | ...
-  const symbolBit = {};    // id -> bit_name (so para SYMBOLs)
-  analogs = analogs || {};
+// =============================================================================
+// A PAGINA COMPILADA.
+//
+// A topologia de um desenho nao muda enquanto a pagina esta aberta: quem sao
+// os blocos, que bit cada SYMBOL publica, que fio chega em que porta -- tudo
+// isso e' atributo do SVG, escrito uma vez pelo servidor. `evaluatePage` lia
+// tudo de volta do DOM a CADA leitura.
+//
+// Medido no Chrome, na pagina mais pesada do corpus de 418 GLE (118
+// elementos, 83 conexoes, 588 nos SVG), o que isso custava por volta:
+// 7 varreduras `querySelectorAll`, 118 `querySelector` aninhados (o `rect` de
+// cada bloco), ~1238 `getAttribute` e ~806 escritas de classe -- com o rele
+// parado, nenhuma delas mudando um pixel.
+//
+// Agora o SVG e' lido UMA vez, quando entra na tela, e a volta so' avalia e
+// pinta. Cada no guarda a ultima classe que recebeu (`cls`), entao a pintura
+// e' um diff: numa subestacao em repouso nao ha' escrita nenhuma.
+// =============================================================================
+let pageModel = null;
+let drawnRev = null;
+let drawnPage = null;
 
-  svg.querySelectorAll('.symbol-grp').forEach(g => {
-    const id = g.id.replace(/^el-/, '');
-    elType[id] = 'SYMBOL';
-    // Constante (literal numerico, ex: 0, 1, 600). Nao consultar o rele.
-    // Guardamos o valor REAL (nao apenas 0/1) para que comparadores como
-    // EQ/LT/GT possam comparar AMVs contra thresholds (ex.: AMV==60).
+//: Qual das tres classes de estado o no ja' carrega. Lido do DOM na compilacao
+//: e nao assumido vazio, porque uma pagina pode voltar do cache do cliente
+//: (ver `loadPage`) ainda pintada da ultima vez que esteve aberta -- e o diff
+//: partiria de "sem classe" e somaria a nova sem tirar a antiga.
+function _currentClass(node, names) {
+  if (!node) return '';
+  for (const n of names) if (node.classList.contains(n)) return n;
+  return '';
+}
+
+const _BIT_CLASSES = ['bit-1', 'bit-0', 'bit-unknown'];
+const _WIRE_CLASSES = ['active', 'off', 'unknown'];
+
+function compilePage(svg) {
+  // SYMBOLs primeiro, gates depois -- exatamente a ordem em que o `elType`
+  // antigo era preenchido (duas varreduras, nessa sequencia) e portanto a
+  // ordem em que o laco de convergencia percorria os elementos. Uma ordem
+  // diferente daria o mesmo ponto fixo, mas em outro numero de passadas, e o
+  // laco tem teto de 10.
+  const nodes = [];
+  const byId = new Map();
+  const add = (g, isSymbol) => {
+    const id = g.id.startsWith('el-') ? g.id.slice(3) : g.id;
     const constStr = g.getAttribute('data-const');
-    if (constStr !== null) {
-      const n = Number(constStr);
-      if (!isNaN(n)) elValue[id] = n;
-      return;
-    }
-    // SYMBOL analogico (AMV/PMV/MV/MAG/...): valor vem dos canais Fast Meter.
-    // Guardamos o float bruto; comparadores truncam pra inteiro antes de
-    // comparar com a constante (que normalmente vem como inteiro do GLE).
-    const analogName = g.getAttribute('data-analog');
-    if (analogName) {
-      const v = analogs[analogName.toUpperCase()];
-      if (typeof v === 'number' && !isNaN(v)) elValue[id] = v;
-      return;
-    }
-    const bit = g.getAttribute('data-bit');
-    if (bit) {
-      symbolBit[id] = bit;
-      const v = digitals[bit.toUpperCase()];
-      // null/undefined = indeterminado (nao seta elValue)
-      // 0/1 = conhecido
-      if (v === 0 || v === 1) elValue[id] = v;
-    }
+    const n = {
+      id, g, isSymbol,
+      rect: g.querySelector('rect:not(.hl-overlay)'),
+      type: isSymbol ? 'SYMBOL' : (g.getAttribute('data-type') || '?'),
+      hasConst: constStr !== null,
+      constVal: constStr === null ? NaN : Number(constStr),
+      analog: (g.getAttribute('data-analog') || '').toUpperCase(),
+      analogRaw: g.getAttribute('data-analog') || '',
+      bit: (g.getAttribute('data-bit') || '').toUpperCase(),
+      outBit: (g.getAttribute('data-output-bit') || '').toUpperCase(),
+      connector: g.getAttribute('data-connector') || '',
+      analogText: g.querySelector('.analog-value'),
+      analogRect: g.querySelector('.element-analog'),
+      incoming: null,
+      cls: '',
+    };
+    n.cls = _currentClass(n.rect, _BIT_CLASSES);
+    nodes.push(n);
+    byId.set(id, n);
+  };
+  svg.querySelectorAll('.symbol-grp').forEach(g => add(g, true));
+  svg.querySelectorAll('.gate-grp').forEach(g => add(g, false));
+
+  const conns = [];
+  svg.querySelectorAll('polyline.connection').forEach(c => {
+    const e = {
+      c,
+      src: c.getAttribute('data-src') || '',
+      dst: c.getAttribute('data-dst') || '',
+      mod: c.getAttribute('data-sink-mod') || '',
+      srcMod: c.getAttribute('data-src-mod') || '',
+      port: parseInt(c.getAttribute('data-dst-port') || '0', 10) || 0,
+      // Os pontos viram lista aqui e nao a cada volta: era um `getAttribute`
+      // mais um `split` por conexao ativa, so' para achar os dots de juncao.
+      pts: (c.getAttribute('points') || '').trim().split(/\s+/),
+      cls: '',
+    };
+    e.cls = _currentClass(c, _WIRE_CLASSES);
+    conns.push(e);
+    const sink = byId.get(e.dst);
+    if (sink) (sink.incoming = sink.incoming || []).push(e);
   });
-  svg.querySelectorAll('.gate-grp').forEach(g => {
-    const id = g.id.replace(/^el-/, '');
-    elType[id] = g.getAttribute('data-type') || '?';
-    // Se o bloco tem um bit de saida nomeado (PLT04, PCT03Q, AST01Q...),
-    // usa o valor REAL do rele em vez de tentar avaliar a logica.
-    const outBit = g.getAttribute('data-output-bit');
-    if (outBit) {
-      const v = digitals[outBit.toUpperCase()];
-      if (v === 0 || v === 1) elValue[id] = v;
-    }
+  // Ordenado UMA vez. O `ins.sort(...)` vivia dentro do laco de convergencia,
+  // entao o mesmo array era reordenado ate' dez vezes por leitura.
+  for (const n of nodes) if (n.incoming) n.incoming.sort((a, b) => a.port - b.port);
+
+  const dots = [];
+  svg.querySelectorAll('circle.junction-dot').forEach(d => {
+    dots.push({
+      d,
+      key: `${d.getAttribute('data-jx')},${d.getAttribute('data-jy')}`,
+      on: d.classList.contains('active'),
+    });
   });
 
-  // 1b. Conectores: a rede nomeada que o desenho usa no lugar de uma linha.
-  // Um conector NAO e' uma aresta no XML -- sao dois ou mais elementos que
-  // compartilham um `<label>`, e nada os liga. O valor vem da equacao que o
-  // servidor extraiu, entao a ponta que RECEBE e a que EMITE ficam com o
-  // mesmo valor mesmo quando o acionamento esta em outra pagina (medido: 9
-  // redes do corpus atravessam pagina).
-  //
-  // Antes do laco de convergencia de proposito: a arvore so' depende de bits,
-  // nao de elementos desta pagina, entao ja entra resolvida e o laco propaga
-  // dali pra frente.
-  svg.querySelectorAll('.gate-grp[data-connector]').forEach(g => {
-    const label = g.getAttribute('data-connector');
-    if (netValue && label in netValue) {
-      elValue[g.id.replace(/^el-/, '')] = netValue[label];
-    }
-  });
+  // Os SYMBOLs analogicos, ja' separados: a pintura dos valores inline
+  // varria `[data-analog]` no SVG inteiro de novo.
+  const analogNodes = nodes.filter(n => n.analogRaw);
+  return {svg, nodes, byId, conns, dots, analogNodes};
+}
 
-  // 2. Lista de conexoes com info de modificadores
-  const conns = Array.from(svg.querySelectorAll('polyline.connection'));
-  // sink_id -> [{src_id, mod, srcMod, port}, ...]
-  // mod   = operador no SINK   (input port do elemento destino)
-  // srcMod = operador no SOURCE (output port do elemento origem)
-  const incoming = {};
-  for (const c of conns) {
-    const src = c.getAttribute('data-src');
-    const dst = c.getAttribute('data-dst');
-    const mod = c.getAttribute('data-sink-mod') || '';
-    const srcMod = c.getAttribute('data-src-mod') || '';
-    const dp = parseInt(c.getAttribute('data-dst-port') || '0');
-    if (!dst) continue;
-    if (!incoming[dst]) incoming[dst] = [];
-    incoming[dst].push({src, mod, srcMod, port: dp});
+// Avalia a logica da pagina sobre o modelo compilado. Mesma semantica do
+// `evaluatePage` que lia o DOM: mesmos primitivos, mesma ordem de visita,
+// mesmo teto de 10 passadas.
+function evaluateModel(model, digitals, analogs, netValue) {
+  const val = new Map();
+  for (const n of model.nodes) {
+    if (n.isSymbol) {
+      // Constante (literal numerico, ex: 0, 1, 600). Nao consultar o rele.
+      // Guardamos o valor REAL para que comparadores como EQ/LT/GT possam
+      // comparar AMVs contra thresholds.
+      if (n.hasConst) { if (!isNaN(n.constVal)) val.set(n.id, n.constVal); continue; }
+      // SYMBOL analogico: valor vem dos canais Fast Meter, float bruto.
+      if (n.analog) {
+        const v = analogs[n.analog];
+        if (typeof v === 'number' && !isNaN(v)) val.set(n.id, v);
+        continue;
+      }
+      if (n.bit) {
+        const v = digitals[n.bit];
+        if (v === 0 || v === 1) val.set(n.id, v);   // null/undefined = indeterminado
+      }
+      continue;
+    }
+    // Bloco com bit de saida nomeado (PLT04, PCT03Q, AST01Q...): usa o valor
+    // REAL do rele em vez de avaliar a logica.
+    if (n.outBit) {
+      const v = digitals[n.outBit];
+      if (v === 0 || v === 1) val.set(n.id, v);
+    }
+    // Conectores: a rede nomeada que o desenho usa no lugar de uma linha. O
+    // valor vem da equacao que o servidor extraiu, entao as duas pontas ficam
+    // iguais mesmo quando o acionamento esta em outra pagina. Depois do
+    // `outBit` de proposito -- era a terceira varredura do codigo antigo, e
+    // sobrescrevia.
+    if (n.connector && netValue && n.connector in netValue) {
+      val.set(n.id, netValue[n.connector]);
+    }
   }
 
-  // 3. Itera ate convergir (max ~10 passadas)
   for (let iter = 0; iter < 10; iter++) {
     let changed = false;
-    for (const id in elType) {
-      const t = elType[id];
-      if (t === 'SYMBOL') {
-        // SYMBOL pode tb ser sink: pega valor da conexao de entrada
-        if (!(id in elValue) && incoming[id] && incoming[id].length > 0) {
-          const src = incoming[id][0];
-          if (src.src in elValue) {
-            let v = elValue[src.src];
+    for (const n of model.nodes) {
+      if (n.isSymbol) {
+        // SYMBOL pode tb ser sink: pega valor da conexao de entrada.
+        if (!val.has(n.id) && n.incoming && n.incoming.length) {
+          const src = n.incoming[0];
+          if (val.has(src.src)) {
+            let v = val.get(src.src);
             if (src.srcMod === 'NOT') v = 1 - v;
             if (src.mod === 'NOT') v = 1 - v;
-            elValue[id] = v;
+            val.set(n.id, v);
             changed = true;
           }
         }
         continue;
       }
-      if (id in elValue) continue; // ja calculado
-      const ins = incoming[id] || [];
-      if (ins.length === 0) continue;
-      // Coleta inputs (so se todos conhecidos)
+      if (val.has(n.id)) continue;            // ja' calculado
+      const ins = n.incoming;
+      if (!ins || !ins.length) continue;
       const vals = [];
       let allKnown = true;
-      // Ordena por port
-      ins.sort((a,b) => a.port - b.port);
-      for (const inp of ins) {
-        if (!(inp.src in elValue)) { allKnown = false; break; }
-        let v = elValue[inp.src];
+      for (const inp of ins) {                // ja' ordenado por porta
+        if (!val.has(inp.src)) { allKnown = false; break; }
+        let v = val.get(inp.src);
         if (inp.srcMod === 'NOT') v = 1 - v;
         if (inp.mod === 'NOT') v = 1 - v;
-        // RTRIG/FTRIG: nao conseguimos avaliar sem historico; trate como passagem
+        // RTRIG/FTRIG: nao conseguimos avaliar sem historico; trata como passagem
         vals.push(v);
       }
       if (!allKnown) continue;
       let out;
-      // Comparadores aritmeticos: AMVs chegam como float (ex.: 60.0001), e
-      // constantes do GLE costumam ser inteiras (ex.: 60). Truncamos ambos
-      // os lados pra inteiro antes de comparar, conforme convencao SEL.
+      // Comparadores aritmeticos: AMVs chegam como float (ex.: 60.0001) e
+      // constantes do GLE costumam ser inteiras. Trunca os dois lados antes de
+      // comparar, conforme convencao SEL.
       const ta = Math.trunc(vals[0]);
       const tb = Math.trunc(vals[1]);
-      switch (t) {
+      switch (n.type) {
         case 'AND':  out = vals.every(v => v === 1) ? 1 : 0; break;
         case 'OR':   out = vals.some(v => v === 1) ? 1 : 0; break;
         case 'NOT':  out = vals[0] === 1 ? 0 : 1; break;
@@ -2219,7 +2318,7 @@ function evaluatePage(svg, digitals, analogs, netValue) {
         case 'GT':   out = ta >  tb ? 1 : 0; break;
         case 'GE':   out = ta >= tb ? 1 : 0; break;
         case 'MULT': out = vals.every(v => v === 1) ? 1 : 0; break;
-        case 'RTRIG': out = vals[0]; break; // sem historico, propaga
+        case 'RTRIG': out = vals[0]; break;   // sem historico, propaga
         case 'PLT':  // latch S/R: sem estado persistente, melhor estimativa
           out = (vals[0] === 1) ? 1 : (vals[1] === 1) ? 0 : null;
           if (out === null) continue;
@@ -2228,12 +2327,12 @@ function evaluatePage(svg, digitals, analogs, netValue) {
         case 'AST': out = vals[0]; break;
         default: continue;
       }
-      elValue[id] = out;
+      val.set(n.id, out);
       changed = true;
     }
     if (!changed) break;
   }
-  return elValue;
+  return val;
 }
 
 // =============================================================================
@@ -2317,18 +2416,79 @@ pollMs.addEventListener('change', async () => {
   renderPollStatus(lastValues);
 });
 
+// =============================================================================
+// A PINTURA, e quando ela NAO acontece.
+//
+// `applyValues` nao desenha mais: ela guarda a leitura e agenda um quadro. Duas
+// coisas saem disso.
+//
+// (a) Duas leituras que chegam dentro do mesmo quadro do monitor viram UMA
+//     pintura -- o navegador nao mostraria a primeira de qualquer jeito. Com o
+//     `/events` empurrando no ritmo do rele (o MMS le a cada 10 ms), isso e' o
+//     que impede a tela de tentar pintar 100 vezes por segundo.
+// (b) A pintura fica presa ao relogio do monitor, nao a um `setTimeout`. E' o
+//     limite real de "o mais rapido possivel": abaixo de um quadro nao existe
+//     tela mais rapida, so' CPU gasta em quadros que ninguem ve.
+//
+// E o desenho so' e' refeito quando MUDOU. `rev` vem do servidor e cobre
+// exatamente pagina + digitais + analogicos -- nao o payload inteiro, porque
+// `ts` e `age` mudam a cada leitura por construcao. A pastilha de estado fica
+// FORA da comparacao: e' ela que mostra a idade, que precisa envelhecer na
+// tela mesmo com o rele parado.
+//
+// Medido no Chrome, na pagina mais pesada do corpus (118 elementos, 83
+// conexoes, 588 nos SVG), com recalc e layout dentro da conta.
+// =============================================================================
+let _pendingValues = null;
+let _drawRaf = null;
+let _lastKnownCount = 0;
+
 function applyValues(values) {
+  if (!values) return;
+  _pendingValues = values;
+  if (_drawRaf === null) _drawRaf = requestAnimationFrame(_flushDraw);
+}
+
+function _flushDraw() {
+  _drawRaf = null;
+  const values = _pendingValues;
+  _pendingValues = null;
+  if (values) drawValues(values);
+}
+
+//: Forca a proxima pintura mesmo que `rev` nao tenha mudado. Uma pagina nova
+//: (ou uma que voltou do cache) tem o SVG inteiro por pintar.
+function invalidateDrawing() {
+  drawnRev = null;
+  drawnPage = null;
+}
+
+function drawValues(values) {
   const svg = document.querySelector('#viewer svg');
   if (!svg) return;
+  // Um SVG diferente e' uma pagina diferente: recompila e pinta tudo.
+  if (!pageModel || pageModel.svg !== svg) {
+    pageModel = compilePage(svg);
+    invalidateDrawing();
+  }
 
-  // Normaliza: digitais com valor null = indeterminado
-  // Converte para dict UPPER->0/1/null
+  if (values.rev == null || values.rev !== drawnRev || values.page !== drawnPage) {
+    _repaint(values, pageModel);
+    drawnRev = values.rev;
+    drawnPage = values.page;
+  }
+  _renderStatusBadge(values);
+}
+
+function _repaint(values, model) {
+  // Normaliza: digitais com valor null = indeterminado. Chaves em UPPER, que
+  // e' como o modelo compilado guarda os nomes.
   const digitalsU = {};
   for (const [k, v] of Object.entries(values.digitals || {})) {
     digitalsU[k.toUpperCase()] = v;
   }
-  // Normaliza analogs: pode vir como {NAME:{value,group}} (modo agrupado)
-  // ou {NAME: numero} (modo legado). Achata pra {NAME_UPPER: numero}.
+  // Analogs pode vir como {NAME:{value,group}} (modo agrupado) ou
+  // {NAME: numero} (modo legado). Achata pra {NAME_UPPER: numero}.
   const analogsU = {};
   for (const [k, e] of Object.entries(values.analogs || {})) {
     let v = e;
@@ -2336,74 +2496,70 @@ function applyValues(values) {
     if (typeof v === 'number' && !isNaN(v)) analogsU[k.toUpperCase()] = v;
   }
 
-  // Avalia logica usando digitals + analogs (passa null transparentemente)
   // Valor de cada rede de conector, avaliado UMA vez: alimenta tanto a
-  // coloracao (via `evaluatePage`) quanto a secao Conectores da legenda.
+  // coloracao quanto a secao Conectores da legenda.
   const netValue = {};
   for (const [label, net] of Object.entries(values.connectors || {})) {
     const v = evalConnectorTree(net.tree, digitalsU);
     if (v === 0 || v === 1) netValue[label] = v;
   }
 
-  const elValue = evaluatePage(svg, digitalsU, analogsU, netValue);
+  const val = evaluateModel(model, digitalsU, analogsU, netValue);
   renderConnectorsPanel(values.connectors || {}, netValue, digitalsU,
                         values.page || '');
 
-  // Colore SYMBOLs E gates pelos seus valores avaliados (ou lidos do rele)
-  svg.querySelectorAll('.symbol-grp, .gate-grp').forEach(g => {
-    // IMPORTANTE: pula `.hl-overlay` (rect amarelo do marcador, que pode estar
-    // como primeiro filho); pega o rect REAL do bloco.
-    const rect = g.querySelector('rect:not(.hl-overlay)'); if (!rect) return;
-    const id = g.id.replace(/^el-/, '');
-    rect.classList.remove('bit-0', 'bit-1', 'bit-unknown');
-    // Constantes (literais numericos) ficam com o estilo neutro definido em
-    // .element-symbol.const -- nao recebem bit-0/bit-1/bit-unknown.
-    if (g.hasAttribute('data-const')) return;
-    // SYMBOLs analogicos tem coloracao propria (.element-analog has-value)
-    // aplicada mais abaixo; nao recebem bit-0/bit-1 mesmo carregando valor
-    // numerico em elValue (que e usado pelos comparadores).
-    if (g.hasAttribute('data-analog')) return;
-    if (id in elValue && elValue[id] !== null && elValue[id] !== undefined) {
-      rect.classList.add(elValue[id] === 1 ? 'bit-1' : 'bit-0');
-    } else {
-      rect.classList.add('bit-unknown');
+  // Blocos. Constantes e analogicos tem estilo proprio e nao recebem
+  // bit-0/bit-1/bit-unknown; a classe vazia e' o que os deixa neutros.
+  for (const n of model.nodes) {
+    if (!n.rect) continue;
+    let cls = '';
+    if (!n.hasConst && !n.analogRaw) {
+      const v = val.get(n.id);
+      cls = (val.has(n.id) && v !== null && v !== undefined)
+        ? (v === 1 ? 'bit-1' : 'bit-0')
+        : 'bit-unknown';
     }
-  });
-
-  // Colore conexoes em 3 estados: active (1), off (0), unknown (null).
-  // Operador na porta de origem (NOT) inverte o valor que o fio carrega.
-  svg.querySelectorAll('polyline.connection').forEach(c => {
-    const src = c.getAttribute('data-src');
-    c.classList.remove('active', 'unknown', 'off');
-    let v = elValue[src];
-    if (c.getAttribute('data-src-mod') === 'NOT' && (v === 0 || v === 1)) {
-      v = 1 - v;
+    if (cls !== n.cls) {
+      if (n.cls) n.rect.classList.remove(n.cls);
+      if (cls) n.rect.classList.add(cls);
+      n.cls = cls;
     }
-    if (v === 1) c.classList.add('active');
-    else if (v === 0) c.classList.add('off');
-    else c.classList.add('unknown');
-  });
+  }
 
-  // Ativa dots de juncao (verde se alguma linha que passa por ele esta ativa)
-  const activeXY = new Set();
-  svg.querySelectorAll('polyline.connection.active').forEach(c => {
-    const pts = c.getAttribute('points').trim().split(/\s+/);
-    pts.forEach(p => activeXY.add(p));
-  });
-  svg.querySelectorAll('circle.junction-dot').forEach(d => {
-    const jx = d.getAttribute('data-jx');
-    const jy = d.getAttribute('data-jy');
-    d.classList.toggle('active', activeXY.has(`${jx},${jy}`));
-  });
+  // Fios, em 3 estados. O operador na porta de ORIGEM (NOT) inverte o valor
+  // que o fio carrega.
+  for (const e of model.conns) {
+    let v = val.get(e.src);
+    if (e.srcMod === 'NOT' && (v === 0 || v === 1)) v = 1 - v;
+    const cls = v === 1 ? 'active' : v === 0 ? 'off' : 'unknown';
+    if (cls !== e.cls) {
+      if (e.cls) e.c.classList.remove(e.cls);
+      e.c.classList.add(cls);
+      e.cls = cls;
+    }
+  }
 
-  // Paineis: agora distingue conhecidos/desconhecidos
-  const known = Object.entries(values.digitals).filter(([k,v]) => v !== null);
-  const unknown = Object.entries(values.digitals).filter(([k,v]) => v === null);
-  const active = known.filter(([k,v]) => v === 1).map(([k]) => k).sort();
-  const inactive_count = known.filter(([k,v]) => v === 0).length;
+  // Dots de juncao: verde se alguma linha que passa por ele esta ativa.
+  if (model.dots.length) {
+    const activeXY = new Set();
+    for (const e of model.conns) {
+      if (e.cls === 'active') for (const p of e.pts) activeXY.add(p);
+    }
+    for (const d of model.dots) {
+      const on = activeXY.has(d.key);
+      if (on !== d.on) { d.d.classList.toggle('active', on); d.on = on; }
+    }
+  }
+
+  // Paineis: distingue conhecidos/desconhecidos.
+  const known = Object.entries(values.digitals || {}).filter(([k, v]) => v !== null);
+  const unknown = Object.entries(values.digitals || {}).filter(([k, v]) => v === null);
+  const active = known.filter(([k, v]) => v === 1).map(([k]) => k).sort();
+  const inactive_count = known.filter(([k, v]) => v === 0).length;
+  _lastKnownCount = known.length;
 
   document.getElementById('bit-counts').innerHTML =
-    `<div>Total da página: <b>${values.page_bits_total || Object.keys(values.digitals).length}</b></div>` +
+    `<div>Total da página: <b>${values.page_bits_total || Object.keys(values.digitals || {}).length}</b></div>` +
     `<div>Conhecidos: <b>${known.length}</b> (ativos: ${active.length}, inativos: ${inactive_count})</div>` +
     `<div>Indeterminados: <b>${unknown.length}</b></div>`;
 
@@ -2417,9 +2573,10 @@ function applyValues(values) {
                           (unknown.length > 30 ? `<div style="color:#888">+${unknown.length-30} mais...</div>` : '') :
                           '<div class="v-inactive">(nenhum)</div>';
 
-  // Analogs: cada entrada agora pode ser {value, group} (quando o backend
-  // tem analog_groups configurados para a pagina) ou apenas um numero/string
-  // (modo legado, sem analog_groups). Normaliza ambos os formatos.
+  _renderAnalogs(values, model);
+}
+
+function _renderAnalogs(values, model) {
   const analogEntries = Object.entries(values.analogs || {});
   const analogGroupsMeta = values.analog_groups || {};
   const fmtAnalog = (v) => {
@@ -2432,12 +2589,10 @@ function applyValues(values) {
     return String(v);
   };
 
-  // 1) Injeta os valores inline nos SYMBOLs analogicos do SVG.
-  // Cada SYMBOL com data-analog="NAME" tem um <text class="analog-value">
-  // que recebe o valor formatado; se o rele nao expoe o canal, mostra 'N/A'.
-  svg.querySelectorAll('[data-analog]').forEach(g => {
-    const nm = (g.getAttribute('data-analog') || '').toUpperCase();
-    const entry = values.analogs ? values.analogs[nm] : null;
+  // 1) Valores inline nos SYMBOLs analogicos. A lista vem do modelo compilado;
+  // era mais uma varredura `[data-analog]` do SVG inteiro por leitura.
+  for (const n of model.analogNodes) {
+    const entry = values.analogs ? values.analogs[n.analog] : null;
     let val = null;
     let hasValue = false;
     if (entry !== undefined && entry !== null && typeof entry === 'object') {
@@ -2447,24 +2602,20 @@ function applyValues(values) {
       val = entry;
       hasValue = true;
     }
-    const tNode = g.querySelector('.analog-value');
-    if (tNode) {
-      tNode.textContent = hasValue ? fmtAnalog(val) : 'N/A';
-      tNode.classList.toggle('live', hasValue);
+    if (n.analogText) {
+      const txt = hasValue ? fmtAnalog(val) : 'N/A';
+      if (n.analogText.textContent !== txt) n.analogText.textContent = txt;
+      n.analogText.classList.toggle('live', hasValue);
     }
-    const rect = g.querySelector('.element-analog');
-    if (rect) rect.classList.toggle('has-value', hasValue);
-  });
+    if (n.analogRect) n.analogRect.classList.toggle('has-value', hasValue);
+  }
 
-  // 2) Painel agrupado por familia. So inclui analogs da pagina atual; quando
-  // os dados nao tem grupos (formato legado) caimos no comportamento antigo
-  // de listar os 20 primeiros.
+  // 2) Painel agrupado por familia.
   const panelEl = document.getElementById('analog-values');
   if (analogEntries.length === 0) {
     panelEl.innerHTML = '-';
   } else if (analogEntries[0][1] !== null && typeof analogEntries[0][1] === 'object'
              && 'group' in (analogEntries[0][1] || {})) {
-    // Modo agrupado.
     const byGroup = {};
     analogEntries.forEach(([k, e]) => {
       const g = (e && e.group) || '_';
@@ -2488,11 +2639,12 @@ function applyValues(values) {
         return `<div class="an-group"><div class="an-group-hdr">${lbl}</div>${rows}</div>`;
       }).join('') || '-';
   } else {
-    // Legado: apenas valores crus.
     panelEl.innerHTML = analogEntries.slice(0, 20).map(([k, v]) =>
       `<div>${k} = ${fmtAnalog(v)}</div>`).join('') || '-';
   }
+}
 
+function _renderStatusBadge(values) {
   // A idade vem PRONTA do servidor (`LiveState.snapshot`), medida la' com o
   // relogio monotonico. Era `Date.now()/1000 - values.ts`: uma subtracao
   // entre DOIS relogios diferentes -- medido nesta maquina, o do WSL (onde
@@ -2500,7 +2652,12 @@ function applyValues(values) {
   // navegador), e a barra anunciava "valores antigos (82,5s atras)" com o
   // rele respondendo a cada 10 ms e o Wireshark limpo. `null` = ainda nao se
   // leu nada.
+  //
+  // Fica fora do teste de `rev` de proposito: a idade muda a cada leitura, e
+  // e' justamente com o rele parado que alguem quer saber quao velha ela e'.
   const age = values.age;
+  const known = (values.page_bits_known != null)
+    ? values.page_bits_known : _lastKnownCount;
   if (values.error) {
     setStatus('status error', `ERRO: ${values.error}`);
   } else if (values.connected === false) {
@@ -2516,8 +2673,69 @@ function applyValues(values) {
     setStatus('status stale', `valores antigos (${age.toFixed(1)}s atras)`);
   } else {
     setStatus('status',
-              `ao vivo · ${age.toFixed(1)}s · ${known.length}/${(values.page_bits_total||known.length)} bits conhecidos`);
+              `ao vivo · ${age.toFixed(1)}s · ${known}/${(values.page_bits_total||known)} bits conhecidos`);
   }
+}
+
+// =============================================================================
+// O TRANSPORTE: o servidor avisa, a tela nao pergunta.
+//
+// Medido ponta a ponta antes disto: o rele responde em 1,5 ms, `/values` custa
+// 0,03 ms no servidor, a ida e volta HTTP 1 ms e a repintura ~1,2 ms na pagina
+// mais pesada do corpus. Soma ~3,7 ms -- dentro de 100 a 500 ms de ESPERA pela
+// proxima volta do relogio da tela. A espera era a latencia inteira, e nada
+// que se faca no desenho encosta nela. Pior: com o MMS lendo a cada 10 ms, 49
+// de cada 50 leituras morriam sem nunca chegar ao desenho.
+//
+// `/events` e' um SSE: uma conexao por aba aberta, um quadro quando o rele diz
+// alguma coisa (`LiveState.wait_for_change`) e um heartbeat de 1 s para a
+// idade da pastilha continuar envelhecendo. A latencia passa a ser a ida e
+// volta, nao a espera.
+//
+// O polling continua aqui inteiro, como RESERVA: um navegador sem EventSource,
+// ou um stream que fechou de vez, nao pode deixar a tela parada.
+// =============================================================================
+let evtSource = null;
+let streamKey = '';          // "diagrama|pagina" que o stream atual segue
+let streamGaveUp = false;    // um fechamento definitivo devolve a tela ao poll
+
+function stopStream() {
+  if (evtSource) { evtSource.close(); evtSource = null; }
+  streamKey = '';
+}
+
+function startStream() {
+  if (!window.EventSource || streamGaveUp) return false;
+  const key = `${activeDiagram}|${currentPage}`;
+  if (evtSource && streamKey === key) return true;   // ja' e' esse
+  stopStream();
+  streamKey = key;
+  // `MOUNT_URL` a mao: o shim de prefixo do `mount.py` remenda `fetch` e
+  // `XMLHttpRequest`, e `EventSource` nao e' nenhum dos dois -- sem isto a
+  // conexao vai para `/events` na raiz, onde o dispatcher responde 404 e a
+  // tela cai no polling sem ninguem entender por que.
+  const raw = withD('/events?page=' + encodeURIComponent(currentPage));
+  const src = new EventSource(window.MOUNT_URL ? window.MOUNT_URL(raw) : raw);
+  evtSource = src;
+  src.onmessage = (ev) => {
+    if (evtSource !== src) return;                   // stream velho
+    let v;
+    try { v = JSON.parse(ev.data); } catch (e) { return; }
+    lastValues = v;
+    applyValues(v);
+    renderPollStatus(v);
+  };
+  src.onerror = () => {
+    // O EventSource reconecta sozinho quando o servidor encerra o stream no
+    // seu tempo maximo -- isso e' normal e nao e' erro. So' desistimos quando
+    // ele fecha de vez, e ai o polling assume para a tela nao congelar.
+    if (src.readyState !== EventSource.CLOSED) return;
+    if (evtSource === src) { evtSource = null; streamKey = ''; }
+    streamGaveUp = true;
+    console.warn('/events fechou; voltando ao polling');
+    valuesTick();
+  };
+  return true;
 }
 
 async function pollValues() {
@@ -2578,6 +2796,11 @@ function setScreenPace(readMs) {
 // pendurado (servidor ocupado, rede da subestacao) nao pode parar o relogio
 // da tela -- que e' justamente o que um `await` no comeco da volta faria.
 async function valuesTick() {
+  // Enquanto o `/events` esta de pe' ele e' quem alimenta a tela: um poll em
+  // paralelo faria o mesmo trabalho duas vezes e desfaria o ganho. O tique
+  // simplesmente nao se reagenda, e `startStream`/`onerror` sao os dois
+  // pontos que o trazem de volta.
+  if (evtSource) { valuesTimer = null; return; }
   valuesTimer = setTimeout(valuesTick, screenMs);
   if (valuesInFlight) return;
   valuesInFlight = true;

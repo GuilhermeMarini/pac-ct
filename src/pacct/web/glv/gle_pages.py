@@ -12,14 +12,28 @@ import re
 from sellib.gle import element_info, is_const_symbol_name
 
 
+def safe_page_id(name: str, index: int) -> str:
+    """A page's key: its name, sanitised, or `page_<index>` when it has none.
+
+    ONE definition, because the id is a join key -- it addresses the SVG in
+    `GlvDiagram.svgs`, the per-page bit set, the analog map, the connector
+    networks and the `/pages/<id>` route, and those were computed in two
+    different ways. Four call sites fell back to `page_{len(collected)}` and
+    `connectors.py` to `page_{index}`; they agree only while no two page names
+    collide after sanitising. Two pages called `A/B` and `A B` both become
+    `A_B`, the counters drift apart from there, and every connector network on
+    the pages after them silently stops resolving.
+
+    The index is the one that cannot drift: it does not depend on what was
+    collected before it.
+    """
+    return re.sub(r"[^A-Za-z0-9_-]", "_", name or "") or f"page_{index}"
+
+
 def list_pages(gle_root) -> list[tuple[str, str]]:
     """Returns [(name, safe_id)]."""
-    pages: list[tuple[str, str]] = []
-    for p in gle_root.findall(".//page"):
-        name = p.get("name", "")
-        safe = re.sub(r"[^A-Za-z0-9_-]", "_", name) or f"page_{len(pages)}"
-        pages.append((name, safe))
-    return pages
+    return [(p.get("name", ""), safe_page_id(p.get("name", ""), i))
+            for i, p in enumerate(gle_root.findall(".//page"))]
 
 
 def collect_bit_names(gle_root, relay_model=None) -> set[str]:
@@ -53,14 +67,11 @@ def collect_analog_symbols_per_page(gle_root, relay_model) -> dict[str, dict[str
     """
     out: dict[str, dict[str, str]] = {}
     if relay_model is None or not relay_model.analog_groups:
-        for p in gle_root.findall(".//page"):
-            name = p.get("name", "")
-            safe = re.sub(r"[^A-Za-z0-9_-]", "_", name) or f"page_{len(out)}"
-            out[safe] = {}
+        for i, p in enumerate(gle_root.findall(".//page")):
+            out[safe_page_id(p.get("name", ""), i)] = {}
         return out
-    for p in gle_root.findall(".//page"):
-        name = p.get("name", "")
-        safe = re.sub(r"[^A-Za-z0-9_-]", "_", name) or f"page_{len(out)}"
+    for i, p in enumerate(gle_root.findall(".//page")):
+        safe = safe_page_id(p.get("name", ""), i)
         per: dict[str, str] = {}
         for el in p.findall(".//element"):
             if (el.get("type") or "") != "SYMBOL":
@@ -92,9 +103,8 @@ def collect_bits_per_page(gle_root, relay_model=None) -> dict[str, set[str]]:
     analogs (named SYMBOLs only).
     """
     out: dict[str, set[str]] = {}
-    for p in gle_root.findall(".//page"):
-        name = p.get("name", "")
-        safe = re.sub(r"[^A-Za-z0-9_-]", "_", name) or f"page_{len(out)}"
+    for i, p in enumerate(gle_root.findall(".//page")):
+        safe = safe_page_id(p.get("name", ""), i)
         names = set()
         for el in p.findall(".//element"):
             t = el.get("type") or ""
