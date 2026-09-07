@@ -276,3 +276,49 @@ def extref_placeholder(vb: str) -> bytes:
     """
     return (b'        <ExtRef intAddr="' + vb.encode() + b'" '
             b'serviceType="GOOSE" />\r\n')
+
+
+# One <page> per tab, in the shape the corpus shows: pages sit under a <pages>
+# wrapper and never nest. Every awkward shape the tab splice has to survive is
+# in here on purpose:
+#   - a page whose TEXT contains an escaped "</page>", which is what a regex
+#     over whole-page spans would trip on;
+#   - an XML comment BETWEEN two pages, which must stay put when the order
+#     changes rather than travelling with a page;
+#   - an accented name, in latin-1;
+#   - a name that already carries escaped markup ("U>U< I >I<") -- the one such
+#     name among the 3.111 in the corpus;
+#   - two pages that ALREADY share a name, which the tool tolerates rather
+#     than refuses;
+#   - a name at exactly the measured 20-character limit.
+TABS_GLE = (
+    b'<?xml version="1.0" encoding="utf-8"?>\r\n'
+    b'<editor>\r\n'
+    b'  <pages>\r\n'
+    b'    <page name="Capa" description="PROJETO X">\r\n'
+    b'      <elements>\r\n'
+    b'        <element id="1" type="Text"><rtf_text>fim &lt;/page&gt; aqui</rtf_text></element>\r\n'
+    b'      </elements>\r\n'
+    b'    </page>\r\n'
+    b'    <!-- separador: nao pode viajar junto com uma pagina -->\r\n'
+    b'    <page name="Entradas Cr\xedticas" description="PROJETO X">\r\n'
+    b'      <elements>\r\n'
+    b'        <element id="2" type="SYMBOL" />\r\n'
+    b'        <element id="3" type="SYMBOL" />\r\n'
+    b'      </elements>\r\n'
+    b'    </page>\r\n'
+    b'    <page name="U&gt;U&lt; I &gt;I&lt;" description="PROJETO X">\r\n'
+    b'      <elements />\r\n'
+    b'    </page>\r\n'
+    b'    <page name="RESERVA" description="PROJETO X">\r\n'
+    b'      <elements />\r\n'
+    b'    </page>\r\n'
+    b'    <page name="RESERVA" description="PROJETO X">\r\n'
+    b'      <elements />\r\n'
+    b'    </page>\r\n'
+    b'    <page name="52- CMD DE FECHAMENT" description="PROJETO X">\r\n'
+    b'      <elements />\r\n'
+    b'    </page>\r\n'
+    b'  </pages>\r\n'
+    b'</editor>\r\n'
+)

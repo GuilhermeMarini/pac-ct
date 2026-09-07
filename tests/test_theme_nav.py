@@ -72,7 +72,8 @@ def test_the_numbering_the_screens_promise():
     assert items.ORDINAL["vlan-mapper"] == 1
     assert items.ORDINAL["relatorio"] == 2
     assert items.ORDINAL["glv"] == 3
-    assert items.ORDINAL["validador"] == 9
+    assert items.ORDINAL["gle-tabs"] == 8
+    assert items.ORDINAL["validador"] == 10
 
 
 def test_the_two_empty_groups_are_declared_with_a_roadmap():

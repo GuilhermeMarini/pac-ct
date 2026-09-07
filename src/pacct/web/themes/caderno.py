@@ -38,20 +38,32 @@ DELTA_CSS = r"""
   font-weight:700;letter-spacing:-.02em}
 
 /* --- ASSINATURA: divisorias de caderno como navegacao --------------------- */
+/* A tira e' uma PRATELEIRA, e nao um fundo transparente com botoes soltos.
+   Com dez ferramentas ela quebra em duas ou tres fileiras, e so' a ultima
+   encostava na folha: as de cima ficavam sobre o fundo da pagina, onde uma aba
+   inativa (--surface-2, #f7f9f5) esta a tres unidades do proprio fundo
+   (--bg, #f4f6f2) -- na pratica so' a borda de 1px as desenhava, e o conjunto
+   lia como botoes flutuando. Pintar a tira de --surface junta as fileiras a'
+   folha num bloco branco so', e a aba inativa passa a ser --bg: a relacao
+   inverte, o chip fica mais escuro que a prateleira em vez de mais claro que a
+   pagina, e a ativa (branca) funde com a tira e com a folha logo abaixo. */
 :root[data-theme=caderno] nav.tabs{display:flex;flex-wrap:wrap;gap:3px;
-  background:transparent;margin:var(--s4) 0 -1px;position:relative;z-index:2}
+  background:var(--surface);margin:var(--s4) 0 -1px;
+  padding:var(--s2) var(--s2) 0;
+  border:1px solid var(--border);border-bottom:0;
+  position:relative;z-index:2}
 :root[data-theme=caderno] nav.tabs .tab{display:inline-flex;align-items:center;gap:8px;
-  background:var(--surface-2);border:1px solid var(--border);
+  background:var(--bg);border:1px solid var(--border);
   padding:8px var(--s3);text-decoration:none;color:var(--text-2);
   font:700 12px var(--sans);box-shadow:1px -1px 0 rgba(27,42,58,.06)}
 :root[data-theme=caderno] nav.tabs .tab .n{font-family:var(--mono);font-size:11px;
   color:var(--text-3)}
-:root[data-theme=caderno] nav.tabs a.tab:hover{color:var(--text);background:var(--surface)}
+:root[data-theme=caderno] nav.tabs a.tab:hover{color:var(--text);background:var(--surface-2)}
 :root[data-theme=caderno] nav.tabs .tab.on{background:var(--surface);color:var(--text);
   border-color:var(--text);box-shadow:1px -2px 0 rgba(27,42,58,.12)}
 :root[data-theme=caderno] nav.tabs .tab.off{color:var(--text-3);border-style:dashed;
   pointer-events:none}
-/* Ao contrario do mockup, toda divisoria tem a base FECHADA: sao nove
+/* Ao contrario do mockup, toda divisoria tem a base FECHADA: sao dez
    ferramentas, que quebram em duas ou tres fileiras, e a base aberta que a
    fileira unica do mockup podia bancar deixaria abas penduradas sobre a
    fileira de baixo. O -1px da tira enfia o filete da ultima fileira embaixo da
@@ -142,7 +154,7 @@ def nav(active: str = "") -> str:
 
     Groups appear as a label between runs of dividers -- which is what a
     notebook divider does. The project files carry "A" instead of a number:
-    the tools stay 01..09, which is the order the home counts in.
+    the tools stay 01..10, which is the order the home counts in.
     """
     out = ['<nav class="tabs" aria-label="Ferramentas">']
     key, href, _name, short, _hint = MENU_ITEM

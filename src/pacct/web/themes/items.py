@@ -52,7 +52,7 @@ class Group:
     empty: str = ""   # what to say when the group has no tool
 
 
-# Group order is menu order, and the 1..9 numbering runs over it: generic
+# Group order is menu order, and the 1..10 numbering runs over it: generic
 # first, specific after. GE and Siemens are declared and EMPTY on purpose --
 # see the 2026-09-01 design note.
 GROUPS: list[Group] = [
@@ -116,6 +116,12 @@ TOOLS: list[Tool] = [
          "Edita os pontos DNP3 (SET_D) de cada relé do RDB e gera um RDB "
          "novo com as alterações aplicadas.",
          "RDB"),
+    Tool("gle-tabs", "sel", "/gle-tabs/",
+         "Organizador de Abas GLE", "Abas GLE",
+         "reordena e renomeia páginas",
+         "Reordena e renomeia as abas da lógica gráfica de cada GLE do RDB "
+         "e gera um RDB novo. Não altera nada que o relé execute.",
+         "RDB"),
     Tool("rdb-scd", "sel", None,
          "Comparador RDB ↔ SCD", "RDB ↔ SCD",
          "em breve",
@@ -136,7 +142,7 @@ def tools_of(group: str) -> list[Tool]:
     return [t for t in TOOLS if t.group == group]
 
 
-# Each tool's ordinal, 1..9, in group order. ONE source, and this is it: six
+# Each tool's ordinal, 1..10, in group order. ONE source, and this is it: six
 # renderers print this number (Régua's rail and its cards among them), and an
 # `enumerate()` per renderer over a list four of them additionally filter is
 # exactly how the two sides drift apart.
