@@ -7,12 +7,15 @@ mounting this handler at `/gle-tabs/`.
 from __future__ import annotations
 
 import logging
-from urllib.parse import parse_qs, urlparse
+from pathlib import Path
+from urllib.parse import parse_qs, quote, urlparse
 
 from sellib import rdb as rdb_loader
 from sellib.rdb import short_sha as _short_sha
 
-from pacct.web.gle_tabs import load_template, model, state
+from pacct.paths import is_within
+from pacct.web import rdb_write
+from pacct.web.gle_tabs import export, load_template, model, state
 from pacct.web.project_files import library as filelib
 from pacct.web.session import SessionHandler
 
@@ -68,6 +71,9 @@ def build_gle_tabs_handler(logger: logging.Logger, sessions) -> type:
                 return
             if path == "/pages":
                 self._serve_pages()
+                return
+            if path == "/download":
+                self._serve_download()
                 return
             self._send(404, "Não encontrado", "text/plain; charset=utf-8")
 
@@ -178,6 +184,9 @@ def build_gle_tabs_handler(logger: logging.Logger, sessions) -> type:
             if path == "/reset":
                 self._do_reset()
                 return
+            if path == "/gerar":
+                self._do_gerar()
+                return
             self._send(404, "Não encontrado", "text/plain; charset=utf-8")
 
         def _do_stage(self):
@@ -251,5 +260,62 @@ def build_gle_tabs_handler(logger: logging.Logger, sessions) -> type:
                         del st.edits[k]
             self._send_json(200, {"ok": True,
                                   "dirty": state.dirty_count(st, key, lock)})
+
+        # -- generating ---------------------------------------------------
+
+        def _do_gerar(self):
+            """Apply every staged edit of one RDB and produce the output."""
+            body = self._read_json_body()
+            key = str(body.get("rdb", ""))
+            info = self._rdb(key)
+            if info is None:
+                return
+            st = self.sess()
+            with self.require_session().lock:
+                edits = {k: v for k, v in st.edits.items() if k[0] == key}
+            if not edits:
+                self._send_json(400, {
+                    "ok": False,
+                    "error": "Nenhuma aba alterada. Mova ou renomeie alguma "
+                             "antes de gerar."})
+                return
+            out_dir = self.sdir("out")
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_path = rdb_write.with_suffix_before_ext(
+                out_dir / Path(info.display_name).name, "_abas")
+            res = export.build_output(info, edits, out_path, job=self.job())
+            if not res["ok"]:
+                self._send_json(400, {"ok": False, "error": res["error"],
+                                      "results": res["results"]})
+                return
+            # The output enters the project's library: one tool's output is
+            # the next one's input. Failing there never breaks the export.
+            project = self.publish_output(out_path, "Organizador de Abas GLE",
+                                          job=self.job(), logger=logger)
+            self._send_json(200, {
+                "ok": True, "file": out_path.name,
+                "download": f"{self.mount_prefix}/download?f={quote(out_path.name)}",
+                "totals": res["totals"], "method": res["method"],
+                "results": res["results"], "project_file": project,
+            })
+
+        def _serve_download(self):
+            """Serve one generated RDB. Confined to THIS session's out dir.
+
+            The path comes from the request, resolved and checked against
+            the sandbox exactly the way `gle_exporter`'s `/download` does:
+            the shared RDB cache holds every visitor's extractions and must
+            not be reachable from here.
+            """
+            name = self._query().get("f", "")
+            target = Path(name).resolve()
+            if not is_within(target, [self.sdir("out")]):
+                self._send(403, "Proibido", "text/plain; charset=utf-8")
+                return
+            if not target.is_file():
+                self._send(404, "Não encontrado", "text/plain; charset=utf-8")
+                return
+            self.send_file(target, "application/octet-stream",
+                           download_name=target.name)
 
     return Handler

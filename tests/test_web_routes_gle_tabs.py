@@ -255,3 +255,19 @@ def test_reset_with_gle_but_no_relay_returns_400(tmp_path):
     assert out["ok"] is False
     # Original edit should still be there
     assert h.get("/rdbs").json()["rdbs"][0]["dirty"] == 1
+
+
+# -- generating -------------------------------------------------------------
+
+def test_generating_with_nothing_staged_is_refused(tmp_path):
+    h, info = _harness(tmp_path)
+    r = h.post("/gerar", {"rdb": info.sha256[:12]})
+    assert r.status == 400
+    assert "nenhuma" in r.json()["error"].lower()
+
+
+def test_download_refuses_a_path_outside_the_session(tmp_path):
+    """The route takes a PATH from the request. It must not reach the shared
+    RDB cache, which holds every visitor's extractions."""
+    h, _ = _harness(tmp_path)
+    assert h.get("/download?f=../../../etc/passwd").status in (400, 403, 404)
