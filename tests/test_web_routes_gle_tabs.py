@@ -176,3 +176,82 @@ def test_reset_without_a_gle_clears_the_whole_rdb(tmp_path):
                       "order": [1, 0, 2, 3, 4, 5], "names": {}})
     assert h.get("/rdbs").json()["rdbs"][0]["dirty"] == 2
     assert h.post("/reset", {"rdb": key}).json()["dirty"] == 0
+
+
+# -- regression tests for malformed input --------------------------------
+
+def test_stage_with_names_as_string_returns_400(tmp_path):
+    """Malformed `names` (string instead of dict) must return 400, not crash."""
+    h, info = _harness(tmp_path)
+    key = info.sha256[:12]
+    r = _stage(h, key, [0, 1, 2, 3, 4, 5], "not-a-dict")
+    assert r.status == 400
+    out = r.json()
+    assert out["ok"] is False
+    assert "malformados" in out["error"]
+
+
+def test_stage_with_names_as_number_returns_400(tmp_path):
+    """Malformed `names` (number instead of dict) must return 400, not crash."""
+    h, info = _harness(tmp_path)
+    key = info.sha256[:12]
+    r = h.post("/stage", {"rdb": key, "relay": "QPC1_TR1", "gle": "GL1.gle",
+                          "order": [0, 1, 2, 3, 4, 5], "names": 5})
+    assert r.status == 400
+    out = r.json()
+    assert out["ok"] is False
+    assert "malformados" in out["error"]
+
+
+def test_stage_with_order_as_string_returns_400(tmp_path):
+    """Malformed `order` (string instead of list) must return 400, not crash."""
+    h, info = _harness(tmp_path)
+    key = info.sha256[:12]
+    r = h.post("/stage", {"rdb": key, "relay": "QPC1_TR1", "gle": "GL1.gle",
+                          "order": "not-a-list", "names": {}})
+    assert r.status == 400
+    out = r.json()
+    assert out["ok"] is False
+    assert "malformados" in out["error"]
+
+
+def test_refused_edit_does_not_affect_previously_staged_edit(tmp_path):
+    """A refused edit must not touch a previously staged edit for the same key."""
+    h, info = _harness(tmp_path)
+    key = info.sha256[:12]
+    # Stage a valid edit first
+    _stage(h, key, [1, 0, 2, 3, 4, 5], {"0": "NOVO"})
+    # Try to stage an invalid edit (names as number)
+    r = h.post("/stage", {"rdb": key, "relay": "QPC1_TR1", "gle": "GL1.gle",
+                          "order": [0, 1, 2, 3, 4, 5], "names": 5})
+    assert r.status == 400
+    # Original edit should still be there
+    out = h.get(f"/pages?rdb={key}&relay=QPC1_TR1&gle=GL1.gle").json()
+    assert out["order"] == [1, 0, 2, 3, 4, 5]
+    assert out["names"] == {"0": "NOVO"}
+
+
+def test_reset_with_relay_but_no_gle_returns_400(tmp_path):
+    """Partial reset (relay without gle) must return 400 for safety."""
+    h, info = _harness(tmp_path)
+    key = info.sha256[:12]
+    _stage(h, key, [1, 0, 2, 3, 4, 5])
+    r = h.post("/reset", {"rdb": key, "relay": "QPC1_TR1"})
+    assert r.status == 400
+    out = r.json()
+    assert out["ok"] is False
+    # Original edit should still be there
+    assert h.get("/rdbs").json()["rdbs"][0]["dirty"] == 1
+
+
+def test_reset_with_gle_but_no_relay_returns_400(tmp_path):
+    """Partial reset (gle without relay) must return 400 for safety."""
+    h, info = _harness(tmp_path)
+    key = info.sha256[:12]
+    _stage(h, key, [1, 0, 2, 3, 4, 5])
+    r = h.post("/reset", {"rdb": key, "gle": "GL1.gle"})
+    assert r.status == 400
+    out = r.json()
+    assert out["ok"] is False
+    # Original edit should still be there
+    assert h.get("/rdbs").json()["rdbs"][0]["dirty"] == 1

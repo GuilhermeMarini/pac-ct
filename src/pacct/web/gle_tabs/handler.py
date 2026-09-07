@@ -6,7 +6,6 @@ mounting this handler at `/gle-tabs/`.
 
 from __future__ import annotations
 
-import json
 import logging
 from urllib.parse import parse_qs, urlparse
 
@@ -181,18 +180,9 @@ def build_gle_tabs_handler(logger: logging.Logger, sessions) -> type:
                 return
             self._send(404, "Não encontrado", "text/plain; charset=utf-8")
 
-        def _body(self) -> dict:
-            length = int(self.headers.get("Content-Length") or 0)
-            if not length:
-                return {}
-            try:
-                return json.loads(self.rfile.read(length) or b"{}")
-            except (ValueError, UnicodeDecodeError):
-                return {}
-
         def _do_stage(self):
             """Validate one GLE's edit and hold it. Stages nothing on refusal."""
-            body = self._body()
+            body = self._read_json_body()
             key = str(body.get("rdb", ""))
             relay, gle = str(body.get("relay", "")), str(body.get("gle", ""))
             info = self._rdb(key)
@@ -201,11 +191,22 @@ def build_gle_tabs_handler(logger: logging.Logger, sessions) -> type:
             raw = self._gle_bytes(info, relay, gle)
             if raw is None:
                 return
+            # Guard the shapes explicitly. _read_json_body guarantees body is a
+            # dict, but says nothing about its contents.
+            order_raw = body.get("order", [])
+            names_raw = body.get("names", {})
+            if not isinstance(order_raw, list):
+                self._send_json(400, {"ok": False,
+                                      "error": "ordem ou nomes malformados."})
+                return
+            if not isinstance(names_raw, dict):
+                self._send_json(400, {"ok": False,
+                                      "error": "ordem ou nomes malformados."})
+                return
             try:
-                order = [int(i) for i in body.get("order", [])]
+                order = [int(i) for i in order_raw]
                 # JSON object keys are strings; the model indexes by int.
-                names = {int(k): str(v)
-                         for k, v in (body.get("names") or {}).items()}
+                names = {int(k): str(v) for k, v in names_raw.items()}
             except (TypeError, ValueError):
                 self._send_json(400, {"ok": False,
                                       "error": "ordem ou nomes malformados."})
@@ -229,9 +230,17 @@ def build_gle_tabs_handler(logger: logging.Logger, sessions) -> type:
 
         def _do_reset(self):
             """Drop the edits of one GLE, or of the whole RDB."""
-            body = self._body()
+            body = self._read_json_body()
             key = str(body.get("rdb", ""))
             relay, gle = str(body.get("relay", "")), str(body.get("gle", ""))
+            # Require both relay and gle to be absent for whole-RDB clear.
+            # Silently wiping every GLE's edits because one is missing is
+            # surprising data loss.
+            if (relay and not gle) or (not relay and gle):
+                self._send_json(400, {"ok": False,
+                                      "error": "forneça ambos relay e gle, "
+                                               "ou nenhum dos dois."})
+                return
             st = self.sess()
             lock = self.require_session().lock
             with lock:
