@@ -266,7 +266,7 @@ identifiers, comments and docstrings.
 
 ## The sellib question
 
-`CLAUDE.md` says SEL file-format work lives in `sellib`. This puts the splice in
+The project conventions say SEL file-format work lives in `sellib`. This puts the splice in
 `pac-ct` instead, deliberately, for three reasons.
 
 - **Precedent.** GLE *mutation* already lives in `pac-ct`:
