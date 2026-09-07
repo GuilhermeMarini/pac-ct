@@ -3347,6 +3347,12 @@ vbSourceCtl = (function setupVbSource() {
       el.style.removeProperty('display');
       el.style.removeProperty('opacity');
       el.style.removeProperty('cursor');
+      // `removeProperty` esvazia a declaracao e deixa o `style=""` no
+      // elemento. Sem efeito nenhum, mas o no da pagina fica no cache com o
+      // atributo vazio, e "o desenho volta como estava" deixa de ser
+      // literal. So' sai quando esta vazio: se outra coisa tiver posto uma
+      // propriedade ali, o atributo nao esta vazio e nao e' nosso.
+      if (!el.getAttribute('style')) el.removeAttribute('style');
     }
     touched = [];
     if (svg) svg.querySelectorAll('g.vbsrc-layer').forEach(n => n.remove());
@@ -3356,11 +3362,17 @@ vbSourceCtl = (function setupVbSource() {
   // -- cartao no hover ------------------------------------------------------
 
   function ensureCard() {
-    if (card) return card;
-    card = document.createElement('div');
-    card.id = 'vbsrc-card';
-    card.hidden = true;
-    viewer.appendChild(card);
+    if (!card) {
+      card = document.createElement('div');
+      card.id = 'vbsrc-card';
+      card.hidden = true;
+    }
+    // Reancorar, e nao so' criar uma vez: `loadPage` troca o conteudo do
+    // visualizador com `replaceChildren`, que leva o cartao junto. Guardar a
+    // referencia bastava para o `if (card)` passar e devolver um no fora do
+    // documento -- o hover parava de mostrar qualquer coisa, em silencio,
+    // a partir da primeira troca de pagina.
+    if (card.parentNode !== viewer) viewer.appendChild(card);
     return card;
   }
 
