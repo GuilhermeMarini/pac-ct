@@ -3255,16 +3255,19 @@ vbSourceCtl = (function setupVbSource() {
     return 'VB' + (n.length >= 3 ? n : ('00' + n).slice(-3));
   }
 
-  function shortIed(name) {
-    // QPC2_TR2_UPC3 -> TR2_UPC3: o prefixo do painel se repete em todos, e o
-    // comentario de porta tem uma linha so'.
-    return (name || '').replace(/^QPC\d+_/, '');
-  }
-
+  // O nome do publicador vai INTEIRO. Ele ja' foi encurtado aqui, tirando um
+  // `QPC<n>_` inicial porque "o prefixo do painel se repete em todos" -- e nao
+  // se repete: uma baia assina ATRAVESSANDO paineis. No SCD de referencia todo
+  // assinante puxa de tres ou quatro paineis, e em cada um deles ha' ao menos
+  // um par que desaba no mesmo rotulo sem o prefixo (QPC1_TR2_UPC2 e
+  // QPC2_TR2_UPC2 viravam os dois `TR2_UPC2`, na mesma pagina). Num mapa de
+  // assinatura GOOSE a pergunta E' de qual rele veio o bit, e meia resposta
+  // ambigua e' pior que uma linha mais larga. Quem precisar do detalhe tem o
+  // cartao, que sempre mostrou o nome cheio.
   function signature(r) {
     if (r.kind === 'placeholder') return '';
-    if (r.kind === 'quality') return shortIed(r.ied) + ' · ' + r.cb;
-    return shortIed(r.ied) + ' · ' + r.ln;
+    if (r.kind === 'quality') return r.ied + ' · ' + r.cb;
+    return r.ied + ' · ' + r.ln;
   }
 
   function bitLabel(r) {
