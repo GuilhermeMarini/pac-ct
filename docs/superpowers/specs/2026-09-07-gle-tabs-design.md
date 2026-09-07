@@ -287,11 +287,13 @@ identifiers, comments and docstrings.
 
 **Automated**, in `pac-ct/tests/`:
 
-- `test_gle_tabs_model.py` — the pure model. Against the existing fixtures plus a
-  new adversarial one, `tests/fixtures/tabs_hostile.gle.xml`, holding a page
-  whose text contains a literal escaped `&lt;/page&gt;`, an XML comment sitting
-  between two pages, an accented name, a name already duplicated, a name already
-  carrying escaped markup (`U&gt;U&lt;`), and a name at exactly 20 characters.
+- `test_gle_tabs_model.py` — the pure model. Against a new adversarial fixture,
+  `TABS_GLE` in `tests/gle_fixtures.py` — that module already exists for exactly
+  this, "small, real-shaped GLE fragments for the byte-surgery tests", and a
+  second home for GLE bytes would be one too many. It holds a page whose text
+  contains a literal escaped `&lt;/page&gt;`, an XML comment sitting between two
+  pages, an accented name, a name already duplicated, a name already carrying
+  escaped markup (`U&gt;U&lt;`), and a name at exactly 20 characters.
   Properties asserted:
   - an identity edit returns bytes identical to the input;
   - a permutation preserves length and re-parses in the requested order;
