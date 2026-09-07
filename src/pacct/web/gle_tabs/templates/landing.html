@@ -71,6 +71,9 @@
     border-bottom: 1px solid var(--border);
   }
   .topbar .gap { flex: 1 1 auto; }
+  /* A tela esta adiantada em relacao ao arquivo: o "Gerar RDB" ao lado esta
+     travado, e a contagem diz por que em vez de continuar contando. */
+  .topbar .stuck { color: var(--err); }
 
   #tab-error:empty { display: none; }
   #tab-error {
@@ -225,13 +228,28 @@ const DIRTY = new Set();
 // /rdbs e mantido em dia pelo DIRTY do RDB aberto.
 const RDB_DIRTY = {};
 const RDB_BADGES = {};     // sha curto -> <span> do badge na lista
-const GLE_BADGES = {};     // "relay gle" -> <span> do badge na lista
+const GLE_BADGES = {};     // "relay gle" -> <span> do badge "modificado"
+const GLE_UNSAVED = {};    // "relay gle" -> <span> do badge "não salvo"
 
-// Numero da requisicao /stage mais recente: uma resposta que chega fora de
-// ordem (a segunda tecla saiu antes de a primeira voltar) nao pode sobrescrever
-// o resultado da mais nova -- nem apagar um erro que a mais nova acabou de
-// mostrar. Mesmo padrao do MAP_REQ do editor de Mapa DNP.
-let STAGE_REQ = 0;
+// Uma unica requisicao /stage no ar por vez, e o ultimo estado sempre vence.
+// Descartar a RESPOSTA velha nao bastava: o problema e' a ESCRITA velha. Cada
+// fetch abre uma conexao propria num ThreadingHTTPServer e `_do_stage` reabre
+// e reparseia o GLE a cada chamada, entao duas encenacoes disparadas com
+// milissegundos de diferenca -- duas setas seguidas, ou o Enter repetindo numa
+// seta com foco -- podem gravar fora de ordem. O servidor ficaria com a ordem
+// VELHA, a tela mostrando a nova, e a resposta seria `ok`: nada na tela diria
+// que a ordem do arquivo gerado nao e' a que esta ali.
+let STAGE_INFLIGHT = null;   // a promessa da requisicao no ar, ou null
+let STAGE_PENDING = false;   // mudou algo enquanto aquela estava no ar
+
+// Ha trabalho NA TELA que o servidor nao tem. Nasce de uma recusa -- que
+// deliberadamente nao desfaz nada, para nao apagar o que foi digitado -- e
+// morre na proxima encenacao aceita ou na proxima releitura de /pages.
+// Enquanto estiver ligado, "Gerar RDB" fica travado: gerar aqui escreveria a
+// ordem ANTERIOR, que e' exatamente o erro que esta ferramenta existe para
+// evitar. `{rdb, relay, gle}` e nao um booleano, porque a marca tem que
+// aparecer na linha do GLE que ficou para tras.
+let UNSAVED = null;
 
 const gleKey = (relay, gle) => relay + ' ' + gle;
 
@@ -242,10 +260,10 @@ function el(tag, cls, text) {
   return n;
 }
 
-// Um badge "modificado" com as classes da casca (.j/.j-warn): a marca de
-// veredito ja existe nos tres temas e nao precisa de cor propria.
-function badge(on) {
-  const b = el('span', 'j j-warn', 'modificado');
+// Um badge com as classes da casca (.j/.j-warn/.j-err): a marca de veredito ja
+// existe nos tres temas e nao precisa de cor propria.
+function badge(on, cls, text) {
+  const b = el('span', 'j ' + cls, text);
   b.hidden = !on;
   return b;
 }
@@ -276,7 +294,7 @@ async function loadRdbs() {
     if (rdb.detail) row.appendChild(el('span', 'meta', rdb.detail));
     if (rdb.origin) row.appendChild(el('span', 'meta', rdb.origin));
     row.appendChild(el('span', 'meta', rdb.rdb));
-    const b = badge(rdb.dirty > 0);
+    const b = badge(rdb.dirty > 0, 'j-warn', 'modificado');
     RDB_BADGES[rdb.rdb] = b;
     row.appendChild(b);
     row.onclick = () => pickRdb(rdb.rdb, row);
@@ -303,9 +321,17 @@ async function loadGles() {
   box.textContent = 'Carregando...';
   const out = await (await fetch(
     '/gles?rdb=' + encodeURIComponent(RDB))).json();
-  if (!out.ok) { box.textContent = out.error || 'Falha ao ler o RDB.'; return; }
+  // Limpo ANTES da guarda: uma leitura que falha nao pode deixar as chaves do
+  // RDB anterior no conjunto -- elas contariam como pendencias deste aqui, e o
+  // "Gerar RDB" ligaria para um RDB sem nada encenado.
   DIRTY.clear();
   for (const k of Object.keys(GLE_BADGES)) delete GLE_BADGES[k];
+  for (const k of Object.keys(GLE_UNSAVED)) delete GLE_UNSAVED[k];
+  if (!out.ok) {
+    box.textContent = out.error || 'Falha ao ler o RDB.';
+    paintDirty();
+    return;
+  }
   box.textContent = '';
   for (const relay of out.relays) {
     const group = el('div', 'relay list');
@@ -329,9 +355,12 @@ async function loadGles() {
         row.appendChild(el('span', 'meta', g.pages + ' aba(s)'));
         row.onclick = () => pickGle(relay.relay, g.gle, row);
       }
-      const b = badge(!!g.dirty);
+      const b = badge(!!g.dirty, 'j-warn', 'modificado');
       GLE_BADGES[key] = b;
       row.appendChild(b);
+      const u = badge(false, 'j-err', 'não salvo');
+      GLE_UNSAVED[key] = u;
+      row.appendChild(u);
       group.appendChild(row);
     }
     box.appendChild(group);
@@ -363,6 +392,10 @@ async function loadPages() {
       out.error || 'Falha ao ler as abas.';
     return;
   }
+  // A tela acaba de ser refeita a partir do servidor, entao o que estava so'
+  // aqui deixou de estar: ou foi aceito, ou foi descartado com a releitura.
+  // De qualquer forma a tela nao esta mais adiantada.
+  clearUnsaved();
   PAGES = out.pages;
   ORDER = out.order.slice();
   MAXNAME = out.max_name || 20;
@@ -501,12 +534,14 @@ function arrowBtn(pos, dir, name) {
 }
 
 // Tirar de `from` e recolocar em `to`. E' o mesmo splice do drop, entao as duas
-// formas de mover uma aba nao podem divergir.
+// formas de mover uma aba nao podem divergir. `focusDir` so' vem das setas: um
+// arraste com o mouse nao pede foco nenhum, e por-lo num botao que ninguem
+// apertou rouba o foco de onde o usuario estava.
 function move(from, to, focusDir) {
   if (to < 0 || to >= ORDER.length || from === to) return;
   const moved = ORDER.splice(from, 1)[0];
   ORDER.splice(to, 0, moved);
-  draw(to, focusDir);
+  draw(focusDir == null ? null : to, focusDir);
   stage();
 }
 
@@ -532,7 +567,7 @@ function wireDrag(row, pos) {
     e.preventDefault();
     row.classList.remove('droptarget');
     if (DRAG_FROM == null || DRAG_FROM === pos) return;
-    move(DRAG_FROM, pos, pos > DRAG_FROM ? 1 : -1);
+    move(DRAG_FROM, pos);
   };
 }
 
@@ -555,47 +590,84 @@ function changedNames() {
   return out;
 }
 
-async function stage() {
-  const my = ++STAGE_REQ;
-  // O rele e o GLE sao presos AQUI, na saida. Clicar em outro GLE tira o foco
+// A porta de entrada: no maximo uma /stage no ar, e o ultimo estado vence.
+// Quem chega enquanto ha uma no ar apenas levanta a bandeira; a que esta
+// voltando dispara a proxima, que le ORDER e NAMES de novo -- entao o que
+// finalmente chega ao servidor e' sempre o estado atual da tela, e nunca uma
+// escrita antiga por cima de uma nova.
+function stage() {
+  if (STAGE_INFLIGHT) { STAGE_PENDING = true; return STAGE_INFLIGHT; }
+  STAGE_INFLIGHT = sendStage().finally(() => {
+    STAGE_INFLIGHT = null;
+    if (STAGE_PENDING) { STAGE_PENDING = false; stage(); }
+  });
+  return STAGE_INFLIGHT;
+}
+
+async function sendStage() {
+  // RDB, rele e GLE sao presos AQUI, na saida. Clicar em outro GLE tira o foco
   // do campo de nome, o que dispara este `stage` e, logo em seguida, troca
-  // RELAY/GLE -- ler as globais na volta marcaria o GLE errado como alterado.
-  const relay = RELAY, gle = GLE;
+  // RELAY/GLE -- ler as globais na volta marcaria o GLE errado como alterado,
+  // e ler RDB na volta escreveria a contagem de um RDB dentro do outro.
+  const rdb = RDB, relay = RELAY, gle = GLE;
   const box = document.getElementById('tab-error');
-  const stillHere = () => (relay === RELAY && gle === GLE);
+  const stillHere = () => (rdb === RDB && relay === RELAY && gle === GLE);
   let r, d = null;
   try {
     r = await fetch('/stage', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({rdb: RDB, relay: relay, gle: gle,
+      body: JSON.stringify({rdb: rdb, relay: relay, gle: gle,
                             order: ORDER, names: changedNames()}),
     });
     d = await r.json().catch(() => null);
   } catch (e) {
-    if (my === STAGE_REQ && stillHere()) box.textContent = 'Erro de rede: ' + e;
+    if (stillHere()) box.textContent = 'Erro de rede: ' + e;
+    markUnsaved({rdb: rdb, relay: relay, gle: gle});
     return;
   }
-  if (my !== STAGE_REQ) return;
   if (!r.ok || !d || !d.ok) {
-    // Recusa: o servidor nao guardou nada, e nada aqui e' desfeito -- o que foi
-    // digitado continua na tela, com o motivo ao lado. Nada foi encenado, entao
-    // tambem nao ha marca para mexer.
+    // Recusa: o servidor nao guardou NADA. O que foi digitado continua na tela
+    // com o motivo ao lado -- mas a ordem tambem continua so' aqui, e por isso
+    // a tela passa a estar adiantada em relacao ao arquivo. E' o que
+    // `markUnsaved` registra, e e' o que trava o "Gerar RDB".
     if (stillHere()) {
       box.textContent = (d && d.error) || ('Falha ao salvar: HTTP ' + r.status);
     }
+    markUnsaved({rdb: rdb, relay: relay, gle: gle});
     return;
   }
   if (stillHere()) box.textContent = '';
+  clearUnsaved();
   // A marca vai para o GLE que a resposta e' sobre, esteja ele na tela ou nao.
-  setDirty(!!d.dirty, relay, gle);
+  setDirty(!!d.dirty, rdb, relay, gle);
 }
 
-function setDirty(on, relay, gle) {
+function markUnsaved(what) {
+  UNSAVED = what;
+  const u = GLE_UNSAVED[gleKey(what.relay, what.gle)];
+  if (u && what.rdb === RDB) u.hidden = false;
+  paintDirty();
+}
+
+function clearUnsaved() {
+  if (!UNSAVED) return;
+  const u = GLE_UNSAVED[gleKey(UNSAVED.relay, UNSAVED.gle)];
+  if (u) u.hidden = true;
+  UNSAVED = null;
+  paintDirty();
+}
+
+function setDirty(on, rdb, relay, gle) {
+  // A resposta e' sobre um RDB que ja nao esta aberto: DIRTY, os badges e a
+  // contagem sao todos da lista que esta na tela, entao nao ha nada aqui para
+  // atualizar sem mentir. A contagem daquele RDB volta do servidor no proximo
+  // /rdbs ou /gles.
+  if (rdb !== RDB) return;
   const key = gleKey(relay, gle);
   if (on) DIRTY.add(key); else DIRTY.delete(key);
   const b = GLE_BADGES[key];
   if (b) b.hidden = !on;
-  RDB_DIRTY[RDB] = DIRTY.size;
+  RDB_DIRTY[rdb] = DIRTY.size;
   paintDirty();
 }
 
@@ -610,10 +682,15 @@ function paintDirty() {
     ? total + ' GLE(s) com edição pendente'
     : 'sem edições pendentes';
   const here = RDB ? (RDB_DIRTY[RDB] || 0) : 0;
-  document.getElementById('tabs-count').textContent = here
-    ? here + ' GLE(s) alterado(s) neste RDB'
-    : 'sem alterações neste RDB';
-  document.getElementById('gerar').disabled = !RDB || here === 0;
+  const stuck = !!(UNSAVED && UNSAVED.rdb === RDB);
+  document.getElementById('tabs-count').textContent = stuck
+    ? 'alteração não salva — corrija o erro acima'
+    : (here ? here + ' GLE(s) alterado(s) neste RDB'
+            : 'sem alterações neste RDB');
+  document.getElementById('tabs-count').classList.toggle('stuck', stuck);
+  // Travado enquanto a tela estiver adiantada: gerar agora escreveria a ordem
+  // que o servidor tem, e nao a que esta na tela, sem nada dizendo isso.
+  document.getElementById('gerar').disabled = !RDB || here === 0 || stuck;
   document.getElementById('undo').disabled =
     !(RELAY && GLE && DIRTY.has(gleKey(RELAY, GLE)));
 }
@@ -621,6 +698,12 @@ function paintDirty() {
 // -- Desfazer ---------------------------------------------------------------
 document.getElementById('undo').onclick = async () => {
   if (!RELAY || !GLE) return;
+  // Espera a /stage que estiver no ar e cancela a que estava na fila: um
+  // /reset que passa na frente de uma encenacao volta a marcar o GLE que
+  // acabou de ser limpo. Com uma so' no ar, esperar por ela e' o bastante --
+  // nao ha uma terceira ordem possivel.
+  STAGE_PENDING = false;
+  if (STAGE_INFLIGHT) { try { await STAGE_INFLIGHT; } catch (e) { } }
   const d = await (await fetch('/reset', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({rdb: RDB, relay: RELAY, gle: GLE}),
@@ -629,9 +712,6 @@ document.getElementById('undo').onclick = async () => {
     document.getElementById('tab-error').textContent = d.error;
     return;
   }
-  // Uma resposta de /stage ainda no ar nao pode marcar de volta o que este
-  // Desfazer acabou de limpar.
-  STAGE_REQ += 1;
   const key = gleKey(RELAY, GLE);
   DIRTY.delete(key);
   const b = GLE_BADGES[key];
@@ -643,6 +723,10 @@ document.getElementById('undo').onclick = async () => {
 // -- Gerar RDB --------------------------------------------------------------
 document.getElementById('gerar').onclick = async () => {
   const out = document.getElementById('out');
+  // O botao ja fica travado enquanto ha algo nao salvo, mas uma encenacao no ar
+  // e' outra coisa: ela ainda vai chegar, e /gerar le o que o servidor tem AGORA.
+  if (STAGE_INFLIGHT) { try { await STAGE_INFLIGHT; } catch (e) { } }
+  if (document.getElementById('gerar').disabled) return;
   const r = await SelProgress.post('/gerar', {rdb: RDB},
                                    {label: 'Gerando RDB'});
   const d = r.data || {};
