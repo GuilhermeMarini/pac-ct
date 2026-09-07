@@ -596,3 +596,80 @@ def test_the_updater_runs_even_when_the_dependencies_are_missing():
         "a missing dependency must not stop the updater from importing")
     # update.py itself must stay free of the app's runtime dependencies.
     assert "sellib" not in Path(U.__file__).read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# Installing somewhere else: the launcher's "instalar em %LOCALAPPDATA%"
+# ---------------------------------------------------------------------------
+
+def make_unpacked(tmp: Path, version: str) -> Path:
+    """An unzipped bundle sitting wherever the engineer dropped it."""
+    d = tmp / "baixado" / f"pac-ct-{version}"
+    (d / "src" / "pacct").mkdir(parents=True)
+    (d / "vendor").mkdir(parents=True)
+    (d / "VERSION").write_text(version + "\n", encoding="utf-8")
+    (d / "app.py").write_text("# stub\n", encoding="utf-8")
+    (d / "pac-ct.cmd").write_text("@echo off\n", encoding="utf-8")
+    (d / "pac-ct.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+    (d / "src" / "pacct" / "__init__.py").write_text("x\n", encoding="utf-8")
+    (d / "vendor" / "olefile-0.47-py3-none-any.whl").write_text("w", encoding="utf-8")
+    return d
+
+
+def test_installing_elsewhere_lands_the_bundle_under_versions(tmp_path):
+    """`--instalar-em` is the unzipped bundle COPIED to the destination and
+    then installed there, which is the only new part: `install_here` already
+    infers the whole layout from where the version directory sits."""
+    src = make_unpacked(tmp_path, "1.9.0")
+    dest = tmp_path / "AppData" / "Local" / "PAC-CT"
+
+    layout = U.install_into(dest, src, build=False)
+
+    assert layout.root == dest
+    assert layout.version_dir == dest / "versions" / "1.9.0"
+    assert (dest / "versions" / "1.9.0" / "app.py").is_file()
+    assert (dest / "versions" / "1.9.0" / "vendor").is_dir()
+    assert (dest / "userdata").is_dir()
+    assert (dest / "pac-ct.cmd").is_file()
+    # the source is COPIED, never moved: the engineer keeps the zip they
+    # unpacked, and a failed install must not have eaten it.
+    assert (src / "app.py").is_file()
+
+
+def test_installing_elsewhere_keeps_an_existing_userdata(tmp_path):
+    """Rule 5, at a new destination: `userdata/` is never read, moved or
+    migrated -- and someone installing a second time over an older install
+    is exactly when that matters."""
+    dest = tmp_path / "PAC-CT"
+    (dest / "userdata" / "config").mkdir(parents=True)
+    secret = dest / "userdata" / "config" / "config.ini"
+    secret.write_text("[tcp]\nacc_password = SEGREDO\n", encoding="utf-8")
+
+    U.install_into(dest, make_unpacked(tmp_path, "1.9.0"), build=False)
+
+    assert secret.read_text(encoding="utf-8") == "[tcp]\nacc_password = SEGREDO\n"
+
+
+def test_installing_elsewhere_refuses_to_overwrite_the_same_version(tmp_path):
+    """The same version already unpacked at the destination is not a thing to
+    silently replace: it may be the one running, and `unpack` refuses the same
+    for the same reason."""
+    src = make_unpacked(tmp_path, "1.9.0")
+    dest = tmp_path / "PAC-CT"
+    U.install_into(dest, src, build=False)
+
+    with pytest.raises(U.UpdateError):
+        U.install_into(dest, src, build=False)
+
+    # ... unless told to go ahead, which is how you reinstall on purpose.
+    layout = U.install_into(dest, src, build=False, overwrite=True)
+    assert layout.version_dir == dest / "versions" / "1.9.0"
+
+
+def test_installing_elsewhere_refuses_a_source_without_a_version(tmp_path):
+    """No VERSION file means this is not an unpacked bundle, and guessing a
+    directory name is how you install something that is not the program."""
+    src = tmp_path / "qualquer-pasta"
+    src.mkdir()
+    with pytest.raises(U.UpdateError):
+        U.install_into(tmp_path / "PAC-CT", src, build=False)

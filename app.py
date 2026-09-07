@@ -345,6 +345,61 @@ def run_install() -> None:
     print(f"[OK] Para rodar: {layout.launcher}")
 
 
+def run_check(timeout: float = 3.0) -> int:
+    """Only look: is there a newer release? Downloads and changes nothing.
+
+    Its own command, and not `--atualizar` answered with "no", because the
+    launcher's menu offers checking and updating as two decisions -- and
+    because this is the one that can run unattended, when the engineer turns
+    on the auto-check. That is why the timeout is short and why every failure
+    is a printed line: a substation has no route to GitHub, and the menu has
+    to appear anyway.
+
+    Returns 0 when there is nothing new or the question could not be asked,
+    and 10 when a newer version exists, so the launcher can mark the menu
+    without parsing the text.
+    """
+    _ensure_import_path()
+    try:
+        from pacct.update import UpdateError, check_latest, update_available
+    except ModuleNotFoundError as exc:
+        sys.exit(_explain_import_failure(exc))
+    current = read_version_file()
+    try:
+        release = check_latest(timeout=timeout)
+    except UpdateError as exc:
+        print(f"[--] {exc}")
+        return 0
+    if not update_available(release, current):
+        print(f"[OK] Ja' esta na versao mais nova ({current}).")
+        return 0
+    print(f"[!!] Ha' uma versao nova: {release.version} (esta: {current}).")
+    print("     Rode a opcao 'Atualizar' do menu, ou `--atualizar`.")
+    return 10
+
+
+def run_install_into(dest: str) -> None:
+    """Install a copy of this unpacked bundle into another folder.
+
+    The launcher's "Instalar em %LOCALAPPDATA%\\PAC-CT": the engineer
+    unpacked the zip wherever the browser put it, and wants the program to
+    live somewhere permanent without moving what they downloaded.
+    """
+    _ensure_import_path()
+    try:
+        from pacct.update import UpdateError, install_into
+    except ModuleNotFoundError as exc:
+        sys.exit(_explain_import_failure(exc))
+    try:
+        layout = install_into(Path(dest), ROOT)
+    except UpdateError as exc:
+        sys.exit(f"[ERRO] {exc}")
+    print(f"[OK] Instalado em {layout.root}")
+    print(f"[OK] Dados do usuario: {layout.userdata} (nunca tocados por uma "
+          f"atualizacao)")
+    print(f"[OK] Para rodar: {layout.launcher}")
+
+
 def run_update(assume_yes: bool = False) -> None:
     """Rule 1: this is a command somebody typed, never part of booting."""
     _ensure_import_path()
@@ -445,7 +500,12 @@ def run_rollback() -> None:
     print(f"[OK] `current` agora aponta para {target}.")
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
+    """The CLI, as its own function so the flags can be read without running.
+
+    The Windows launcher is a menu over these flags and the suite cannot run a
+    `.cmd`, so what the menu means has to be assertable from here.
+    """
     parser = argparse.ArgumentParser(
         description="Launcher do PAC CT (venv + dependencias + CLI/dashboard)"
     )
@@ -482,6 +542,17 @@ def main() -> None:
                         help="Nao pergunta antes de atualizar")
     parser.add_argument("--reverter", action="store_true",
                         help="Aponta `current` para a versao anterior")
+    parser.add_argument("--verificar", "--check", dest="verificar",
+                        action="store_true",
+                        help="So VERIFICA se ha versao nova; nao baixa nada")
+    parser.add_argument("--instalar-em", dest="instalar_em", metavar="PASTA",
+                        help="Instala uma copia deste pacote na PASTA dada "
+                             "(ex.: %%LOCALAPPDATA%%\\PAC-CT)")
+    return parser
+
+
+def main() -> None:
+    parser = build_parser()
     args, unknown = parser.parse_known_args()
 
     # Before anything else, and without a venv or an import: asking a broken
@@ -489,6 +560,14 @@ def main() -> None:
     if args.show_version:
         print(read_version_file())
         return
+
+    # Before the venv and before a single wheel, for the same reason as
+    # `--versao`: this one runs on every launcher start when the auto-check is
+    # on, and `pacct.update` deliberately needs nothing but the standard
+    # library to answer. Paying the bootstrap here would put seconds between
+    # the double click and the menu.
+    if args.verificar:
+        raise SystemExit(run_check())
 
     # A bundle installs from its own wheels, and does NOT need to be asked.
     # `vendor/` exists in a bundle and never in a clone, so its presence is the
@@ -519,6 +598,9 @@ def main() -> None:
 
     if args.instalar:
         run_install()
+        return
+    if args.instalar_em:
+        run_install_into(args.instalar_em)
         return
     if args.atualizar:
         run_update(assume_yes=args.assume_yes)
