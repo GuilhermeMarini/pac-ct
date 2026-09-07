@@ -203,3 +203,57 @@ def validate_edit(spans: list[PageSpan], *, order: list[int],
     for name, count in after.items():
         if count > 1 and count > before.get(name, 0):
             raise GleTabsError(f"já existe uma aba chamada “{name}”")
+
+
+def apply_page_edits(raw: bytes, *, order: list[int],
+                     names: dict[int, str]) -> tuple[bytes, dict]:
+    """`raw` with its pages reordered and renamed. Returns (bytes, stats).
+
+    `order` is in terms of ORIGINAL indices: `order[i]` is the page that ends
+    up at position `i`. `names` maps an original index to its new name.
+
+    The separators between pages -- indentation, and any comment sitting
+    between two of them -- stay at their positions rather than travelling with
+    a page, so the file's shape survives a reorder.
+
+    Re-parses its own output before returning. `rdb_write` verifies the OLE
+    container and never the XML inside a stream, so this is the only place a
+    mis-spliced page can still be caught.
+    """
+    spans = read_pages(raw)
+    if not spans:
+        raise GleTabsError("o GLE não tem nenhuma página")
+    validate_edit(spans, order=order, names=names)
+
+    # Rename first, each page on its own bytes, so the permutation below only
+    # has to move finished blocks around.
+    bodies: list[bytes] = []
+    renamed = 0
+    for sp in spans:
+        new = names.get(sp.index)
+        if new is None or new == sp.name:
+            bodies.append(raw[sp.start:sp.end])
+            continue
+        bodies.append(raw[sp.start:sp.name_start]
+                      + escape_attr(new).encode("latin-1")
+                      + raw[sp.name_end:sp.end])
+        renamed += 1
+
+    out: list[bytes] = [raw[:spans[0].start]]
+    for pos, src in enumerate(order):
+        out.append(bodies[src])
+        if pos + 1 < len(spans):
+            # The separator that originally FOLLOWED this position.
+            out.append(raw[spans[pos].end:spans[pos + 1].start])
+    out.append(raw[spans[-1].end:])
+    result = b"".join(out)
+
+    want = [names.get(i, spans[i].name) for i in order]
+    got = [s.name for s in read_pages(result)]
+    if got != want:
+        raise GleTabsError(
+            f"a edição não conferiu depois de aplicada: esperava {want}, "
+            f"o arquivo ficou com {got}. Nada foi gravado."
+        )
+    moved = sum(1 for pos, src in enumerate(order) if pos != src)
+    return result, {"moved": moved, "renamed": renamed}

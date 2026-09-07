@@ -131,3 +131,88 @@ def test_the_attribute_escape_covers_the_quote():
     an ATTRIBUTE: an unescaped quote would close it and produce a malformed
     GLE that nothing downstream distinguishes from a good one."""
     assert model.escape_attr('A "B" & <C>') == "A &quot;B&quot; &amp; &lt;C&gt;"
+
+
+# -- the splice -------------------------------------------------------------
+
+def test_an_identity_edit_is_byte_identical():
+    """The property the whole tool rests on. Measured over the local corpus at
+    design time: 215 files, 3.111 pages, byte-identical 215/215."""
+    out, stats = model.apply_page_edits(
+        fx.TABS_GLE, order=list(range(6)), names={})
+    assert out == fx.TABS_GLE
+    assert stats == {"moved": 0, "renamed": 0}
+
+
+def test_a_permutation_reorders_the_pages_and_keeps_the_length():
+    order = [5, 0, 1, 2, 3, 4]
+    out, stats = model.apply_page_edits(fx.TABS_GLE, order=order, names={})
+    assert [s.name for s in model.read_pages(out)] == [
+        "52- CMD DE FECHAMENT", "Capa", "Entradas Críticas",
+        "U>U< I >I<", "RESERVA", "RESERVA",
+    ]
+    # A permutation moves bytes, it never adds any. That is what lets
+    # olefile.write_stream swap the stream in place instead of rebuilding.
+    assert len(out) == len(fx.TABS_GLE)
+    assert stats["moved"] == 6
+
+
+def test_the_bytes_outside_the_pages_never_move():
+    order = [3, 2, 1, 0, 5, 4]
+    out, _ = model.apply_page_edits(fx.TABS_GLE, order=order, names={})
+    spans_in = model.read_pages(fx.TABS_GLE)
+    spans_out = model.read_pages(out)
+    assert out[:spans_out[0].start] == fx.TABS_GLE[:spans_in[0].start]
+    assert out[spans_out[-1].end:] == fx.TABS_GLE[spans_in[-1].end:]
+
+
+def test_the_comment_between_two_pages_stays_where_it_was():
+    """It is page furniture, not part of a page: it must not travel."""
+    out, _ = model.apply_page_edits(
+        fx.TABS_GLE, order=[5, 4, 3, 2, 1, 0], names={})
+    spans = model.read_pages(out)
+    between = out[spans[0].end:spans[1].start]
+    assert b"<!-- separador" in between
+
+
+def test_a_rename_touches_only_the_name_attribute():
+    out, stats = model.apply_page_edits(
+        fx.TABS_GLE, order=list(range(6)), names={0: "CAPA NOVA"})
+    assert [s.name for s in model.read_pages(out)][0] == "CAPA NOVA"
+    assert stats == {"moved": 0, "renamed": 1}
+    # everything after page 0 is untouched
+    old, new = model.read_pages(fx.TABS_GLE), model.read_pages(out)
+    assert out[new[1].start:] == fx.TABS_GLE[old[1].start:]
+
+
+def test_a_rename_is_escaped_and_reads_back_verbatim():
+    out, _ = model.apply_page_edits(
+        fx.TABS_GLE, order=list(range(6)), names={0: 'A "B" & <C>'})
+    assert b'name="A &quot;B&quot; &amp; &lt;C&gt;"' in out
+    assert model.read_pages(out)[0].name == 'A "B" & <C>'
+
+
+def test_an_accented_rename_is_written_latin_one():
+    out, _ = model.apply_page_edits(
+        fx.TABS_GLE, order=list(range(6)), names={0: "Proteção"})
+    assert "Proteção".encode("latin-1") in out
+    assert model.read_pages(out)[0].name == "Proteção"
+
+
+def test_renaming_a_page_to_the_name_it_has_is_not_counted():
+    out, stats = model.apply_page_edits(
+        fx.TABS_GLE, order=list(range(6)), names={0: "Capa"})
+    assert out == fx.TABS_GLE
+    assert stats["renamed"] == 0
+
+
+def test_moving_and_renaming_at_once():
+    out, stats = model.apply_page_edits(
+        fx.TABS_GLE, order=[1, 0, 2, 3, 4, 5], names={1: "PRIMEIRA"})
+    assert [s.name for s in model.read_pages(out)][:2] == ["PRIMEIRA", "Capa"]
+    assert stats == {"moved": 2, "renamed": 1}
+
+
+def test_an_invalid_edit_raises_before_producing_anything():
+    with pytest.raises(model.GleTabsError):
+        model.apply_page_edits(fx.TABS_GLE, order=[0, 1], names={})
