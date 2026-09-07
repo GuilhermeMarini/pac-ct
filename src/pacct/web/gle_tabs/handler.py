@@ -128,7 +128,7 @@ def build_gle_tabs_handler(logger: logging.Logger, sessions) -> type:
                     except (OSError, model.GleTabsError) as exc:
                         # One unreadable GLE must not take the whole list
                         # down: the others are still editable.
-                        logger.warning("[gle-tabs] %s/%s ilegivel: %s",
+                        logger.warning("[gle-tabs] %s/%s ilegível: %s",
                                        relay.name, g.filename, exc)
                         pages = None
                     with lock:

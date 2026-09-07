@@ -56,8 +56,11 @@ def test_a_gle_with_a_doctype_is_refused():
     than an SCD, so the billion-laughs guard runs before the parse."""
     hostile = fx.TABS_GLE.replace(
         b"<editor>", b"<!DOCTYPE editor [<!ENTITY a 'b'>]>\r\n<editor>", 1)
-    with pytest.raises(DtdNotAllowed):
+    with pytest.raises(model.GleTabsError) as excinfo:
         model.read_pages(hostile)
+    # The wrap is at the source (model.read_pages), not at call sites, so
+    # callers have only GleTabsError to know. The cause chain survives.
+    assert isinstance(excinfo.value.__cause__, DtdNotAllowed)
 
 
 # -- validation -------------------------------------------------------------

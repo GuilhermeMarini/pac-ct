@@ -79,3 +79,24 @@ def test_pages_for_a_gle_the_relay_does_not_have_is_404(tmp_path):
     key = info.sha256[:12]
     r = h.get(f"/pages?rdb={key}&relay=QPC1_TR1&gle=GL9.gle")
     assert r.status == 404
+
+
+def test_pages_for_a_gle_with_a_doctype_returns_400(tmp_path):
+    """A GLE with DOCTYPE must return 400, not crash the request.
+
+    This is the gap that let the bug through -- the DTD path was only tested
+    against read_pages directly, never through HTTP.
+    """
+    h = build(build_gle_tabs_handler, tmp_path)
+    hostile = fx.TABS_GLE.replace(
+        b"<editor>", b"<!DOCTYPE editor [<!ENTITY a 'b'>]>\r\n<editor>", 1)
+    info = fake_rdb(tmp_path, {
+        "QPC1_TR1": {"GL1.gle": hostile},
+    })
+    h.add_rdb(info)
+    key = info.sha256[:12]
+    r = h.get(f"/pages?rdb={key}&relay=QPC1_TR1&gle=GL1.gle")
+    assert r.status == 400
+    out = r.json()
+    assert out["ok"] is False
+    assert "error" in out

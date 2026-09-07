@@ -19,7 +19,7 @@ import xml.parsers.expat as expat
 from collections import Counter
 from dataclasses import dataclass
 
-from sellib.scl._xmlsafe import reject_dtd_in_bytes
+from sellib.scl._xmlsafe import DtdNotAllowed, reject_dtd_in_bytes
 
 # Measured across the 3.111 page names of the 215 `.gle` in the local corpus:
 # none is longer, 67 sit exactly here, and several are visibly truncated
@@ -102,7 +102,12 @@ def read_pages(raw: bytes) -> list[PageSpan]:
     """Every tab in the GLE, in file order, with its exact byte span."""
     # A GLE arrives inside an RDB somebody uploaded, so it is no more trusted
     # than an SCD -- the same guard `sellib.gle.parse_gle` applies.
-    reject_dtd_in_bytes(raw)
+    try:
+        reject_dtd_in_bytes(raw)
+    except DtdNotAllowed as exc:
+        # _xmlsafe is a private module (leading underscore). This module's
+        # callers should only have to know GleTabsError.
+        raise GleTabsError(f"GLE contém DOCTYPE proibido: {exc}") from exc
 
     spans: list[PageSpan] = []
     cur: dict = {}
