@@ -100,3 +100,79 @@ def test_pages_for_a_gle_with_a_doctype_returns_400(tmp_path):
     out = r.json()
     assert out["ok"] is False
     assert "error" in out
+
+
+# -- staging ----------------------------------------------------------------
+
+def _stage(h, key, order, names=None):
+    return h.post("/stage", {"rdb": key, "relay": "QPC1_TR1", "gle": "GL1.gle",
+                             "order": order, "names": names or {}})
+
+
+def test_a_reorder_is_staged_and_shows_on_the_gle_list(tmp_path):
+    h, info = _harness(tmp_path)
+    key = info.sha256[:12]
+    out = _stage(h, key, [1, 0, 2, 3, 4, 5]).json()
+    assert out["ok"] is True
+    assert out["moved"] == 2
+    assert out["dirty"] is True
+    gles = h.get(f"/gles?rdb={key}").json()["relays"][0]["gles"]
+    assert gles[0]["dirty"] is True
+    assert gles[1]["dirty"] is False
+    assert h.get("/rdbs").json()["rdbs"][0]["dirty"] == 1
+
+
+def test_a_staged_edit_comes_back_from_pages(tmp_path):
+    h, info = _harness(tmp_path)
+    key = info.sha256[:12]
+    _stage(h, key, [1, 0, 2, 3, 4, 5], {"0": "CAPA NOVA"})
+    out = h.get(f"/pages?rdb={key}&relay=QPC1_TR1&gle=GL1.gle").json()
+    assert out["order"] == [1, 0, 2, 3, 4, 5]
+    assert out["names"] == {"0": "CAPA NOVA"}
+    assert out["dirty"] is True
+
+
+def test_an_edit_that_changes_nothing_is_not_staged(tmp_path):
+    h, info = _harness(tmp_path)
+    key = info.sha256[:12]
+    out = _stage(h, key, [0, 1, 2, 3, 4, 5]).json()
+    assert out["ok"] is True
+    assert out["dirty"] is False
+    assert h.get("/rdbs").json()["rdbs"][0]["dirty"] == 0
+
+
+def test_a_name_over_the_limit_is_refused_with_a_reason(tmp_path):
+    h, info = _harness(tmp_path)
+    key = info.sha256[:12]
+    r = _stage(h, key, [0, 1, 2, 3, 4, 5], {"0": "A" * 21})
+    assert r.status == 400
+    out = r.json()
+    assert out["ok"] is False
+    assert "20" in out["error"]
+    assert h.get("/rdbs").json()["rdbs"][0]["dirty"] == 0
+
+
+def test_an_order_that_drops_a_page_is_refused(tmp_path):
+    h, info = _harness(tmp_path)
+    key = info.sha256[:12]
+    assert _stage(h, key, [0, 1, 2]).status == 400
+
+
+def test_reset_clears_one_gle(tmp_path):
+    h, info = _harness(tmp_path)
+    key = info.sha256[:12]
+    _stage(h, key, [1, 0, 2, 3, 4, 5])
+    out = h.post("/reset", {"rdb": key, "relay": "QPC1_TR1",
+                            "gle": "GL1.gle"}).json()
+    assert out["ok"] is True
+    assert out["dirty"] == 0
+
+
+def test_reset_without_a_gle_clears_the_whole_rdb(tmp_path):
+    h, info = _harness(tmp_path)
+    key = info.sha256[:12]
+    _stage(h, key, [1, 0, 2, 3, 4, 5])
+    h.post("/stage", {"rdb": key, "relay": "QPC1_TR1", "gle": "GL2.gle",
+                      "order": [1, 0, 2, 3, 4, 5], "names": {}})
+    assert h.get("/rdbs").json()["rdbs"][0]["dirty"] == 2
+    assert h.post("/reset", {"rdb": key}).json()["dirty"] == 0

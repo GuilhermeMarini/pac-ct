@@ -6,6 +6,7 @@ mounting this handler at `/gle-tabs/`.
 
 from __future__ import annotations
 
+import json
 import logging
 from urllib.parse import parse_qs, urlparse
 
@@ -171,6 +172,75 @@ def build_gle_tabs_handler(logger: logging.Logger, sessions) -> type:
         # -- POST -------------------------------------------------------
 
         def do_POST(self):
+            path = urlparse(self.path).path
+            if path == "/stage":
+                self._do_stage()
+                return
+            if path == "/reset":
+                self._do_reset()
+                return
             self._send(404, "Não encontrado", "text/plain; charset=utf-8")
+
+        def _body(self) -> dict:
+            length = int(self.headers.get("Content-Length") or 0)
+            if not length:
+                return {}
+            try:
+                return json.loads(self.rfile.read(length) or b"{}")
+            except (ValueError, UnicodeDecodeError):
+                return {}
+
+        def _do_stage(self):
+            """Validate one GLE's edit and hold it. Stages nothing on refusal."""
+            body = self._body()
+            key = str(body.get("rdb", ""))
+            relay, gle = str(body.get("relay", "")), str(body.get("gle", ""))
+            info = self._rdb(key)
+            if info is None:
+                return
+            raw = self._gle_bytes(info, relay, gle)
+            if raw is None:
+                return
+            try:
+                order = [int(i) for i in body.get("order", [])]
+                # JSON object keys are strings; the model indexes by int.
+                names = {int(k): str(v)
+                         for k, v in (body.get("names") or {}).items()}
+            except (TypeError, ValueError):
+                self._send_json(400, {"ok": False,
+                                      "error": "ordem ou nomes malformados."})
+                return
+            st = self.sess()
+            lock = self.require_session().lock
+            try:
+                spans = model.read_pages(raw)
+                with lock:
+                    edit = state.stage_edit(st, (key, relay, gle), spans,
+                                            order=order, names=names)
+            except model.GleTabsError as exc:
+                self._send_json(400, {"ok": False, "error": str(exc)})
+                return
+            self._send_json(200, {
+                "ok": True,
+                "dirty": edit is not None,
+                "moved": sum(1 for pos, src in enumerate(order) if pos != src),
+                "renamed": len(edit.names) if edit else 0,
+            })
+
+        def _do_reset(self):
+            """Drop the edits of one GLE, or of the whole RDB."""
+            body = self._body()
+            key = str(body.get("rdb", ""))
+            relay, gle = str(body.get("relay", "")), str(body.get("gle", ""))
+            st = self.sess()
+            lock = self.require_session().lock
+            with lock:
+                if relay and gle:
+                    st.edits.pop((key, relay, gle), None)
+                else:
+                    for k in [k for k in st.edits if k[0] == key]:
+                        del st.edits[k]
+            self._send_json(200, {"ok": True,
+                                  "dirty": state.dirty_count(st, key, lock)})
 
     return Handler
