@@ -59,6 +59,21 @@ Abra http://localhost:8765/ no navegador. Para outra porta:
 
     PAC-CT\pac-ct.cmd --port 9000
 
+No Windows, um clique duplo no `pac-ct.cmd` (sem argumentos) abre um menu:
+
+    1) Rodar o programa
+    2) Preparar esta pasta (portatil)     monta o venv a partir de vendor\,
+                                         sem internet, sem subir o servidor
+    3) Instalar em %LOCALAPPDATA%\PAC-CT  copia este pacote para a pasta do
+                                         usuario e instala la'
+    4) Verificar atualizacoes            so' olha; nao baixa nada
+    5) Atualizar
+    6) Configuracoes
+    0) Sair
+
+Com argumentos ele nao mostra menu nenhum: `pac-ct.cmd --port 9000` e
+`pac-ct.cmd --atualizar` continuam valendo como sempre valeram.
+
 
 4. CONFIGURAR O RELE
 
@@ -73,8 +88,14 @@ atualizacoes.
     PAC-CT\pac-ct.cmd --atualizar          (instalacao versionada)
     python app.py --atualizar              (pasta unica/portatil)
 
-Precisa de internet, e por isso NUNCA acontece sozinho: a verificacao e' um
-comando que voce da'. Ela consulta as releases publicas do projeto, confere o
+Precisa de internet. O PROGRAMA nunca verifica sozinho -- rodar o dashboard
+jamais consulta a internet, e isso nao mudou. O que verifica e' o MENU do
+`pac-ct.cmd`, ao abrir, e so' no Windows: vem ligado, desliga em
+Configuracoes, espera no maximo 3 segundos e, sem rede, escreve uma linha e
+abre o menu do mesmo jeito. Uma subestacao sem rota para a internet nao paga
+mais que isso.
+
+A verificacao consulta as releases publicas do projeto, confere o
 sha256 do pacote antes de descompactar qualquer coisa, instala a nova versao
 em `versions\<nova>\` e so' entao aponta `current` para ela. Se algo falhar no
 meio, `current` continua onde estava.

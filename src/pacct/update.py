@@ -672,6 +672,51 @@ def install_here(version_dir: Path, *, offline: bool = True,
     return layout
 
 
+def install_into(dest_root: Path, version_dir: Path, *, offline: bool = True,
+                 build: bool = True, overwrite: bool = False) -> Layout:
+    """Install an unpacked bundle into ANOTHER root, e.g. `%LOCALAPPDATA%`.
+
+    `install_here` is the same install with the destination already decided by
+    where the bundle happens to sit -- it reads the layout off the version
+    directory's own path. That is right when the engineer unpacked straight
+    into `PAC-CT/versions/<v>/`, and useless from the launcher's menu, where
+    the bundle is wherever the browser dropped it and the destination is the
+    user's own folder. So the only thing this adds is the move: put a COPY of
+    the bundle at `<dest>/versions/<version>/`, then hand it to `install_here`,
+    which builds the venv there and does the rest unchanged.
+
+    A copy and never a move. The engineer keeps what they unpacked, and an
+    install that fails halfway must not have eaten the only copy of the
+    program on a machine with no network to fetch another.
+
+    `userdata/` at the destination is left exactly as found -- rule 5 does not
+    stop applying because the destination is new. Reinstalling the same
+    version needs `overwrite`, for the same reason `unpack` refuses it: that
+    directory may be the one currently running.
+    """
+    version_dir = Path(version_dir).resolve()
+    dest_root = Path(dest_root).resolve()
+    stamp = version_dir / "VERSION"
+    if not stamp.is_file():
+        raise UpdateError(
+            f"{version_dir} nao parece um pacote descompactado: nao tem VERSION")
+    version = stamp.read_text(encoding="utf-8").strip()
+    if not version:
+        raise UpdateError(f"{stamp} esta vazio")
+
+    target = dest_root / "versions" / version
+    if target.exists():
+        if not overwrite:
+            raise UpdateError(
+                f"{target} ja existe. Use overwrite para reinstalar por cima "
+                f"-- pode ser a versao que esta rodando agora.")
+        shutil.rmtree(target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(version_dir, target)
+
+    return install_here(target, offline=offline, build=build)
+
+
 def restart(layout: Layout, args: list[str] | None = None) -> None:
     """Hand over to the launcher, which resolves `current` afresh.
 
