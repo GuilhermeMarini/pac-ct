@@ -723,40 +723,68 @@ document.getElementById('undo').onclick = async () => {
 // -- Gerar RDB --------------------------------------------------------------
 document.getElementById('gerar').onclick = async () => {
   const out = document.getElementById('out');
-  // O botao ja fica travado enquanto ha algo nao salvo, mas uma encenacao no ar
-  // e' outra coisa: ela ainda vai chegar, e /gerar le o que o servidor tem AGORA.
-  if (STAGE_INFLIGHT) { try { await STAGE_INFLIGHT; } catch (e) { } }
-  if (document.getElementById('gerar').disabled) return;
-  const r = await SelProgress.post('/gerar', {rdb: RDB},
-                                   {label: 'Gerando RDB'});
-  const d = r.data || {};
-  out.textContent = '';
-  if (!r.ok || !d.ok) {
-    out.textContent = 'Falha ao gerar: ' + (d.error || r.status);
-    return;
+  const btn = document.getElementById('gerar');
+  if (btn.disabled) return;
+  // Travado ja' aqui: um segundo clique enquanto este drena entraria na fila
+  // atras do primeiro e mandaria um segundo /gerar em paralelo.
+  btn.disabled = true;
+  try {
+    // Drena a CORRENTE inteira, nao um elo dela, relendo a variavel a cada
+    // volta. Enquanto uma /stage esta no ar, `stage()` devolve a MESMA promessa
+    // a quem chegar depois e so' levanta a bandeira; quando ela volta, o
+    // `.finally` dispara a seguinte AINDA no mesmo microtask -- ou seja, antes
+    // de este `await` devolver o controle. Um unico `if` esperava a primeira e
+    // mandava /gerar com a segunda ainda no ar, e as duas conexoes nao tem
+    // ordem garantida num ThreadingHTTPServer: o RDB podia sair sem a segunda
+    // movimentacao, com a tela mostrando ela e o botao liberado. Quando o laco
+    // termina, `STAGE_INFLIGHT` e' null -- e como o `.finally` consome
+    // `STAGE_PENDING` no mesmo passo em que anula a variavel, null aqui
+    // significa tambem que nao ha nenhuma na fila.
+    while (STAGE_INFLIGHT) {
+      try { await STAGE_INFLIGHT; } catch (e) { }
+    }
+    // A ultima encenacao drenada pode ter sido recusada: `paintDirty` e' quem
+    // decide o estado do botao, entao perguntar a ele e' perguntar ao estado
+    // real depois da drenagem.
+    paintDirty();
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const r = await SelProgress.post('/gerar', {rdb: RDB},
+                                     {label: 'Gerando RDB'});
+    const d = r.data || {};
+    out.textContent = '';
+    if (!r.ok || !d.ok) {
+      out.textContent = 'Falha ao gerar: ' + (d.error || r.status);
+      return;
+    }
+    const a = el('a', null, 'Baixar RDB (' +
+      (d.method === 'rebuild' ? 'reconstruído' : 'gravado no lugar') + ')');
+    // Ja vem com o prefixo do mount: um <a href> o shim de fetch nao reescreve.
+    a.href = d.download;
+    a.setAttribute('download', '');
+    out.appendChild(a);
+    const t = d.totals || {};
+    out.appendChild(el('span', 'hint',
+      (d.results || []).length + ' GLE(s), ' + (t.moved || 0) +
+      ' aba(s) movida(s), ' + (t.renamed || 0) + ' renomeada(s).'));
+    const note = el('div');
+    // Escrito pelo runtime SelLibrary, que ja escapa o que vem do arquivo.
+    note.innerHTML = SelLibrary.savedNote(d.project_file);
+    out.appendChild(note);
+    if (!d.project_file) {
+      out.appendChild(el('div', 'hint',
+        'O arquivo não entrou no acervo do projeto; o link acima ' +
+        'continua valendo.'));
+    }
+    // O RDB gerado entra no acervo, entao a lista do passo 1 e' relida para
+    // mostra-lo. As edicoes seguem pendentes ate que se desfaca.
+    loadRdbs();
+  } finally {
+    // Uma saida por `return` (recusa drenada, ou a propria geracao falhando)
+    // nao pode deixar o botao travado para sempre: quem decide se ele vale e'
+    // o estado, e `paintDirty` e' quem o le.
+    paintDirty();
   }
-  const a = el('a', null, 'Baixar RDB (' +
-    (d.method === 'rebuild' ? 'reconstruído' : 'gravado no lugar') + ')');
-  // Ja vem com o prefixo do mount: um <a href> o shim de fetch nao reescreve.
-  a.href = d.download;
-  a.setAttribute('download', '');
-  out.appendChild(a);
-  const t = d.totals || {};
-  out.appendChild(el('span', 'hint',
-    (d.results || []).length + ' GLE(s), ' + (t.moved || 0) +
-    ' aba(s) movida(s), ' + (t.renamed || 0) + ' renomeada(s).'));
-  const note = el('div');
-  // Escrito pelo runtime SelLibrary, que ja escapa o que vem do arquivo.
-  note.innerHTML = SelLibrary.savedNote(d.project_file);
-  out.appendChild(note);
-  if (!d.project_file) {
-    out.appendChild(el('div', 'hint',
-      'O arquivo não entrou no acervo do projeto; o link acima ' +
-      'continua valendo.'));
-  }
-  // O RDB gerado entra no acervo, entao a lista do passo 1 e' relida para
-  // mostra-lo. As edicoes seguem pendentes ate que se desfaca.
-  loadRdbs();
 };
 
 loadRdbs();
