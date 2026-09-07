@@ -227,6 +227,8 @@
     grid-area: viewer;
     padding: var(--s3); background: var(--viewer-bg); min-height: 400px;
     overflow: auto;
+    /* Ancora do cartao da fonte dos VB, que e' posicionado sobre o desenho. */
+    position: relative;
     --gle-zoom: 1;
   }
   #viewer svg { background: #fefefe; border: 1px solid var(--border); }
@@ -367,6 +369,60 @@
     min-width: 46px; font-family: var(--mono); font-variant-numeric: tabular-nums;
   }
   .zoom-btn.active { background: var(--accent-strong); color: var(--accent-fg); }
+
+  /* --- Fonte dos VB, so' com o diagrama desconectado ------------------
+     A camada e' offline por construcao: quando o rele esta sendo lido, as
+     cores do bloco sao o ESTADO do bit, e pintar procedencia por cima delas
+     seria duas linguagens no mesmo desenho. Por isso o grupo inteiro some
+     em vez de ficar desabilitado -- um botao apagado convida a perguntar
+     por que, e a resposta ("o diagrama esta ao vivo") ja esta no cabecalho.
+
+     A tinta vai no `style` do elemento com `!important`, e nao num atributo:
+     as regras de estado logo acima ja sao `!important`, e um atributo de
+     apresentacao perde ate para uma regra de classe comum. */
+  #vbsrc-group {
+    display: inline-flex; align-items: center; gap: 0;
+    border: 1px solid var(--border-ctl); border-radius: var(--radius);
+    overflow: hidden;
+  }
+  #vbsrc-group .tool-label {
+    background: var(--surface); color: var(--text-2); font-size: 10px;
+    padding: var(--s1) var(--s1); border-right: 1px solid var(--border-ctl);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  #vbsrc-card {
+    position: absolute; z-index: 9; max-width: 320px;
+    background: var(--surface-3); color: var(--text);
+    border: 1px solid var(--border-strong); border-radius: var(--radius);
+    box-shadow: 0 6px 22px rgba(0,0,0,.18);
+    padding: var(--s2) var(--s3); font-family: var(--mono); font-size: 11px;
+    line-height: 1.45; pointer-events: none;
+  }
+  #vbsrc-card .t {
+    font-weight: bold; margin-bottom: 4px; padding-bottom: 3px;
+    border-bottom: 1px solid var(--border-hair);
+  }
+  #vbsrc-card .k { color: var(--text-3); display: inline-block; width: 84px; }
+  #vbsrc-card .bit { color: var(--ok); font-weight: bold; }
+  #vbsrc-card.quality .bit { color: var(--accent); }
+  #vbsrc-legend .row {
+    display: flex; align-items: center; gap: 6px; font-size: 10px;
+    color: var(--text-2); margin-bottom: 3px;
+  }
+  #vbsrc-legend .sw {
+    width: 14px; height: 10px; flex: none; background: #fff;
+    border: 1.5px solid #888;
+  }
+  #vbsrc-legend .sw.signal { background: #e6f3ea; border-color: #1f7a45; }
+  #vbsrc-legend .sw.quality { background: #e2eaf3; border-color: #2b4a6f; }
+  #vbsrc-legend .sw.placeholder {
+    background: #f2f0ea; border-color: #b8b5ad; border-style: dashed;
+  }
+  #vbsrc-legend .head {
+    font-size: 10px; color: var(--text-3); margin-bottom: 5px;
+    word-break: break-all;
+  }
+  #vbsrc-legend .err { color: var(--warn); font-size: 10px; }
 
   body.tool-highlight #viewer { cursor: crosshair; }
   body.tool-highlight #viewer svg .symbol-grp,
@@ -619,6 +675,14 @@
       <div id="var-search-dropdown" role="listbox" aria-label="Resultados"></div>
     </div>
     <span class="spacer"></span>
+    <div id="vbsrc-group" hidden>
+      <span class="tool-label">SCD</span>
+      <button id="vbsrc-toggle" class="tool-btn" type="button" aria-pressed="false"
+              title="Mostrar de onde vem cada Virtual Bit, segundo o SCD do projeto">
+        <svg class="tool-icon" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M1 7h6v2H1z M6 4l4 4-4 4z M11 2h4v12h-4v-2h2V4h-2z"/></svg>
+        <span>Fonte VB</span>
+      </button>
+    </div>
     <div class="tools-group" role="radiogroup" aria-label="Ferramentas">
       <span class="tool-label">Ferramentas</span>
       <button id="tool-select" class="tool-btn active" type="button" role="radio" aria-checked="true" data-tool="select" title="Selecionar">
@@ -654,6 +718,14 @@
     <div class="legend-row"><span class="legend-swatch" style="background:#6fdc6f; border:1px solid #1a6a1a"></span> Ativo (1)</div>
     <div class="legend-row"><span class="legend-swatch" style="background:#e8e8e8; border:1px solid #888"></span> Inativo (0)</div>
     <div class="legend-row"><span class="legend-swatch" style="background:#fff4c8; border:1px dashed #d49a00"></span> Indeterminado</div>
+  </section>
+  <section id="vbsrc-section" hidden>
+    <!-- So' existe com a camada ligada, e a camada so' existe offline. As
+         tres contagens sao o argumento inteiro da tinta: num SCD de SEL
+         Architect os 256 ExtRef estao sempre escritos, entao "nao ligado"
+         aparece como placeholder e nunca como ausencia. -->
+    <h3>Fonte dos VB</h3>
+    <div id="vbsrc-legend"></div>
   </section>
   <section id="connectors-section" hidden>
     <!-- Conectores da PAGINA ABERTA. Um conector nao e' uma linha: e' um nome
@@ -758,6 +830,7 @@ function withD(url) {
 let lastValues = { digitals: {}, analogs: {}, ts: 0, error: "" };
 let varSearch = null;  // exposto pra loadPage() re-aplicar busca após troca de página
 let zoomCtl = null;    // exposto pra loadPage() reajustar o zoom na nova página
+let vbSourceCtl = null;// exposto pra loadPage() re-aplicar a camada de fonte dos VB
 
 // Controle de período: so' existe pro modo MMS (ver diagram.py:set_interval_ms
 // -- telnet nao tem piso proprio pra isto mexer). `activeScanMode` vem de
@@ -847,6 +920,9 @@ async function loadPage(safeId, name) {
   applyHighlightsForCurrentPage();
   if (notesCtl) notesCtl.onPageChange(safeId);
   if (varSearch) varSearch.reapply();
+  // Depois dos valores: a tinta de auditoria escreve por cima das classes de
+  // estado, e um `applyValues` posterior a apagaria.
+  if (vbSourceCtl) vbSourceCtl.onPageChange();
 }
 
 // =============================================================================
@@ -3018,6 +3094,9 @@ function updateConnButton() {
     btn.disabled = false; btn.textContent = 'Conectar';
     btn.title = t.error || ('Conectar em ' + (t.ip || 'sem IP'));
   }
+  // A faixa de abas se atualiza sozinha a cada 2 s, entao esta e' a chamada
+  // que descobre uma conexao aberta noutro lugar -- ou uma que caiu.
+  if (vbSourceCtl) vbSourceCtl.onConnection(t.connected);
   setHeaderTitle(t.relay, t.gle);
 }
 
@@ -3069,6 +3148,7 @@ function applyMeta(meta) {
   renderPollStatus(lastValues);
   // Aba nova, lista nova: o que sobrou na tela e' de outro rele.
   unreachCtl.reset();
+  if (vbSourceCtl) vbSourceCtl.reset();
   return loadPage(meta.initial, '');
 }
 
@@ -3110,6 +3190,342 @@ async function closeDiagram(id) {
     alert('Falha ao fechar o diagrama: ' + e);
   }
 }
+
+// =============================================================================
+// Fonte dos VB -- de onde vem cada Virtual Bit, segundo o SCD do projeto.
+//
+// Um bloco do GLE diz `VB023` e mais nada: nem quem publica, nem por qual
+// GOOSE, nem como o bit se chama do outro lado. As tres coisas estao no SCD,
+// e `web/glv/vb_source.py` faz a juncao (o `<ExtRef>` do assinante nomeia um
+// ENDERECO dentro do publicador; o `sAddr` do publicador e' que diz que
+// aquele endereco e' `PSV05`).
+//
+// A camada e' OFFLINE por construcao. Com o rele sendo lido, a cor do bloco e'
+// o estado do bit -- pintar procedencia por cima seriam duas linguagens no
+// mesmo desenho, e a mais importante das duas perderia. Por isso o botao some
+// quando o diagrama conecta, e a camada e' desmontada junto.
+//
+// Tres coisas de uma vez, que e' como foram escolhidas depois de desenhadas:
+//   . a assinatura do SCD toma o lugar do comentario de porta que o GLE ja'
+//     desenha ao lado do VB (o espaco ja' existe e ja' esta alinhado);
+//   . a tinta de auditoria classifica o bloco -- assinado, qualidade GOOSE,
+//     placeholder -- que e' a unica leitura que responde "o que o integrador
+//     esqueceu";
+//   . o cartao no hover traz o ExtRef inteiro, para quem esta comissionando
+//     aquele ponto.
+// =============================================================================
+vbSourceCtl = (function setupVbSource() {
+  const group = document.getElementById('vbsrc-group');
+  const btn = document.getElementById('vbsrc-toggle');
+  const viewer = document.getElementById('viewer');
+  const section = document.getElementById('vbsrc-section');
+  const legend = document.getElementById('vbsrc-legend');
+  if (!group || !btn || !viewer) return null;
+
+  const KINDS = {
+    signal:      {stroke: '#1f7a45', fill: '#e6f3ea', width: '1.8'},
+    quality:     {stroke: '#2b4a6f', fill: '#e2eaf3', width: '1.8'},
+    placeholder: {stroke: '#b8b5ad', fill: '#f2f0ea', width: '0.9',
+                  dash: '2,1.6'},
+  };
+  const KIND_LABEL = {
+    signal: 'com assinatura', quality: 'qualidade GOOSE',
+    placeholder: 'placeholder',
+  };
+
+  // Uma resposta por diagrama: `/vb-source` manda o mapa inteiro (256 no
+  // maximo) e o servidor le o SCD uma vez so'. Trocar de aba e voltar nao
+  // repete nem a viagem nem o parse.
+  const cache = {};
+  let data = null;      // payload do diagrama ativo, ou null
+  let on = false;
+  let connected = false;
+  let card = null;
+  // O que esta camada mexeu no SVG desta pagina, para desfazer exatamente
+  // isso. O no da pagina e' cacheado e reaproveitado (ver `pageSvgCache`),
+  // entao deixar rastro aqui e' deixa-lo para sempre.
+  let touched = [];
+
+  function svgNode() { return viewer.querySelector('svg'); }
+
+  function normalise(name) {
+    const m = /^VB0*(\d+)$/i.exec((name || '').trim());
+    if (!m) return '';
+    const n = String(m[1]);
+    return 'VB' + (n.length >= 3 ? n : ('00' + n).slice(-3));
+  }
+
+  function shortIed(name) {
+    // QPC2_TR2_UPC3 -> TR2_UPC3: o prefixo do painel se repete em todos, e o
+    // comentario de porta tem uma linha so'.
+    return (name || '').replace(/^QPC\d+_/, '');
+  }
+
+  function signature(r) {
+    if (r.kind === 'placeholder') return '';
+    if (r.kind === 'quality') return shortIed(r.ied) + ' · ' + r.cb;
+    return shortIed(r.ied) + ' · ' + r.ln;
+  }
+
+  function bitLabel(r) {
+    if (r.kind === 'placeholder') return '';
+    return r.kind === 'quality' ? 'saúde GOOSE' : (r.bit || '(sem sAddr)');
+  }
+
+  function vbGroups(svg) {
+    return Array.from(svg.querySelectorAll('g.symbol-grp[data-bit]'))
+      .filter(g => normalise(g.getAttribute('data-bit')));
+  }
+
+  function recordOf(g) {
+    if (!data || !data.sources) return null;
+    return data.sources[normalise(g.getAttribute('data-bit'))] || null;
+  }
+
+  // -- pintar / despintar ---------------------------------------------------
+
+  function paint(el, prop, value) {
+    // `!important` na mao: as regras de estado (`.element-symbol.bit-unknown`)
+    // ja' sao `!important`, e um `style` sem ele perde para elas. Foi assim
+    // que a primeira versao saiu inteiramente branca.
+    el.style.setProperty(prop, value, 'important');
+  }
+
+  function apply() {
+    const svg = svgNode();
+    if (!svg || !on || !data) return;
+    clearSvg();
+    const layer = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    layer.setAttribute('class', 'vbsrc-layer');
+    for (const g of vbGroups(svg)) {
+      const r = recordOf(g);
+      if (!r) continue;
+      const c = KINDS[r.kind] || KINDS.placeholder;
+      g.style.setProperty('cursor', 'help');
+      touched.push(g);
+      const rect = g.querySelector('rect');
+      if (rect) {
+        paint(rect, 'fill', c.fill);
+        paint(rect, 'stroke', c.stroke);
+        paint(rect, 'stroke-width', c.width);
+        if (c.dash) paint(rect, 'stroke-dasharray', c.dash);
+        touched.push(rect);
+      }
+      // O comentario de porta e' o unico texto ja' reservado e ja' alinhado
+      // ao lado do bloco. Um placeholder mantem o do GLE, apagado: nao ha
+      // assinatura para por no lugar dele.
+      const pc = g.querySelector('text.port-comment');
+      if (!pc) continue;
+      if (r.kind === 'placeholder') {
+        pc.style.setProperty('opacity', '.35');
+        touched.push(pc);
+        continue;
+      }
+      pc.style.setProperty('display', 'none');
+      touched.push(pc);
+      const t = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute('x', pc.getAttribute('x'));
+      t.setAttribute('y', pc.getAttribute('y'));
+      t.setAttribute('font-family', 'monospace');
+      t.setAttribute('font-size', '5.4');
+      t.setAttribute('font-weight', 'bold');
+      t.setAttribute('fill', c.stroke);
+      t.setAttribute('pointer-events', 'none');
+      t.textContent = signature(r) + ' → ' + bitLabel(r);
+      layer.appendChild(t);
+    }
+    svg.appendChild(layer);
+  }
+
+  function clearSvg() {
+    const svg = svgNode();
+    for (const el of touched) {
+      el.style.removeProperty('fill');
+      el.style.removeProperty('stroke');
+      el.style.removeProperty('stroke-width');
+      el.style.removeProperty('stroke-dasharray');
+      el.style.removeProperty('display');
+      el.style.removeProperty('opacity');
+      el.style.removeProperty('cursor');
+    }
+    touched = [];
+    if (svg) svg.querySelectorAll('g.vbsrc-layer').forEach(n => n.remove());
+    hideCard();
+  }
+
+  // -- cartao no hover ------------------------------------------------------
+
+  function ensureCard() {
+    if (card) return card;
+    card = document.createElement('div');
+    card.id = 'vbsrc-card';
+    card.hidden = true;
+    viewer.appendChild(card);
+    return card;
+  }
+
+  function hideCard() { if (card) card.hidden = true; }
+
+  function cardHtml(vb, r) {
+    const row = (k, v) => '<div><span class="k">' + k + '</span>' + esc(v) + '</div>';
+    if (r.kind === 'placeholder') {
+      return '<div class="t">' + esc(vb) + '</div>'
+           + row('ExtRef', 'sem publicador (placeholder)')
+           + (r.desc ? row('Descrição', r.desc) : '');
+    }
+    let h = '<div class="t">' + esc(vb) + (r.desc ? ' — ' + esc(r.desc) : '') + '</div>';
+    h += row('IED', r.ied);
+    h += row('GoCB', (r.ld_cb ? r.ld_cb + '/' : '') + r.cb);
+    if (r.kind === 'quality') {
+      h += row('Assina', 'a saúde da mensagem GOOSE');
+      h += '<div><span class="k">Relay Word</span>'
+         + '<span class="bit">a qualidade não tem bit</span></div>';
+      return h;
+    }
+    h += row('LD / LN', r.ld + ' / ' + r.ln);
+    h += row('Dado', r.do + '.' + r.da);
+    h += '<div><span class="k">Relay Word</span><span class="bit">'
+       + esc(r.bit || 'o publicador não mapeia este ponto') + '</span></div>';
+    return h;
+  }
+
+  function esc(v) {
+    return String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // Delegado no visualizador, e registrado UMA vez. Por bloco seria um par
+  // de listeners por `apply()`, e `apply()` roda de novo a cada troca de
+  // pagina e a cada religada do botao -- o no da pagina volta do cache com
+  // os listeners da vez anterior ainda nele.
+  function groupUnder(node) {
+    return node && node.closest ? node.closest('g.symbol-grp[data-bit]') : null;
+  }
+
+  viewer.addEventListener('mouseover', (e) => {
+    if (!on) return;
+    const g = groupUnder(e.target);
+    if (!g) return;
+    const r = recordOf(g);
+    if (!r) return;
+    const c = ensureCard();
+    c.className = r.kind === 'quality' ? 'quality' : '';
+    c.innerHTML = cardHtml(g.getAttribute('data-bit'), r);
+    c.hidden = false;
+    const vb = viewer.getBoundingClientRect();
+    const gb = g.getBoundingClientRect();
+    // Dentro do visualizador, sempre: o cartao mede ate 320 px e o bloco
+    // pode estar encostado na borda direita da folha.
+    const left = Math.min(gb.right - vb.left + 12 + viewer.scrollLeft,
+                          viewer.scrollLeft + vb.width - 332);
+    c.style.left = Math.max(viewer.scrollLeft + 8, left) + 'px';
+    c.style.top = (gb.top - vb.top + viewer.scrollTop - 6) + 'px';
+  });
+
+  viewer.addEventListener('mouseout', (e) => {
+    // Andar entre dois filhos do MESMO bloco tambem dispara mouseout; so'
+    // sair do bloco fecha o cartao.
+    if (groupUnder(e.target) !== groupUnder(e.relatedTarget)) hideCard();
+  });
+
+  // -- painel ---------------------------------------------------------------
+
+  function renderLegend() {
+    if (!section || !legend) return;
+    if (!on || !data) { section.hidden = true; return; }
+    section.hidden = false;
+    let h = '';
+    if (data.scd) {
+      h += '<div class="head">' + esc(data.scd)
+         + (data.ied ? ' · IED <b>' + esc(data.ied) + '</b>'
+                       + (data.matched_by ? ' (por ' + esc(data.matched_by) + ')' : '')
+                     : '') + '</div>';
+    }
+    if (data.error) h += '<div class="err">' + esc(data.error) + '</div>';
+    const census = data.census || {};
+    const total = Object.values(census).reduce((a, b) => a + b, 0);
+    // Do RELE inteiro, nao da pagina aberta: e' a pergunta que a tinta
+    // responde ("o que o integrador esqueceu"), e num painel ao lado de uma
+    // pagina de 18 VB a contagem de 256 precisa dizer de onde vem.
+    if (total) h += '<div class="head">' + total + ' VB do IED:</div>';
+    for (const kind of ['signal', 'quality', 'placeholder']) {
+      if (!(kind in census)) continue;
+      h += '<div class="row"><span class="sw ' + kind + '"></span>'
+         + census[kind] + ' ' + KIND_LABEL[kind] + '</div>';
+    }
+    legend.innerHTML = h;
+  }
+
+  // -- ligar / desligar -----------------------------------------------------
+
+  async function load() {
+    if (cache[activeDiagram] !== undefined) return cache[activeDiagram];
+    try {
+      const r = await fetch(withD('/vb-source'), { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      cache[activeDiagram] = await r.json();
+    } catch (e) {
+      cache[activeDiagram] = {sources: {}, census: {},
+                              error: 'falha ao ler a fonte dos VB: ' + e};
+    }
+    return cache[activeDiagram];
+  }
+
+  function setPressed(v) {
+    btn.setAttribute('aria-pressed', v ? 'true' : 'false');
+    btn.classList.toggle('active', v);
+  }
+
+  async function turnOn() {
+    const want = activeDiagram;
+    // A primeira ligada de cada diagrama paga o parse do SCD -- medido em
+    // 1536 ms no `substation_demo.scd` de 22 MB, que e' o tamanho real de
+    // uma subestacao. Um segundo e meio de botao mudo depois do clique e' o
+    // que faz alguem clicar de novo.
+    const label = btn.querySelector('span');
+    const was = label ? label.textContent : '';
+    if (label && cache[want] === undefined) label.textContent = 'lendo SCD...';
+    btn.disabled = true;
+    let payload;
+    try {
+      payload = await load();
+    } finally {
+      btn.disabled = false;
+      if (label) label.textContent = was;
+    }
+    // Duas coisas podem ter acontecido durante a viagem: o visitante trocou
+    // de aba, ou o diagrama conectou. Nos dois casos esta resposta nao vale.
+    if (want !== activeDiagram || connected) return;
+    data = payload;
+    on = true;
+    setPressed(true);
+    apply();
+    renderLegend();
+  }
+
+  function turnOff() {
+    on = false;
+    setPressed(false);
+    clearSvg();
+    renderLegend();
+  }
+
+  btn.addEventListener('click', () => { on ? turnOff() : turnOn(); });
+
+  return {
+    // Pagina nova no mesmo diagrama: o SVG e' outro no e nao tem a camada.
+    onPageChange() { if (on) apply(); },
+    // Aba nova: outro rele, outro SCD, e a camada volta desligada. Sem isto
+    // o mapa de um diagrama pintaria os VB de outro, que tem os mesmos nomes.
+    reset() { data = null; if (on) turnOff(); },
+    // A camada e' offline. Conectou, ela sai; desconectou, o botao volta.
+    onConnection(isConnected) {
+      connected = !!isConnected;
+      group.hidden = connected;
+      if (connected && on) turnOff();
+    },
+  };
+})();
 
 (function setupConnToggle() {
   const btn = document.getElementById('conn-toggle');
