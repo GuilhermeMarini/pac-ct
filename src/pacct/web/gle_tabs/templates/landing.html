@@ -17,10 +17,11 @@
      badge "modificado" aparece em todas as linhas, inclusive nas limpas. */
   [hidden] { display: none !important; }
 
-  /* -- listas dos passos 1 e 2 ------------------------------------------- */
-  /* `.row` e' definida AQUI porque nao existe na casca: a versao anterior
-     desta tela punha class="row" nos RDBs e nada a pintava, entao as linhas
-     sairam como botoes crus do navegador. */
+  /* -- lista do passo 2 --------------------------------------------------- */
+  /* O passo 1 e' o `SelLibrary.picker`, e a casca ja pinta o que ele desenha
+     (`.filelist`/`.filerow`). O passo 2 nao e' uma lista de arquivos do
+     acervo -- e' o conteudo DE UM arquivo, agrupado por rele -- entao e'
+     desenhado aqui, e `.list`/`.row` nao existem na casca. */
   .list {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -185,7 +186,7 @@
 <main>
   <section id="step-rdb">
     <h2>1. RDB do projeto</h2>
-    <div id="rdb-list">Carregando&hellip;</div>
+    <div id="pick-rdb"></div>
   </section>
   <section id="step-gle" hidden>
     <h2>2. Rel&eacute; e GLE</h2>
@@ -227,7 +228,6 @@ const DIRTY = new Set();
 // sha curto -> quantos GLEs daquele RDB estao pendentes. Alimentado por
 // /rdbs e mantido em dia pelo DIRTY do RDB aberto.
 const RDB_DIRTY = {};
-const RDB_BADGES = {};     // sha curto -> <span> do badge na lista
 const GLE_BADGES = {};     // "relay gle" -> <span> do badge "modificado"
 const GLE_UNSAVED = {};    // "relay gle" -> <span> do badge "não salvo"
 
@@ -269,46 +269,50 @@ function badge(on, cls, text) {
 }
 
 // -- passo 1: os RDBs do projeto --------------------------------------------
+// A lista e' o `SelLibrary.picker`, o mesmo das outras seis ferramentas: nome,
+// tamanho, `detail`, `origin`, sha curto, a marca da linha escolhida e o estado
+// vazio com o link relativo para "Arquivos do Projeto" ja saem dele. O unico
+// pedaco que e' desta ferramenta -- quantos GLEs daquele RDB estao com edicao
+// pendente -- entra pelo `annotate`, que existe exatamente para isso (o Editor
+// de Mapa DNP e' o precedente).
+const PICKER = SelLibrary.picker('pick-rdb', {
+  kind: 'rdb', label: 'RDB do projeto',
+  annotate: (f) => (RDB_DIRTY[f.short_sha] > 0 ? 'modificado' : ''),
+  // A chave curta do acervo E' a chave desta ferramenta: as duas sao o sha256
+  // do conteudo. Nao ha nada a "carregar" antes -- `/gles` acha o RDB no
+  // acervo do visitante sozinho.
+  onPick: (f) => pickRdb(f.short_sha),
+});
+
+// `annotate` so' roda no render, entao a lista e' redesenhada quando o SINAL
+// muda -- quais RDBs tem pendencia --, e nunca a cada tecla digitada: um
+// `refresh()` por movimento de aba seria um `/library` por movimento.
+let PICKER_SIG = '';
+const dirtySig = () => Object.keys(RDB_DIRTY)
+  .filter(k => RDB_DIRTY[k] > 0).sort().join(',');
+
+function syncPicker() {
+  if (dirtySig() === PICKER_SIG) return;
+  PICKER_SIG = dirtySig();
+  PICKER.refresh().then(() => { if (RDB) PICKER.select(RDB); });
+}
+
+// `/rdbs` continua existindo por causa do `annotate`: a contagem por RDB e' a
+// unica coisa que esta ferramenta sabe sobre um arquivo e o acervo nao.
 async function loadRdbs() {
-  const box = document.getElementById('rdb-list');
-  const out = await (await fetch('/rdbs')).json();
-  if (!out.ok || !out.rdbs.length) {
-    box.textContent = 'Nenhum RDB no projeto. Envie um em ';
-    const a = el('a', 'lnk', 'Arquivos do Projeto');
-    a.href = '../files/';           // href relativo: o shim nao alcanca <a>
-    box.appendChild(a);
-    box.appendChild(document.createTextNode('.'));
-    paintDirty();
-    return;
-  }
-  box.textContent = '';
-  const list = el('div', 'list');
-  list.appendChild(el('div', 'lbl', 'RDB do projeto'));
-  for (const rdb of out.rdbs) {
-    RDB_DIRTY[rdb.rdb] = rdb.dirty || 0;
-    const row = el('button', 'row');
-    row.type = 'button';
-    row.dataset.rdb = rdb.rdb;
-    if (rdb.rdb === RDB) row.classList.add('sel');
-    row.appendChild(el('span', 'nm', rdb.name));
-    if (rdb.detail) row.appendChild(el('span', 'meta', rdb.detail));
-    if (rdb.origin) row.appendChild(el('span', 'meta', rdb.origin));
-    row.appendChild(el('span', 'meta', rdb.rdb));
-    const b = badge(rdb.dirty > 0, 'j-warn', 'modificado');
-    RDB_BADGES[rdb.rdb] = b;
-    row.appendChild(b);
-    row.onclick = () => pickRdb(rdb.rdb, row);
-    list.appendChild(row);
-  }
-  box.appendChild(list);
+  let out = null;
+  try { out = await (await fetch('/rdbs')).json(); } catch (e) { out = null; }
+  for (const k of Object.keys(RDB_DIRTY)) delete RDB_DIRTY[k];
+  for (const r of ((out && out.rdbs) || [])) RDB_DIRTY[r.rdb] = r.dirty || 0;
+  PICKER_SIG = dirtySig();
+  await PICKER.refresh();
+  if (RDB) PICKER.select(RDB);
   paintDirty();
 }
 
-function pickRdb(key, row) {
+function pickRdb(key) {
   RDB = key;
   RELAY = GLE = null;
-  document.querySelectorAll('#rdb-list .row').forEach(
-    r => r.classList.toggle('sel', r === row));
   document.getElementById('step-tabs').hidden = true;
   document.getElementById('out').textContent = '';
   loadGles();
@@ -673,11 +677,7 @@ function setDirty(on, rdb, relay, gle) {
 
 function paintDirty() {
   let total = 0;
-  for (const k of Object.keys(RDB_DIRTY)) {
-    total += RDB_DIRTY[k];
-    const b = RDB_BADGES[k];
-    if (b) b.hidden = !(RDB_DIRTY[k] > 0);
-  }
+  for (const k of Object.keys(RDB_DIRTY)) total += RDB_DIRTY[k];
   document.getElementById('dirty').textContent = total
     ? total + ' GLE(s) com edição pendente'
     : 'sem edições pendentes';
@@ -693,6 +693,7 @@ function paintDirty() {
   document.getElementById('gerar').disabled = !RDB || here === 0 || stuck;
   document.getElementById('undo').disabled =
     !(RELAY && GLE && DIRTY.has(gleKey(RELAY, GLE)));
+  syncPicker();
 }
 
 // -- Desfazer ---------------------------------------------------------------
