@@ -62,13 +62,13 @@ DELTA_CSS = r"""
 
 
 def nav(active: str = "") -> str:
-    """The contents: Menu, the project files, and the nine tools.
+    """The contents: Menu, the project files, and the ten tools.
 
     A data sheet's contents lists SECTION TITLES, so the group name comes
     before each run. The tool's label is bare text inside the `<a>`, with no
     `<span class=lbl>`: Folha has no subtitle.
 
-    The files carry "A" rather than a number: the tools stay numbered 1 to 9,
+    The files carry "A" rather than a number: the tools stay numbered 1 to 10,
     and the home counts them in that same order.
     """
     out = ['<nav class="toc" aria-label="Ferramentas">']

@@ -29,6 +29,20 @@ def test_the_page_comes_back_as_html(tmp_path):
     assert r.headers["content-type"].startswith("text/html")
 
 
+def test_the_editor_is_its_own_page(tmp_path):
+    """One GLE per page, as the DNP map does.
+
+    The route serves the template unconditionally and the page resolves
+    `rdb`/`relay`/`gle` from its own query string -- so this asserts the page
+    exists and is HTML, not that the server validated the selection. The
+    selection is validated where it is used, by `/pages`.
+    """
+    h, _ = _harness(tmp_path)
+    r = h.get("/editor?rdb=x&relay=y&gle=z")
+    assert r.status == 200
+    assert r.headers["content-type"].startswith("text/html")
+
+
 def test_an_unknown_route_is_404(tmp_path):
     h, _ = _harness(tmp_path)
     assert h.get("/nao-existe").status == 404

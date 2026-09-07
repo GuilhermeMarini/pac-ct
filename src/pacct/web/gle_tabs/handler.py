@@ -20,6 +20,7 @@ from pacct.web.project_files import library as filelib
 from pacct.web.session import SessionHandler
 
 LANDING_HTML = load_template("landing.html")
+EDITOR_HTML = load_template("editor.html")
 
 
 def build_gle_tabs_handler(logger: logging.Logger, sessions) -> type:
@@ -62,6 +63,14 @@ def build_gle_tabs_handler(logger: logging.Logger, sessions) -> type:
             path = urlparse(self.path).path
             if path in ("/", ""):
                 self._send(200, LANDING_HTML, "text/html; charset=utf-8")
+                return
+            if path == "/editor":
+                # One GLE per page, as the DNP map does. The page reads
+                # rdb/relay/gle from its own query string and asks
+                # `/pages` for the rest -- there is nothing to resolve
+                # here, and resolving it would only be a second place to
+                # get a 404 wrong.
+                self._send(200, EDITOR_HTML, "text/html; charset=utf-8")
                 return
             if path == "/rdbs":
                 self._serve_rdbs()

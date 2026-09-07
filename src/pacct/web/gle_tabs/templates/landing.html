@@ -7,23 +7,40 @@
 <style>
   /* Tokens e casca vem de /theme.css (pacct/web/themes/). Aqui fica so o que
      e' desta tela -- e nada de cor, raio, familia ou padding proprio: tudo
-     sai de var(--...), como no editor do Mapa DNP. */
+     sai de var(--...), como no Mapa DNP. */
 
   .hint { color: var(--text-2); font-size: var(--fs-2); }
 
   /* A marca de veredito da casca e' `.j{display:inline-block}`, uma regra de
      AUTOR -- e regra de autor vence a do navegador seja qual for a
-     especificidade, entao `hidden` sozinho nao esconde um `.j`. Sem isto todo
-     badge "modificado" aparece em todas as linhas, inclusive nas limpas. */
+     especificidade, entao `hidden` sozinho nao esconde um `.j`. */
   [hidden] { display: none !important; }
 
-  /* -- lista do passo 2 --------------------------------------------------- */
+  /* `.card` nao existe na casca solta: o que ela traz e' `.cards .card`, a
+     grade de fichas do menu. Cada tela de documento define a sua, e esta e' a
+     mesma do Mapa DNP, so' com tokens. */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: var(--s4);
+    margin-bottom: var(--s4);
+  }
+  .card h2 {
+    margin: 0 0 var(--s3);
+    font: var(--w-label) var(--fs-2) var(--cond);
+    letter-spacing: var(--track);
+    text-transform: uppercase;
+    color: var(--text-2);
+  }
+
+  /* -- lista de reles e GLEs ---------------------------------------------- */
   /* O passo 1 e' o `SelLibrary.picker`, e a casca ja pinta o que ele desenha
      (`.filelist`/`.filerow`). O passo 2 nao e' uma lista de arquivos do
      acervo -- e' o conteudo DE UM arquivo, agrupado por rele -- entao e'
      desenhado aqui, e `.list`/`.row` nao existem na casca. */
   .list {
-    background: var(--surface);
+    background: var(--surface-2);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: var(--s2);
@@ -51,8 +68,7 @@
     padding: var(--s1) var(--s2);
     cursor: pointer;
   }
-  .row:hover:not(:disabled) { background: var(--surface-2); }
-  .row.sel { background: var(--tint-sel); box-shadow: inset 2px 0 0 var(--accent); }
+  .row:hover:not(:disabled) { background: var(--surface); }
   .row:disabled { cursor: not-allowed; color: var(--text-3); }
   .row .nm { flex: 1 1 auto; min-width: 0;
              overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -60,34 +76,9 @@
   .relay { margin-bottom: var(--s3); }
   .relay h3 { margin: var(--s2) var(--s2) var(--s1); }
 
-  /* -- barra do passo 3 --------------------------------------------------- */
-  /* Pegajosa pela mesma razao do Mapa DNP: um GLE de 40 abas empurra o botao
-     de gerar para fora do olho de quem esta arrastando a aba 38. */
-  .topbar {
-    display: flex; gap: var(--s3); align-items: center; flex-wrap: wrap;
-    position: sticky; top: 0; z-index: 5;
-    background: var(--bg);
-    padding: var(--s2) 0;
-    margin-bottom: var(--s3);
-    border-bottom: 1px solid var(--border);
-  }
-  .topbar .gap { flex: 1 1 auto; }
-  /* A tela esta adiantada em relacao ao arquivo: o "Gerar RDB" ao lado esta
-     travado, e a contagem diz por que em vez de continuar contando. */
-  .topbar .stuck { color: var(--err); }
-
-  #tab-error:empty { display: none; }
-  #tab-error {
-    color: var(--err);
-    border: 1px solid var(--err);
-    border-radius: var(--radius);
-    padding: var(--s2) var(--s3);
-    margin-bottom: var(--s3);
-    font-size: var(--fs-3);
-  }
   #out:empty { display: none; }
   #out {
-    background: var(--surface);
+    background: var(--surface-2);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: var(--s2) var(--s3);
@@ -95,79 +86,15 @@
     font-size: var(--fs-2);
   }
   #out a { color: var(--accent); margin-right: var(--s3); }
-
-  /* -- a lista de abas ---------------------------------------------------- */
-  #tab-list {
-    background: var(--surface);
-    border: 1px solid var(--border);
+  #gerar-err:empty { display: none; }
+  #gerar-err {
+    color: var(--err);
+    border: 1px solid var(--err);
     border-radius: var(--radius);
-  }
-  #tab-list:empty { display: none; }
-  .tab-head, .tab-row {
-    display: grid;
-    grid-template-columns:
-      auto 3.5ch minmax(14ch, 24ch) 6ch minmax(0, 1fr) 7ch auto auto;
-    gap: var(--s2);
-    align-items: center;
-    padding: var(--pad-cell);
-    border-bottom: 1px solid var(--border-hair);
-  }
-  .tab-head {
-    background: var(--surface-2);
-    border-bottom: 2px solid var(--border-strong);
-    font: var(--w-label) var(--fs-1) var(--cond);
-    letter-spacing: var(--track);
-    text-transform: uppercase;
-    color: var(--text-2);
-  }
-  .tab-row:last-child { border-bottom: 0; }
-  .tab-row:hover { background: var(--surface-2); }
-  .tab-row.moved { background: var(--tint-displaced); }
-  .tab-row.renamed .nm { border-color: var(--accent); }
-  .tab-row.dragging { opacity: .4; }
-  .tab-row.droptarget { outline: 2px dashed var(--border-strong);
-                        outline-offset: -2px; }
-  .tab-row .grip { cursor: grab; user-select: none; color: var(--text-2); }
-  .tab-row .pos { font-family: var(--mono); font-size: var(--fs-3);
-                  color: var(--text-2); font-variant-numeric: tabular-nums; }
-  .tab-row .nm {
-    width: 100%;
-    background: var(--surface-3);
-    color: var(--text);
-    border: 1px solid var(--border-ctl);
-    border-radius: var(--radius);
-    padding: var(--pad-field);
-    font: inherit;
+    padding: var(--s2) var(--s3);
+    margin-bottom: var(--s3);
     font-size: var(--fs-3);
   }
-  .tab-row .cnt { font: 400 var(--fs-2) var(--mono); color: var(--text-2);
-                  font-variant-numeric: tabular-nums; text-align: right; }
-  /* `at-limit`, e nao `full`: a casca ja tem uma classe `.full` (o miolo de
-     largura inteira, com padding proprio), e um `class="cnt full"` herdava
-     aquele padding -- a linha com o nome no limite ficava 36px mais alta que
-     as outras. */
-  .tab-row .cnt.at-limit { color: var(--warn); }
-  .tab-row .desc { color: var(--text-2); font-size: var(--fs-2);
-                   overflow: hidden; text-overflow: ellipsis;
-                   white-space: nowrap; }
-  .tab-row .els { font: 400 var(--fs-2) var(--mono); color: var(--text-2);
-                  text-align: right; white-space: nowrap; }
-  .tab-row .marks { display: flex; gap: var(--s2); white-space: nowrap; }
-  .tab-row .arrows { display: flex; gap: var(--s1); }
-  .arrow {
-    font: inherit;
-    font-size: var(--fs-3);
-    line-height: 1;
-    background: var(--surface);
-    color: var(--text);
-    border: 1px solid var(--border-ctl);
-    border-radius: var(--radius);
-    padding: var(--s1) var(--s2);
-    cursor: pointer;
-  }
-  .arrow:hover:not(:disabled) { background: var(--surface-2);
-                                border-color: var(--accent-strong); }
-  .arrow:disabled { opacity: .45; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -183,75 +110,49 @@
 </header>
 <div class="shell">
 <!--NAV:gle-tabs-->
-<main>
-  <section id="step-rdb">
-    <h2>1. RDB do projeto</h2>
+<div class="grid">
+<main class="col-main">
+
+  <p class="lede">
+    Reordene e renomeie as abas da l&oacute;gica gr&aacute;fica de cada GLE do
+    RDB e gere um RDB novo. Mover uma aba n&atilde;o muda nada que o
+    rel&eacute; execute: a l&oacute;gica compilada vive em posi&ccedil;&otilde;es
+    numeradas, presas ao elemento e n&atilde;o &agrave; p&aacute;gina.
+  </p>
+
+  <section class="card">
+    <h2>1. Escolha o RDB</h2>
     <div id="pick-rdb"></div>
   </section>
-  <section id="step-gle" hidden>
-    <h2>2. Rel&eacute; e GLE</h2>
+
+  <section class="card" id="step-gle" hidden>
+    <h2>2. Escolha o GLE</h2>
+    <p class="hint" id="gle-summary"></p>
     <div id="gle-list"></div>
   </section>
-  <section id="step-tabs" hidden>
-    <h2>3. Abas</h2>
-    <div class="topbar">
-      <span id="tabs-title" class="hint"></span>
-      <button id="undo" type="button" class="btn" disabled>Desfazer</button>
-      <span class="gap"></span>
-      <span id="tabs-count" class="count"></span>
-      <button id="gerar" type="button" class="btn pri" disabled>Gerar RDB</button>
-    </div>
-    <div id="tab-error" role="alert"></div>
-    <div id="tab-list"></div>
-    <p class="hint" id="tabs-help"></p>
+
+  <section class="card" id="pending" hidden>
+    <h2>Altera&ccedil;&otilde;es pendentes</h2>
+    <p class="hint" id="pending-list"></p>
+    <div id="gerar-err" role="alert"></div>
+    <button id="gerar" type="button" class="btn pri">Gerar RDB</button>
     <div id="out"></div>
   </section>
+
 </main>
+</div>
 </div>
 </div>
 <script>
 // O dispatcher injeta um shim que reprefixa fetch(), entao as rotas sao
 // escritas aqui como se esta ferramenta fosse a raiz. Um <a href> o shim NAO
-// alcanca: link entre paginas e' relativo ("../files/"), e o link de download
-// ja vem prefixado pelo servidor.
+// alcanca: link entre paginas e' relativo ("./editor", "../files/"), e o link
+// de download ja vem prefixado pelo servidor.
 
 // -- estado -----------------------------------------------------------------
 let RDB = null;            // sha curto do RDB escolhido
-let RELAY = null, GLE = null;
-let PAGES = [];            // as abas na ordem ORIGINAL do arquivo
-let ORDER = [];            // ORDER[posicao] = indice original
-let NAMES = {};            // indice original -> nome digitado
-let MAXNAME = 20;
-
-// Quais GLEs deste RDB estao com edicao pendente ("relay gle").
-const DIRTY = new Set();
-// sha curto -> quantos GLEs daquele RDB estao pendentes. Alimentado por
-// /rdbs e mantido em dia pelo DIRTY do RDB aberto.
+// sha curto -> quantos GLEs daquele RDB estao pendentes, como o servidor conta.
 const RDB_DIRTY = {};
-const GLE_BADGES = {};     // "relay gle" -> <span> do badge "modificado"
-const GLE_UNSAVED = {};    // "relay gle" -> <span> do badge "não salvo"
-
-// Uma unica requisicao /stage no ar por vez, e o ultimo estado sempre vence.
-// Descartar a RESPOSTA velha nao bastava: o problema e' a ESCRITA velha. Cada
-// fetch abre uma conexao propria num ThreadingHTTPServer e `_do_stage` reabre
-// e reparseia o GLE a cada chamada, entao duas encenacoes disparadas com
-// milissegundos de diferenca -- duas setas seguidas, ou o Enter repetindo numa
-// seta com foco -- podem gravar fora de ordem. O servidor ficaria com a ordem
-// VELHA, a tela mostrando a nova, e a resposta seria `ok`: nada na tela diria
-// que a ordem do arquivo gerado nao e' a que esta ali.
-let STAGE_INFLIGHT = null;   // a promessa da requisicao no ar, ou null
-let STAGE_PENDING = false;   // mudou algo enquanto aquela estava no ar
-
-// Ha trabalho NA TELA que o servidor nao tem. Nasce de uma recusa -- que
-// deliberadamente nao desfaz nada, para nao apagar o que foi digitado -- e
-// morre na proxima encenacao aceita ou na proxima releitura de /pages.
-// Enquanto estiver ligado, "Gerar RDB" fica travado: gerar aqui escreveria a
-// ordem ANTERIOR, que e' exatamente o erro que esta ferramenta existe para
-// evitar. `{rdb, relay, gle}` e nao um booleano, porque a marca tem que
-// aparecer na linha do GLE que ficou para tras.
-let UNSAVED = null;
-
-const gleKey = (relay, gle) => relay + ' ' + gle;
 
 function el(tag, cls, text) {
   const n = document.createElement(tag);
@@ -278,15 +179,11 @@ function badge(on, cls, text) {
 const PICKER = SelLibrary.picker('pick-rdb', {
   kind: 'rdb', label: 'RDB do projeto',
   annotate: (f) => (RDB_DIRTY[f.short_sha] > 0 ? 'modificado' : ''),
-  // A chave curta do acervo E' a chave desta ferramenta: as duas sao o sha256
-  // do conteudo. Nao ha nada a "carregar" antes -- `/gles` acha o RDB no
-  // acervo do visitante sozinho.
   onPick: (f) => pickRdb(f.short_sha),
 });
 
 // `annotate` so' roda no render, entao a lista e' redesenhada quando o SINAL
-// muda -- quais RDBs tem pendencia --, e nunca a cada tecla digitada: um
-// `refresh()` por movimento de aba seria um `/library` por movimento.
+// muda -- quais RDBs tem pendencia --, e nunca a toa.
 let PICKER_SIG = '';
 const dirtySig = () => Object.keys(RDB_DIRTY)
   .filter(k => RDB_DIRTY[k] > 0).sort().join(',');
@@ -312,31 +209,32 @@ async function loadRdbs() {
 
 function pickRdb(key) {
   RDB = key;
-  RELAY = GLE = null;
-  document.getElementById('step-tabs').hidden = true;
   document.getElementById('out').textContent = '';
+  document.getElementById('gerar-err').textContent = '';
   loadGles();
 }
 
 // -- passo 2: os reles e seus GLEs ------------------------------------------
+// Escolher um GLE NAO edita aqui: leva para `./editor`, uma pagina so' daquele
+// arquivo. E' a forma do Mapa DNP, e ela resolve sozinha o que na tela unica
+// precisava de cuidado -- a marca de "nao salvo" era global mas a mensagem era
+// de uma tela so', e "Gerar" convivia com encenacoes no ar.
 async function loadGles() {
   const box = document.getElementById('gle-list');
   document.getElementById('step-gle').hidden = false;
   box.textContent = 'Carregando...';
-  const out = await (await fetch(
-    '/gles?rdb=' + encodeURIComponent(RDB))).json();
-  // Limpo ANTES da guarda: uma leitura que falha nao pode deixar as chaves do
-  // RDB anterior no conjunto -- elas contariam como pendencias deste aqui, e o
-  // "Gerar RDB" ligaria para um RDB sem nada encenado.
-  DIRTY.clear();
-  for (const k of Object.keys(GLE_BADGES)) delete GLE_BADGES[k];
-  for (const k of Object.keys(GLE_UNSAVED)) delete GLE_UNSAVED[k];
-  if (!out.ok) {
-    box.textContent = out.error || 'Falha ao ler o RDB.';
+  let out = null;
+  try {
+    out = await (await fetch('/gles?rdb=' + encodeURIComponent(RDB))).json();
+  } catch (e) { out = null; }
+  if (!out || !out.ok) {
+    box.textContent = (out && out.error) || 'Falha ao ler o RDB.';
+    RDB_DIRTY[RDB] = 0;
     paintDirty();
     return;
   }
   box.textContent = '';
+  let gles = 0, dirty = 0;
   for (const relay of out.relays) {
     const group = el('div', 'relay list');
     const h = el('h3', null, relay.relay);
@@ -344,334 +242,30 @@ async function loadGles() {
     group.appendChild(h);
     if (!relay.gles.length) group.appendChild(el('div', 'lbl', 'sem GLE'));
     for (const g of relay.gles) {
-      const key = gleKey(relay.relay, g.gle);
-      if (g.dirty) DIRTY.add(key);
-      const row = el('button', 'row');
-      row.type = 'button';
+      gles += 1;
+      if (g.dirty) dirty += 1;
+      const href = './editor?rdb=' + encodeURIComponent(RDB) +
+                   '&relay=' + encodeURIComponent(relay.relay) +
+                   '&gle=' + encodeURIComponent(g.gle);
+      // Um GLE que nao abre nao e' escolhivel: o editor nao teria o que
+      // mostrar, e o servidor recusaria de todo jeito.
+      const row = el(g.pages == null ? 'span' : 'a', 'row');
       row.appendChild(el('span', 'nm', g.gle));
       if (g.pages == null) {
-        // Um GLE que nao abre nao e' escolhivel: o passo 3 nao teria o que
-        // mostrar, e o servidor recusaria de todo jeito.
         row.appendChild(el('span', 'meta', 'ilegível'));
-        row.disabled = true;
         row.title = 'Este GLE não pôde ser lido.';
       } else {
         row.appendChild(el('span', 'meta', g.pages + ' aba(s)'));
-        row.onclick = () => pickGle(relay.relay, g.gle, row);
+        row.href = href;
       }
-      const b = badge(!!g.dirty, 'j-warn', 'modificado');
-      GLE_BADGES[key] = b;
-      row.appendChild(b);
-      const u = badge(false, 'j-err', 'não salvo');
-      GLE_UNSAVED[key] = u;
-      row.appendChild(u);
+      row.appendChild(badge(!!g.dirty, 'j-warn', 'modificado'));
       group.appendChild(row);
     }
     box.appendChild(group);
   }
-  RDB_DIRTY[RDB] = DIRTY.size;
-  paintDirty();
-}
-
-function pickGle(relay, gle, row) {
-  RELAY = relay;
-  GLE = gle;
-  document.querySelectorAll('#gle-list .row').forEach(
-    r => r.classList.toggle('sel', r === row));
-  loadPages();
-}
-
-// -- passo 3: as abas -------------------------------------------------------
-async function loadPages() {
-  const sec = document.getElementById('step-tabs');
-  sec.hidden = false;
-  document.getElementById('tab-error').textContent = '';
-  const out = await (await fetch(
-    '/pages?rdb=' + encodeURIComponent(RDB) +
-    '&relay=' + encodeURIComponent(RELAY) +
-    '&gle=' + encodeURIComponent(GLE))).json();
-  if (!out.ok) {
-    document.getElementById('tab-list').textContent = '';
-    document.getElementById('tab-error').textContent =
-      out.error || 'Falha ao ler as abas.';
-    return;
-  }
-  // A tela acaba de ser refeita a partir do servidor, entao o que estava so'
-  // aqui deixou de estar: ou foi aceito, ou foi descartado com a releitura.
-  // De qualquer forma a tela nao esta mais adiantada.
-  clearUnsaved();
-  PAGES = out.pages;
-  ORDER = out.order.slice();
-  MAXNAME = out.max_name || 20;
-  NAMES = {};
-  for (const k of Object.keys(out.names || {})) NAMES[Number(k)] = out.names[k];
-  document.getElementById('tabs-title').textContent =
-    RELAY + ' · ' + GLE + ' · ' + PAGES.length + ' aba(s)';
-  document.getElementById('tabs-help').textContent =
-    'Arraste a linha ou use os botões de seta para mover uma aba. ' +
-    'O nome cabe em ' + MAXNAME + ' caracteres — o limite foi MEDIDO ' +
-    'nos nomes de página do acervo; a SEL não o documenta.';
-  document.getElementById('out').textContent = '';
-  draw();
-  paintDirty();
-}
-
-// O nome que a aba tem AGORA: o digitado, ou o do arquivo.
-const nameAt = idx => (NAMES[idx] != null ? NAMES[idx] : PAGES[idx].name);
-
-function draw(focusPos, focusDir) {
-  const box = document.getElementById('tab-list');
-  box.textContent = '';
-
-  const head = el('div', 'tab-head');
-  for (const t of ['', '#', 'Nome', '', 'Descrição', 'Elem.', '', '']) {
-    head.appendChild(el('span', null, t));
-  }
-  box.appendChild(head);
-
-  ORDER.forEach((src, pos) => box.appendChild(rowFor(src, pos)));
-
-  if (focusPos != null) {
-    // O foco segue a linha que acabou de andar, senao caminhar a lista pelo
-    // teclado exige achar o botao de novo a cada passo. Se o botao daquela
-    // direcao ficou desabilitado (a linha chegou na ponta), vai para o outro.
-    let btn = box.querySelector('.tab-row[data-pos="' + focusPos + '"] ' +
-                                '.arrow[data-dir="' + focusDir + '"]');
-    if (btn && btn.disabled) {
-      btn = box.querySelector('.tab-row[data-pos="' + focusPos + '"] ' +
-                              '.arrow:not(:disabled)');
-    }
-    if (btn) btn.focus();
-  }
-}
-
-function rowFor(src, pos) {
-  const p = PAGES[src];
-  const cur = nameAt(src);
-  const row = el('div', 'tab-row');
-  row.dataset.pos = pos;
-  row.draggable = true;
-  if (src !== pos) row.classList.add('moved');
-  if (cur !== p.name) row.classList.add('renamed');
-
-  const grip = el('span', 'grip', '⠇');
-  grip.title = 'Arraste para mover a aba';
-  grip.setAttribute('aria-hidden', 'true');
-  row.appendChild(grip);
-
-  row.appendChild(el('span', 'pos', String(pos + 1)));
-
-  const input = el('input', 'nm');
-  input.type = 'text';
-  input.value = cur;
-  input.maxLength = MAXNAME;
-  input.dataset.src = src;
-  input.setAttribute('aria-label', 'Nome da aba ' + (pos + 1));
-  row.appendChild(input);
-
-  const cnt = el('span', 'cnt');
-  row.appendChild(cnt);
-  const paintCount = () => {
-    cnt.textContent = input.value.length + '/' + MAXNAME;
-    cnt.classList.toggle('at-limit', input.value.length >= MAXNAME);
-  };
-  paintCount();
-
-  const desc = el('span', 'desc', p.description || '—');
-  desc.title = p.description || '';
-  row.appendChild(desc);
-
-  row.appendChild(el('span', 'els', p.elements + ' el.'));
-
-  const marks = el('div', 'marks');
-  const mMoved = el('span', 'j j-info', 'movida');
-  mMoved.hidden = (src === pos);
-  const mRenamed = el('span', 'j j-warn', 'renomeada');
-  mRenamed.hidden = (cur === p.name);
-  marks.appendChild(mMoved);
-  marks.appendChild(mRenamed);
-  row.appendChild(marks);
-
-  const arrows = el('div', 'arrows');
-  arrows.appendChild(arrowBtn(pos, -1, cur));
-  arrows.appendChild(arrowBtn(pos, 1, cur));
-  row.appendChild(arrows);
-
-  // Digitar so' repinta esta linha: um redraw a cada tecla tiraria o cursor do
-  // campo. O que vai para o servidor sai no `change` (sair do campo ou Enter).
-  input.oninput = () => {
-    const v = input.value;
-    if (v === p.name) delete NAMES[src]; else NAMES[src] = v;
-    paintCount();
-    row.classList.toggle('renamed', v !== p.name);
-    mRenamed.hidden = (v === p.name);
-    for (const b of arrows.children) b.setAttribute('aria-label', labelFor(b, v));
-  };
-  input.onchange = () => stage();
-  // A linha fica arrastavel o tempo todo (arrastar e' o atalho), mas o
-  // navegador entrega o gesto ao drag-and-drop assim que o ponteiro anda com o
-  // botao apertado dentro dela -- e ai nao da' para selecionar o texto do
-  // proprio campo. Mesma licao do Mapa DNP, resolvida do lado do campo:
-  // enquanto o ponteiro esta segurando o input, a linha nao arrasta.
-  input.addEventListener('mousedown', () => { row.draggable = false; });
-
-  wireDrag(row, pos);
-  return row;
-}
-
-function labelFor(btn, name) {
-  const pos = Number(btn.dataset.pos), dir = Number(btn.dataset.dir);
-  return 'Mover “' + name + '” para ' +
-         (dir < 0 ? 'cima' : 'baixo') +
-         ' (posição ' + (pos + 1) + ' → ' + (pos + 1 + dir) + ')';
-}
-
-function arrowBtn(pos, dir, name) {
-  const b = el('button', 'arrow', dir < 0 ? '↑' : '↓');
-  b.type = 'button';
-  b.dataset.pos = pos;
-  b.dataset.dir = dir;
-  b.disabled = (pos + dir < 0) || (pos + dir >= ORDER.length);
-  b.setAttribute('aria-label', labelFor(b, name));
-  b.onclick = () => move(pos, pos + dir, dir);
-  return b;
-}
-
-// Tirar de `from` e recolocar em `to`. E' o mesmo splice do drop, entao as duas
-// formas de mover uma aba nao podem divergir. `focusDir` so' vem das setas: um
-// arraste com o mouse nao pede foco nenhum, e por-lo num botao que ninguem
-// apertou rouba o foco de onde o usuario estava.
-function move(from, to, focusDir) {
-  if (to < 0 || to >= ORDER.length || from === to) return;
-  const moved = ORDER.splice(from, 1)[0];
-  ORDER.splice(to, 0, moved);
-  draw(focusDir == null ? null : to, focusDir);
-  stage();
-}
-
-let DRAG_FROM = null;
-
-function wireDrag(row, pos) {
-  row.ondragstart = e => {
-    DRAG_FROM = pos;
-    row.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    // Firefox nao inicia o arraste sem nada no dataTransfer.
-    try { e.dataTransfer.setData('text/plain', String(pos)); } catch (err) { }
-  };
-  row.ondragend = () => {
-    row.classList.remove('dragging');
-    document.querySelectorAll('#tab-list .tab-row')
-      .forEach(r => r.classList.remove('droptarget'));
-    DRAG_FROM = null;
-  };
-  row.ondragover = e => { e.preventDefault(); row.classList.add('droptarget'); };
-  row.ondragleave = () => row.classList.remove('droptarget');
-  row.ondrop = e => {
-    e.preventDefault();
-    row.classList.remove('droptarget');
-    if (DRAG_FROM == null || DRAG_FROM === pos) return;
-    move(DRAG_FROM, pos);
-  };
-}
-
-// Segurou o campo de nome e soltou: a linha volta a ser arrastavel. No
-// documento, e nao por linha, porque o mouseup pode acontecer fora dela.
-document.addEventListener('mouseup', () => {
-  document.querySelectorAll('#tab-list .tab-row')
-    .forEach(r => { r.draggable = true; });
-});
-
-// -- /stage -----------------------------------------------------------------
-// So' os nomes que REALMENTE mudaram viajam: mandar todos faria o servidor
-// validar tambem os que ja estavam no arquivo, e um nome pre-existente fora da
-// regra recusaria a edicao por um estado que esta ferramenta nao criou.
-function changedNames() {
-  const out = {};
-  for (const k of Object.keys(NAMES)) {
-    if (NAMES[k] !== PAGES[Number(k)].name) out[k] = NAMES[k];
-  }
-  return out;
-}
-
-// A porta de entrada: no maximo uma /stage no ar, e o ultimo estado vence.
-// Quem chega enquanto ha uma no ar apenas levanta a bandeira; a que esta
-// voltando dispara a proxima, que le ORDER e NAMES de novo -- entao o que
-// finalmente chega ao servidor e' sempre o estado atual da tela, e nunca uma
-// escrita antiga por cima de uma nova.
-function stage() {
-  if (STAGE_INFLIGHT) { STAGE_PENDING = true; return STAGE_INFLIGHT; }
-  STAGE_INFLIGHT = sendStage().finally(() => {
-    STAGE_INFLIGHT = null;
-    if (STAGE_PENDING) { STAGE_PENDING = false; stage(); }
-  });
-  return STAGE_INFLIGHT;
-}
-
-async function sendStage() {
-  // RDB, rele e GLE sao presos AQUI, na saida. Clicar em outro GLE tira o foco
-  // do campo de nome, o que dispara este `stage` e, logo em seguida, troca
-  // RELAY/GLE -- ler as globais na volta marcaria o GLE errado como alterado,
-  // e ler RDB na volta escreveria a contagem de um RDB dentro do outro.
-  const rdb = RDB, relay = RELAY, gle = GLE;
-  const box = document.getElementById('tab-error');
-  const stillHere = () => (rdb === RDB && relay === RELAY && gle === GLE);
-  let r, d = null;
-  try {
-    r = await fetch('/stage', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({rdb: rdb, relay: relay, gle: gle,
-                            order: ORDER, names: changedNames()}),
-    });
-    d = await r.json().catch(() => null);
-  } catch (e) {
-    if (stillHere()) box.textContent = 'Erro de rede: ' + e;
-    markUnsaved({rdb: rdb, relay: relay, gle: gle});
-    return;
-  }
-  if (!r.ok || !d || !d.ok) {
-    // Recusa: o servidor nao guardou NADA. O que foi digitado continua na tela
-    // com o motivo ao lado -- mas a ordem tambem continua so' aqui, e por isso
-    // a tela passa a estar adiantada em relacao ao arquivo. E' o que
-    // `markUnsaved` registra, e e' o que trava o "Gerar RDB".
-    if (stillHere()) {
-      box.textContent = (d && d.error) || ('Falha ao salvar: HTTP ' + r.status);
-    }
-    markUnsaved({rdb: rdb, relay: relay, gle: gle});
-    return;
-  }
-  if (stillHere()) box.textContent = '';
-  clearUnsaved();
-  // A marca vai para o GLE que a resposta e' sobre, esteja ele na tela ou nao.
-  setDirty(!!d.dirty, rdb, relay, gle);
-}
-
-function markUnsaved(what) {
-  UNSAVED = what;
-  const u = GLE_UNSAVED[gleKey(what.relay, what.gle)];
-  if (u && what.rdb === RDB) u.hidden = false;
-  paintDirty();
-}
-
-function clearUnsaved() {
-  if (!UNSAVED) return;
-  const u = GLE_UNSAVED[gleKey(UNSAVED.relay, UNSAVED.gle)];
-  if (u) u.hidden = true;
-  UNSAVED = null;
-  paintDirty();
-}
-
-function setDirty(on, rdb, relay, gle) {
-  // A resposta e' sobre um RDB que ja nao esta aberto: DIRTY, os badges e a
-  // contagem sao todos da lista que esta na tela, entao nao ha nada aqui para
-  // atualizar sem mentir. A contagem daquele RDB volta do servidor no proximo
-  // /rdbs ou /gles.
-  if (rdb !== RDB) return;
-  const key = gleKey(relay, gle);
-  if (on) DIRTY.add(key); else DIRTY.delete(key);
-  const b = GLE_BADGES[key];
-  if (b) b.hidden = !on;
-  RDB_DIRTY[rdb] = DIRTY.size;
+  document.getElementById('gle-summary').textContent =
+    out.relays.length + ' relé(s), ' + gles + ' GLE(s).';
+  RDB_DIRTY[RDB] = dirty;
   paintDirty();
 }
 
@@ -682,97 +276,34 @@ function paintDirty() {
     ? total + ' GLE(s) com edição pendente'
     : 'sem edições pendentes';
   const here = RDB ? (RDB_DIRTY[RDB] || 0) : 0;
-  const stuck = !!(UNSAVED && UNSAVED.rdb === RDB);
-  // `UNSAVED` e' um so' para toda a tela, mas o erro que ele manda ler e' de
-  // UMA tela: limpar um nome e clicar noutro GLE trava o "Gerar RDB" com a
-  // marca no GLE anterior, e a mensagem cairia sobre um passo 3 onde nao ha
-  // nada errado. Entao ela diz ONDE -- so' fala em "acima" quando o GLE preso
-  // e' mesmo o que esta aberto.
-  const mine = stuck && UNSAVED.relay === RELAY && UNSAVED.gle === GLE;
-  document.getElementById('tabs-count').textContent = stuck
-    ? (mine ? 'alteração não salva — corrija o erro acima'
-            : 'alteração não salva em ' + UNSAVED.relay + ' · ' + UNSAVED.gle +
-              ' — volte a esse GLE para corrigir')
-    : (here ? here + ' GLE(s) alterado(s) neste RDB'
-            : 'sem alterações neste RDB');
-  document.getElementById('tabs-count').classList.toggle('stuck', stuck);
-  // Travado enquanto a tela estiver adiantada: gerar agora escreveria a ordem
-  // que o servidor tem, e nao a que esta na tela, sem nada dizendo isso.
-  document.getElementById('gerar').disabled = !RDB || here === 0 || stuck;
-  document.getElementById('undo').disabled =
-    !(RELAY && GLE && DIRTY.has(gleKey(RELAY, GLE)));
+  document.getElementById('pending').hidden = !here;
+  document.getElementById('pending-list').textContent = here
+    ? here + ' GLE(s) deste RDB com abas movidas ou renomeadas.' : '';
   syncPicker();
 }
 
-// -- Desfazer ---------------------------------------------------------------
-document.getElementById('undo').onclick = async () => {
-  if (!RELAY || !GLE) return;
-  // Espera a /stage que estiver no ar e cancela a que estava na fila: um
-  // /reset que passa na frente de uma encenacao volta a marcar o GLE que
-  // acabou de ser limpo. Com uma so' no ar, esperar por ela e' o bastante --
-  // nao ha uma terceira ordem possivel.
-  STAGE_PENDING = false;
-  if (STAGE_INFLIGHT) { try { await STAGE_INFLIGHT; } catch (e) { } }
-  const d = await (await fetch('/reset', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({rdb: RDB, relay: RELAY, gle: GLE}),
-  })).json();
-  if (!d.ok) {
-    document.getElementById('tab-error').textContent = d.error;
-    return;
-  }
-  const key = gleKey(RELAY, GLE);
-  DIRTY.delete(key);
-  const b = GLE_BADGES[key];
-  if (b) b.hidden = true;
-  RDB_DIRTY[RDB] = d.dirty;
-  await loadPages();
-};
-
 // -- Gerar RDB --------------------------------------------------------------
+// Sem drenagem aqui: nao ha `/stage` nesta pagina. O que esta encenado e' o que
+// o servidor diz que esta -- `/gles` acabou de ser lido dele --, entao gerar
+// daqui nunca escreve uma ordem que a tela nao tenha visto.
 document.getElementById('gerar').onclick = async () => {
   const out = document.getElementById('out');
+  const err = document.getElementById('gerar-err');
   const btn = document.getElementById('gerar');
-  if (btn.disabled) return;
-  // O RDB e' preso AQUI, no clique, exatamente como `sendStage` prende o dele
-  // na saida. `#step-tabs` fica escondido enquanto se troca de RDB, mas nao
-  // travado, e a drenagem abaixo alargou a janela: ler a global na hora do
-  // POST geraria um RDB de ajustes a partir do arquivo ERRADO, com mensagem de
-  // sucesso e link de download -- e o arquivo entra no acervo do projeto, onde
-  // nada o distingue do certo.
+  // O RDB e' preso no clique: o acervo do passo 1 continua clicavel enquanto a
+  // requisicao esta no ar, e ler a global na volta geraria a partir do arquivo
+  // ERRADO, com mensagem de sucesso e link de download.
   const rdb = RDB;
-  // Travado ja' aqui: um segundo clique enquanto este drena entraria na fila
-  // atras do primeiro e mandaria um segundo /gerar em paralelo.
+  if (!rdb || !(RDB_DIRTY[rdb] > 0)) return;
   btn.disabled = true;
+  out.textContent = '';
+  err.textContent = '';
   try {
-    // Drena a CORRENTE inteira, nao um elo dela, relendo a variavel a cada
-    // volta. Enquanto uma /stage esta no ar, `stage()` devolve a MESMA promessa
-    // a quem chegar depois e so' levanta a bandeira; quando ela volta, o
-    // `.finally` dispara a seguinte AINDA no mesmo microtask -- ou seja, antes
-    // de este `await` devolver o controle. Um unico `if` esperava a primeira e
-    // mandava /gerar com a segunda ainda no ar, e as duas conexoes nao tem
-    // ordem garantida num ThreadingHTTPServer: o RDB podia sair sem a segunda
-    // movimentacao, com a tela mostrando ela e o botao liberado. Quando o laco
-    // termina, `STAGE_INFLIGHT` e' null -- e como o `.finally` consome
-    // `STAGE_PENDING` no mesmo passo em que anula a variavel, null aqui
-    // significa tambem que nao ha nenhuma na fila.
-    while (STAGE_INFLIGHT) {
-      try { await STAGE_INFLIGHT; } catch (e) { }
-    }
-    // A ultima encenacao drenada pode ter sido recusada. `paintDirty` repinta
-    // a tela, mas a decisao de seguir e' sobre o RDB PRESO, e nao sobre o que
-    // estiver selecionado agora: as duas perguntas so' coincidem enquanto
-    // ninguem troca de arquivo durante a drenagem.
-    paintDirty();
-    if (!(RDB_DIRTY[rdb] > 0)) return;
-    if (UNSAVED && UNSAVED.rdb === rdb) return;
-    btn.disabled = true;
     const r = await SelProgress.post('/gerar', {rdb: rdb},
                                      {label: 'Gerando RDB'});
     const d = r.data || {};
-    out.textContent = '';
     if (!r.ok || !d.ok) {
-      out.textContent = 'Falha ao gerar: ' + (d.error || r.status);
+      err.textContent = 'Falha ao gerar: ' + (d.error || r.status);
       return;
     }
     const a = el('a', null, 'Baixar RDB (' +
@@ -796,12 +327,9 @@ document.getElementById('gerar').onclick = async () => {
     }
     // O RDB gerado entra no acervo, entao a lista do passo 1 e' relida para
     // mostra-lo. As edicoes seguem pendentes ate que se desfaca.
-    loadRdbs();
+    await loadRdbs();
   } finally {
-    // Uma saida por `return` (recusa drenada, ou a propria geracao falhando)
-    // nao pode deixar o botao travado para sempre: quem decide se ele vale e'
-    // o estado, e `paintDirty` e' quem o le.
-    paintDirty();
+    btn.disabled = false;
   }
 };
 
