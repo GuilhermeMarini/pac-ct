@@ -547,9 +547,20 @@ class MmsTransport:
             # relay (and pays for itself) from one that came back free and
             # needs `IDLE_INTERVAL`.
             talked = False
+            # The cycle SPLIT in three, because a single number cannot say
+            # whose millisecond it is. `t0..t_lock` is the wait for
+            # `state.lock` -- local contention with whoever is serving
+            # `/events` or `/values`, and NOT the relay. `wire` is
+            # `read_refs`, the only part that leaves this machine. What is
+            # left over is our own decoding. A worst case of 170 ms against a
+            # median of 5 ms is a different problem in each of the three
+            # columns, and the summary used to blame all of it on "MMS".
+            wait = wire = 0.0
+            nrefs = 0
             try:
                 with state.lock:
                     wanted = set(state.wanted_bits)
+                wait = time.monotonic() - t0
                 points = [p for p in plan
                           if not wanted or p.bit in wanted]
                 digitals: dict = {}
@@ -572,7 +583,10 @@ class MmsTransport:
                 # demands and returns the values ALREADY decoded, in the order
                 # they were asked for. That is why the `zip` is safe:
                 # `read_refs` promises one answer per pair, always.
+                nrefs = len(refs)
+                t_wire = time.monotonic()
                 values = dict(zip(refs, client.read_refs(refs), strict=True))
+                wire = time.monotonic() - t_wire
                 talked = bool(refs)
                 for p in points:
                     value = values.get((p.ld, p.item))
@@ -630,7 +644,7 @@ class MmsTransport:
             self._last_cycle = cycle
             sleep_for = max(0.0, self.effective_interval(interval, cycle) - cycle)
             if talked:
-                self._record_cycle(cycle)
+                self._record_cycle(cycle, wait, wire, nrefs)
             else:
                 # Nothing was asked of the relay (a page with no mapped
                 # bit) or the error came back immediately: there is no network
@@ -642,19 +656,36 @@ class MmsTransport:
             elif stop.wait(timeout=sleep_for):
                 return
 
-    def _record_cycle(self, cycle: float) -> None:
+    def _record_cycle(self, cycle: float, wait: float = 0.0,
+                      wire: float = 0.0, nrefs: int = 0) -> None:
         """Keeps the last cycles and summarises one every 100.
 
         The cycle cost is the only number that justifies this transport's
         whole design (read per `LN$FC`, only the open page); measuring it in
         the field is what says whether the bench measurement holds up in the
         substation.
+
+        The summary reports the MEDIAN and the WORST of the total, and then
+        breaks the worst turn open: how much of it was waiting for
+        `state.lock`, how much was on the wire, and how many leaves were
+        asked for. It is the difference between "the relay is slow" and "the
+        loop was queued behind the tab that draws the screen" -- which the
+        single number could not tell apart, even though the loop takes that
+        lock twice per turn and bumps a version that wakes every open
+        `/events` stream.
         """
-        self._cycles.append(cycle)
+        self._cycles.append((cycle, wait, wire, nrefs))
         if len(self._cycles) < 100:
             return
         ordered = sorted(self._cycles)
+        mid = ordered[len(ordered) // 2]
+        worst = ordered[-1]
         self.logger.info(
-            "[glv] %s: 100 ciclos MMS -- mediana %.0f ms, pior %.0f ms",
-            self.key, 1000 * ordered[len(ordered) // 2], 1000 * ordered[-1])
+            "[glv] %s: 100 ciclos MMS -- mediana %.0f ms, pior %.0f ms "
+            "(pior: %.0f ms de lock, %.0f ms no fio, %.0f ms decodificando, "
+            "%d leaves; mediana no fio %.0f ms)",
+            self.key, 1000 * mid[0], 1000 * worst[0],
+            1000 * worst[1], 1000 * worst[2],
+            1000 * (worst[0] - worst[1] - worst[2]), worst[3],
+            1000 * mid[2])
         self._cycles.clear()
