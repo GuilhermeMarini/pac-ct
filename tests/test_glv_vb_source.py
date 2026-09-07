@@ -194,3 +194,58 @@ def test_the_reference_scd_resolves_a_known_bit():
     assert kinds.count(vb_source.QUALITY) == 8
     assert kinds.count(vb_source.SIGNAL) == 16
     assert kinds.count(vb_source.PLACEHOLDER) == 232
+
+
+# -- the panel prefix is not redundant ----------------------------------------
+
+def test_a_subscribers_publishers_span_several_panels():
+    """The premise a shortened IED label would need, and the corpus refuses it.
+
+    The viewer used to draw the publisher as `TR2_UPC2`, stripping a leading
+    `QPC<n>_` on the grounds that "o prefixo do painel se repete em todos".
+    It does not: a bay subscribes ACROSS panels, so the prefix is the only
+    part of the name that says WHICH panel published the bit -- and dropping
+    it makes two different relays draw the same label on the same page.
+
+    Measured here rather than asserted: every subscriber in the reference SCD
+    draws from three or four panels, and each one has at least one pair that
+    collapses onto a single label once the prefix goes.
+    """
+    import re
+
+    def strip_panel(n: str) -> str:
+        return re.sub(r"^QPC\d+_", "", n)
+
+    for relay in ("QPC2_TR2_UPC1", "QPC1_TR1_UPC1", "QPC2_TR1_UPC3"):
+        m = vb_source.read(SAMPLES_DIR / "substation_demo.scd",
+                           relay_name=relay, ip="")
+        publishers = {s.ied for s in m.sources.values() if s.ied}
+        panels = {p.split("_")[0] for p in publishers}
+        assert len(panels) > 1, f"{relay}: publishers all in one panel {panels}"
+
+        collapsed: dict[str, set[str]] = {}
+        for p in publishers:
+            collapsed.setdefault(strip_panel(p), set()).add(p)
+        ambiguous = {k: v for k, v in collapsed.items() if len(v) > 1}
+        assert ambiguous, f"{relay}: no collision, the strip would be safe here"
+
+
+def test_the_viewer_does_not_shorten_the_publisher_name():
+    """No panel-prefix strip in the diagram's JS, ever again.
+
+    The name is drawn over the GLE where room is tight, which is what made
+    shortening tempting -- but the test above shows it renders two relays
+    identically. If width is a problem the answer is the ellipsis and the
+    tooltip, never dropping the half of the name that identifies the panel.
+
+    Grepped rather than exercised because this lives in a template's
+    JavaScript, which the suite cannot run (see `docs/ENGINEERING-NOTES.md`).
+    """
+    import re
+
+    from pacct.paths import GLV_TEMPLATES_DIR
+
+    js = (GLV_TEMPLATES_DIR / "dashboard.html").read_text(encoding="utf-8")
+    assert not re.search(r"replace\(\s*/\^QPC", js), (
+        "the panel-prefix strip is back in the GLV's VB source layer")
+    assert "shortIed" not in js, "shortIed() is back"
