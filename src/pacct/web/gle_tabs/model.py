@@ -159,9 +159,18 @@ def escape_attr(s: str) -> str:
     malformed GLE that goes into the output RDB and then into the project
     library, where nothing distinguishes it from a good file. That is the same
     failure `xml_text_escape`'s own docstring was written about.
+
+    `'` is escaped for the same reason `"` is, and not because a file needs it:
+    `_name_attr_span` ACCEPTS a single-quoted attribute value, so on such a file
+    a rename to `X' foo='bar` would close `name='` early and emit well-formed
+    XML carrying the wrong name -- past `apply_page_edits`'s own re-parse only
+    if the two happened to agree, and a refusal rather than a corrupt file if
+    they did not. Measured: 0 of the 7.899 `<page` tags in the local corpus use
+    single quotes, so this is theoretical today; it costs one `replace`.
     """
     return (s.replace("&", "&amp;").replace("<", "&lt;")
-             .replace(">", "&gt;").replace('"', "&quot;"))
+             .replace(">", "&gt;").replace('"', "&quot;")
+             .replace("'", "&apos;"))
 
 
 def _validate_name(name: str) -> None:

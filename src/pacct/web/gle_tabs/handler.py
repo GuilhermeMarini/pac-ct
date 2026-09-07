@@ -108,13 +108,23 @@ def build_gle_tabs_handler(logger: logging.Logger, sessions) -> type:
 
             Read from the EXTRACTION rather than the OLE: it is the same
             content, and this way reading tabs never opens the RDB.
+
+            The read is guarded like `_serve_gles`'s: `is_file()` and
+            `read_bytes()` are two calls, and the shared `cache/rdb/<sha256>/`
+            has no owner -- the cache sweeper can drop an extraction between
+            them. Losing that race is the file being gone, which is a 404, not
+            a traceback in the middle of a response.
             """
             entry = rdb_loader.find_gle(info, relay, gle)
-            if entry is None or not entry.fs_path.is_file():
-                self._send_json(404, {"ok": False,
-                                      "error": f"GLE {gle} não está em {relay}."})
-                return None
-            return entry.fs_path.read_bytes()
+            if entry is not None and entry.fs_path.is_file():
+                try:
+                    return entry.fs_path.read_bytes()
+                except OSError as exc:
+                    logger.warning("[gle-tabs] %s/%s ilegível: %s",
+                                   relay, gle, exc)
+            self._send_json(404, {"ok": False,
+                                  "error": f"GLE {gle} não está em {relay}."})
+            return None
 
         def _serve_gles(self):
             """Each relay of the RDB with its GLE files and their page counts."""

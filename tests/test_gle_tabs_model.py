@@ -8,6 +8,8 @@ good file. These tests are the only thing standing there.
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 from sellib.scl._xmlsafe import DtdNotAllowed
 
@@ -219,3 +221,31 @@ def test_moving_and_renaming_at_once():
 def test_an_invalid_edit_raises_before_producing_anything():
     with pytest.raises(model.GleTabsError):
         model.apply_page_edits(fx.TABS_GLE, order=[0, 1], names={})
+
+
+def test_the_self_check_refuses_a_mis_spliced_page(monkeypatch):
+    """`apply_page_edits` re-parses its own output, and that check is the only
+    one there is: `rdb_write` verifies the OLE container and never the XML
+    inside a stream, so a page spliced one byte wrong would otherwise reach the
+    project library looking like a good file. Forced here by making the second
+    `read_pages` -- the one that reads the RESULT -- hand back a name the
+    splice cannot have produced."""
+    real = model.read_pages
+    seen = []
+
+    def spy(raw):
+        spans = real(raw)
+        seen.append(raw)
+        if len(seen) == 1:          # the pass that measures the INPUT
+            return spans
+        return [dataclasses.replace(s, name="ERRADO") if s.index == 0 else s
+                for s in spans]
+
+    monkeypatch.setattr(model, "read_pages", spy)
+    with pytest.raises(model.GleTabsError) as excinfo:
+        model.apply_page_edits(fx.TABS_GLE, order=[1, 0, 2, 3, 4, 5], names={})
+    msg = str(excinfo.value)
+    assert "não conferiu" in msg
+    assert "ERRADO" in msg              # what the file came out with
+    assert "Entradas Críticas" in msg   # what was asked for
+    assert "Nada foi gravado" in msg
