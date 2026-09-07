@@ -76,6 +76,16 @@ DELTA_CSS = r"""
 :root[data-theme=caderno] .grid{grid-template-columns:minmax(0,1fr);
   background:var(--surface);border:1px solid var(--border);
   border-top:2px solid var(--text);box-shadow:1px 3px 0 rgba(27,42,58,.10)}
+/* Arquivos do Projeto e' a unica tela sem coluna de notas: ela pendura
+   `main.col-main` direto no `.shell`, sem o `.grid` do meio. Sem `.grid` ela
+   ficava sem folha -- as divisorias flutuavam soltas sobre o fundo da pagina e
+   a tabela comecava no proprio --bg, sem nada separando uma coisa da outra.
+   Mesma folha das outras oito, e a mesma regua de tinta em cima, que e' a
+   linha que fecha a base das divisorias. */
+:root[data-theme=caderno] .shell>main.col-main,
+:root[data-theme=caderno] .shell>.col-main{
+  background:var(--surface);border:1px solid var(--border);
+  border-top:2px solid var(--text);box-shadow:1px 3px 0 rgba(27,42,58,.10)}
 
 /* --- ASSINATURA: fichas presas por um clipe ------------------------------- */
 :root[data-theme=caderno] .cards{display:grid;gap:var(--s4) var(--s3);
