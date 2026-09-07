@@ -208,23 +208,6 @@
   }
   .scan-mode .opt { font-size: .9em; }
   .scan-mode label { font-size: .9em; }
-  #scd-pick {
-    margin: 2px 0 0 24px;
-    padding-top: 8px;
-    border-top: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: .9em;
-  }
-  #scd-pick select {
-    font: inherit;
-    padding: var(--s1) var(--s2);
-    background: var(--bg);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-  }
   /* Barra do lote: fica colada no rodape da area rolavel enquanto houver
      alguma coisa marcada. As vagas sao ditas ANTES do clique -- descobrir o
      teto de N diagramas so depois de escolher seis e' o que se quer
@@ -279,6 +262,7 @@
 <div class="grid">
 <main class="col-main">
   <div id="pick-rdb"></div>
+  <div id="pick-scd"></div>
   <div id="status"></div>
   <div id="info" class="info-bar" style="display:none">
     <div class="name" id="info-name"></div>
@@ -303,10 +287,6 @@
     <div class="opt"><strong>MMS (IEC 61850)</strong> — não gasta sessão
       telnet, mostra as páginas de GOOSE e todas as Virtual Bits, mas não
       alcança todos os bits (a Relay Word inteira só o telnet lê).</div>
-    <div id="scd-pick" style="display:none">
-      <label for="scd-sel">SCD do projeto:</label>
-      <select id="scd-sel"></select>
-    </div>
   </fieldset>
   <div id="relays" class="relay-list"></div>
   <div id="batch-bar" style="display:none">
@@ -333,7 +313,13 @@
     diferentes, se quiser &mdash; e abra todos de uma vez. O lote &eacute; conferido
     inteiro antes de abrir: um IP faltando barra o lote todo, em vez de abrir
     metade dele.</div>
-  <div class="note"><span class="n">5</span>Esta ferramenta &eacute; <b>compartilhada</b>:
+  <div class="note"><span class="n">5</span>O <b>SCD</b> &eacute; opcional e serve a
+    dois usos: &eacute; o mapa que o modo <b>MMS</b> l&ecirc;, e &eacute; de onde sai a
+    <b>fonte dos VB</b> que o diagrama mostra enquanto est&aacute; desconectado.
+    Ele &eacute; lido no momento em que o diagrama abre &mdash; trocar o SCD aqui
+    depois n&atilde;o alcan&ccedil;a um diagrama j&aacute; aberto; feche e abra de novo
+    para pegar o novo.</div>
+  <div class="note"><span class="n">6</span>Esta ferramenta &eacute; <b>compartilhada</b>:
     fala com um rel&eacute; f&iacute;sico por vez, ent&atilde;o todos os visitantes veem
     o mesmo diagrama. <b>Trocar GLE</b> derruba a sess&atilde;o de todo mundo.</div>
 </aside>
@@ -348,8 +334,6 @@ const relaysEl = document.getElementById('relays');
 const barEl = document.getElementById('batch-bar');
 const barBtn = document.getElementById('batch-open');
 const barSlots = document.getElementById('batch-slots');
-const scdPick = document.getElementById('scd-pick');
-const scdSel = document.getElementById('scd-sel');
 
 // Padrao de CADA linha, vindo do `[web] glv_scan_mode` do servidor. Antes a
 // tela trazia 'telnet' marcado no HTML e sempre mandava um modo explicito no
@@ -358,35 +342,16 @@ const scdSel = document.getElementById('scd-sel');
 // diz. Configurar `glv_scan_mode = mms` nao mudava nada na tela.
 let defaultMode = 'telnet';
 
-// Todos os <select> de modo na tela: a barra do lote pergunta a eles se
-// algum rele vai entrar em MMS (e' o que decide mostrar o seletor de SCD).
-function modeSelects() {
-  return Array.from(document.querySelectorAll('.mode-sel'));
-}
-
-function anyMms() {
-  return modeSelects().some(sel => sel.value === 'mms');
-}
-
-// So' pergunta qual SCD quando ha' mais de um no projeto que bate com este
-// rele -- com zero ou um, nao ha' o que escolher, e o transporte MMS cai na
-// tabela de fabrica sozinho quando nenhum SCD e' passado.
-async function refreshScds() {
-  // O SCD continua sendo do PROJETO, e nao de um rele: ele descreve a
-  // subestacao inteira. So' que agora basta UM rele em MMS pra escolha
-  // fazer sentido -- os que ficarem em telnet simplesmente o ignoram.
-  if (!anyMms()) { scdPick.style.display = 'none'; return; }
-  const r = await fetch('/library?kind=scd');
-  const files = (await r.json()).files || [];
-  scdSel.innerHTML = '';
-  files.forEach(f => {
-    const o = document.createElement('option');
-    o.value = f.sha256;
-    o.textContent = f.name;
-    scdSel.appendChild(o);
-  });
-  scdPick.style.display = files.length > 1 ? '' : 'none';
-}
+// O SCD escolhido para os diagramas que forem abertos daqui. E' do PROJETO,
+// nao de um rele: descreve a subestacao inteira, e vale para os dois usos --
+// o mapa que o MMS le e a fonte dos VB que o diagrama desconectado mostra.
+//
+// Ele ficava escondido dentro do quadro "Como ler o rele", e so' aparecia
+// quando algum rele estava em MMS e o projeto tinha mais de um SCD. Com a
+// fonte dos VB, um diagrama em telnet tambem precisa dele, entao a escolha
+// subiu para o mesmo lugar do RDB e usa a mesma lista de arquivos do
+// projeto que as outras ferramentas.
+let scdSha = null;
 
 
 // Um item por linha de GLE na tela. A selecao mora nos proprios checkboxes --
@@ -525,8 +490,6 @@ function renderRdbInfo(data) {
       modeSel.appendChild(o);
     }
     modeSel.value = defaultMode;
-    // Trocar o modo de UM rele pode fazer o seletor de SCD aparecer ou sumir.
-    modeSel.addEventListener('change', refreshScds);
     head.appendChild(modeSel);
 
     const countSpan = document.createElement('span');
@@ -622,7 +585,7 @@ async function selectGle(relay, gle, btn, ipInput, modeSel) {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({relay, gle, ip,
                             scan_mode: modeSel ? modeSel.value : defaultMode,
-                            scd_sha: scdSel.value || null}),
+                            scd_sha: scdSha}),
     });
     const data = await resp.json();
     if (!resp.ok) {
@@ -658,7 +621,7 @@ async function openBatch() {
   // Um modo POR ITEM: `/diagrams/batch` sempre leu `scan_mode` de cada item,
   // era a tela que mandava o mesmo pra todos. Um lote pode agora misturar um
   // 311C em telnet com um 487E em MMS, numa clicada so'.
-  const scd = scdSel.value || null;
+  const scd = scdSha;
   const items = sel.map(p => ({relay: p.relay, gle: p.gle,
                                ip: p.ipInput.value.trim(),
                                scan_mode: p.modeSel ? p.modeSel.value
@@ -695,6 +658,13 @@ const rdbPicker = SelLibrary.picker('pick-rdb', {
   onPick: (f) => selectRdb(f),
 });
 
+// Sem rota: o sha viaja no POST que abre o diagrama, e e' la' que o servidor
+// resolve o arquivo. Nao ha' nada para carregar aqui e agora.
+const scdPicker = SelLibrary.picker('pick-scd', {
+  kind: 'scd', label: 'SCD do projeto (opcional)',
+  onPick: (f) => { scdSha = f.sha256; },
+});
+
 document.getElementById('reload-btn').addEventListener('click', () => {
   infoEl.style.display = 'none';
   document.getElementById('static-toggle').style.display = 'none';
@@ -704,6 +674,7 @@ document.getElementById('reload-btn').addEventListener('click', () => {
   setStatus('', '');
   // O acervo pode ter mudado noutra aba enquanto este RDB estava escolhido.
   rdbPicker.refresh();
+  scdPicker.refresh();
 });
 
 // Restaura estado se ja temos um RDB carregado (ex: recarga da pagina)

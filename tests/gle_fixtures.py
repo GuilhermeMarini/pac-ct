@@ -190,3 +190,89 @@ def extref(vb: str, desc: str | None = None) -> bytes:
         head += b'desc="' + desc.encode("utf-8") + b'" '
     return (head + b'iedName="QPC1_UPC2" ldInst="ANN" lnClass="GGIO" '
             b'intAddr="' + vb.encode() + b'" serviceType="GOOSE" />\r\n')
+
+
+def extref_signal(vb: str, desc: str | None = None, *,
+                  ied: str = "PUB", src_ld: str = "CFG",
+                  src_ln: str = "LLN0", cb: str = "GoSB00",
+                  ld: str = "ANN", prefix: str = "", ln_class: str = "GGIO",
+                  ln_inst: str = "1", do: str = "Ind01",
+                  da: str = "stVal") -> bytes:
+    """An `<ExtRef>` that subscribes to a real data attribute.
+
+    Unlike `extref`, this one carries the whole path: `ldInst`, `prefix`,
+    `lnClass`, `lnInst`, `doName` and `daName` name the point INSIDE the
+    publisher, which is what `vb_source` matches against that publisher's
+    `sAddr` to reach the Relay Word bit. `srcLDInst`/`srcLNClass`/`srcCBName`
+    name the control block that carries it.
+    """
+    head = b'        <ExtRef '
+    if desc is not None:
+        head += b'desc="' + desc.encode("utf-8") + b'" '
+    return (head
+            + b'iedName="' + ied.encode() + b'" '
+            b'srcLDInst="' + src_ld.encode() + b'" '
+            b'srcLNClass="' + src_ln.encode() + b'" '
+            b'srcCBName="' + cb.encode() + b'" '
+            b'ldInst="' + ld.encode() + b'" '
+            + (b'prefix="' + prefix.encode() + b'" ' if prefix else b"")
+            + b'lnClass="' + ln_class.encode() + b'" '
+            b'lnInst="' + ln_inst.encode() + b'" '
+            b'doName="' + do.encode() + b'" '
+            b'daName="' + da.encode() + b'" '
+            b'intAddr="' + vb.encode() + b'" serviceType="GOOSE" />\r\n')
+
+
+def saddr_point(bit: str, *, ld: str = "ANN", prefix: str = "",
+                ln_class: str = "GGIO", ln_inst: str = "1",
+                do: str = "Ind01", da: str = "stVal") -> tuple:
+    """One `sAddr="db:<bit>"` of a publisher, addressed the way SCL spells it."""
+    return (ld, prefix, ln_class, ln_inst, do, da, bit)
+
+
+def saddr_ied(name: str, *points: tuple) -> bytes:
+    """A publisher `<IED>`: the `<DAI sAddr="db:BIT">` side of the join.
+
+    This is the half `sel_short_addresses` reads. The subscriber's `<ExtRef>`
+    names `(ldInst, prefix+lnClass+lnInst, doName, daName)` and the bit is
+    whatever `sAddr` that same address carries here -- the SCD is the only
+    place the two are written down together.
+    """
+    by_ln: dict = {}
+    for ld, prefix, ln_class, ln_inst, do, da, bit in points:
+        by_ln.setdefault((ld, prefix, ln_class, ln_inst), []).append((do, da, bit))
+    lds: dict = {}
+    for (ld, prefix, ln_class, ln_inst), dais in by_ln.items():
+        body = b"".join(
+            b'            <DOI name="' + do.encode() + b'">'
+            b'<DAI name="' + da.encode() + b'" sAddr="db:' + bit.encode() + b'"/>'
+            b'</DOI>\r\n'
+            for do, da, bit in dais)
+        lds.setdefault(ld, b"")
+        lds[ld] += (b'          <LN lnType="T1" lnClass="' + ln_class.encode()
+                    + b'" inst="' + ln_inst.encode() + b'"'
+                    + (b' prefix="' + prefix.encode() + b'"' if prefix else b"")
+                    + b'>\r\n' + body + b'          </LN>\r\n')
+    devices = b"".join(
+        b'        <LDevice inst="' + ld.encode() + b'">\r\n' + body
+        + b'        </LDevice>\r\n'
+        for ld, body in lds.items())
+    return (b'  <IED name="' + name.encode() + b'" type="SEL-411L">\r\n'
+            b'    <AccessPoint name="S1">\r\n'
+            b'      <Server>\r\n'
+            + devices
+            + b'      </Server>\r\n'
+            b'    </AccessPoint>\r\n'
+            b'  </IED>\r\n')
+
+
+def extref_placeholder(vb: str) -> bytes:
+    """An `<ExtRef intAddr="VBnnn">` with no publisher.
+
+    The slot exists and nothing was wired into it. SEL Architect writes all
+    256 of them whether or not the engineer used any, so this is the shape 232
+    of the reference SCD's ExtRefs have -- `extref` is NOT this, because it
+    fills `iedName` in.
+    """
+    return (b'        <ExtRef intAddr="' + vb.encode() + b'" '
+            b'serviceType="GOOSE" />\r\n')

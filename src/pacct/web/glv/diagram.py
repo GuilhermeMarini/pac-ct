@@ -18,6 +18,7 @@ import zlib
 
 from sellib.gle import parse_gle, render_page
 
+from pacct.web.glv import vb_source
 from pacct.web.glv.connectors import extract as extract_connectors
 from pacct.web.glv.connectors import nets_on_page as connectors_on_page
 from pacct.web.glv.gle_pages import (
@@ -46,7 +47,7 @@ class GlvDiagram:
     def __init__(self, diagram_id: str, *, relay_name: str, gle_name: str,
                  gle_path, ip: str, port: int, relay_model, logger,
                  scan_mode: str = SCAN_TELNET, scd_sha: str | None = None,
-                 scd_path=None):
+                 scd_path=None, scd_name: str = ""):
         self.id = diagram_id
         self.relay_name = relay_name
         self.gle_name = gle_name
@@ -65,6 +66,20 @@ class GlvDiagram:
         self.scan_mode = scan_mode
         self.scd_sha = scd_sha
         self.scd_path = scd_path
+        # What the SCD is CALLED, for the panel that shows where a VB comes
+        # from: `scd_path` is `<sha12>.scd` in the library's directory, and
+        # naming a file by its hash on screen tells nobody anything.
+        self.scd_name = scd_name
+        # `vb_source.read()` of THIS diagram's SCD, computed on the first ask
+        # and kept. The parse alone is 368 ms on a real 22 MB SCD, and the
+        # offline panel is toggled and re-rendered on every page switch --
+        # reading it per request would put that parse on the click.
+        #
+        # Not invalidated, deliberately: the SCD is the one the diagram was
+        # OPENED with (`_resolve_scd` resolved it then), and choosing another
+        # on the selection screen does not reach back into a diagram that is
+        # already open. Closing and reopening is what picks up a new one.
+        self._vb_sources: vb_source.VbSourceMap | None = None
         # Explicit period override, asked for through `/period`. Kept whether
         # or not the link is alive: it is what makes a request issued while
         # "conectando" (or already disconnected) count on the next connect()
@@ -442,6 +457,26 @@ class GlvDiagram:
         if safe_id and safe_id in self.svgs:
             self.open_page = safe_id
 
+    def vb_sources(self):
+        """Where this relay's VBs come from, per the project SCD.
+
+        `None` when no SCD was chosen for this diagram -- which is not an
+        error and is what the panel says: there is nothing to read, rather
+        than something that failed to be read.
+        """
+        if self.scd_path is None:
+            return None
+        if self._vb_sources is None:
+            self._vb_sources = vb_source.read(
+                self.scd_path, relay_name=self.relay_name, ip=self.ip)
+            m = self._vb_sources
+            self.logger.info(
+                "[glv] %s: fonte dos VB lida de %s -- IED %s (por %s), %s",
+                self.id, self.scd_name or self.scd_path,
+                m.ied or "(nenhum)", m.matched_by or "-",
+                m.error or m.census())
+        return self._vb_sources
+
     def meta(self, defaults=None) -> dict:
         """All a tab switch needs to re-render without reloading the page."""
         d = self.tab(defaults)
@@ -602,7 +637,7 @@ class GlvDiagram:
 def build_diagram(diagram_id: str, gle_path, relay_name: str, gle_name: str,
                   ip: str, port: int, relay_model, logger, *,
                   scan_mode: str = SCAN_TELNET, scd_sha: str | None = None,
-                  scd_path=None) -> GlvDiagram:
+                  scd_path=None, scd_name: str = "") -> GlvDiagram:
     """Builds a diagram WITHOUT touching the network: parse, render, indexes,
     notes.
 
@@ -612,7 +647,8 @@ def build_diagram(diagram_id: str, gle_path, relay_name: str, gle_name: str,
     d = GlvDiagram(diagram_id, relay_name=relay_name, gle_name=gle_name,
                    gle_path=gle_path, ip=ip, port=port,
                    relay_model=relay_model, logger=logger,
-                   scan_mode=scan_mode, scd_sha=scd_sha, scd_path=scd_path)
+                   scan_mode=scan_mode, scd_sha=scd_sha, scd_path=scd_path,
+                   scd_name=scd_name)
 
     logger.info("[glv] carregando GLE: %s", gle_path)
     gle_root = parse_gle(gle_path)

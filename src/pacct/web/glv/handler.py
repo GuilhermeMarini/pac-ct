@@ -101,12 +101,14 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
         return st
 
     def _open_diagram(st, gle_path, relay_name, gle_name, ip, port, relay_model,
-                      scan_mode=defaults.scan_mode, scd_sha=None, scd_path=None):
+                      scan_mode=defaults.scan_mode, scd_sha=None, scd_path=None,
+                      scd_name=""):
         st.counter += 1
         did = f"d{st.counter}"
         d = build_diagram(did, gle_path, relay_name, gle_name, ip, port,
                           relay_model, logger, scan_mode=scan_mode,
-                          scd_sha=scd_sha, scd_path=scd_path)
+                          scd_sha=scd_sha, scd_path=scd_path,
+                          scd_name=scd_name)
         st.diagrams[did] = d
         st.order.append(did)
         st.active = did
@@ -293,6 +295,13 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
                 if d is None:
                     return
                 self._send_json(200, d.notes.highlight_payload())
+                return
+
+            if path == "/vb-source":
+                st, d = self._diagram(qs)
+                if d is None:
+                    return
+                self._send_json(200, self._vb_source_payload(d))
                 return
 
             if path == "/unreachable":
@@ -484,20 +493,25 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
                         info.display_name, info.sha256[:16], len(info.relays))
             self._send_json(200, self._landing_state())
 
-        def _resolve_scd_path(self, scd_sha: str | None):
-            """SCD chosen for this MMS diagram, from the same library as
-            `/files/`. Resolved HERE, in the request, because this handler is
-            the only place with the session (`self.session`) in hand -- the
-            diagram is built without touching the network and connects in a
-            thread of its own that has only what this method stored on it.
+        def _resolve_scd(self, scd_sha: str | None):
+            """`(path, shown name)` of the SCD chosen for this diagram, from
+            the same library as `/files/`. Resolved HERE, in the request,
+            because this handler is the only place with the session
+            (`self.session`) in hand -- the diagram is built without touching
+            the network and connects in a thread of its own that has only what
+            this method stored on it.
 
             Absence (empty sha, file left the project, or not an SCD) is not
             an error: the MMS transport still has the factory table as a
             second source, and a diagram without an SCD is a valid case, just
-            less covered.
+            less covered -- and offline it simply has no VB source to show.
+
+            The name travels beside the path because the library stores an SCD
+            as `<sha12>.scd`: the panel has to say `subestacao.scd`, not a
+            hash. Same trap `st.scd_name` exists for in the VB Updater.
             """
             if not scd_sha:
-                return None
+                return None, ""
             lib = filelib.library_for(sessions, self.require_session())
             with self.require_session().lock:
                 entry = lib.get(scd_sha)
@@ -505,8 +519,28 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
                 logger.warning(
                     "[glv] SCD %s não está mais no projeto; MMS segue só com "
                     "a tabela de fábrica.", scd_sha[:16])
-                return None
-            return entry.scd_path
+                return None, ""
+            return entry.scd_path, entry.display_name
+
+        def _vb_source_payload(self, d) -> dict:
+            """What the offline VB-source layer draws with.
+
+            The WHOLE map in one trip -- 256 entries at most, a few kB -- and
+            not per page: the layer is re-applied on every page switch, and a
+            request per switch would put a 22 MB parse behind a click that
+            today is a cached SVG. `GlvDiagram.vb_sources` reads once per
+            diagram and keeps it.
+
+            `connected` travels with it because the layer is offline-only: it
+            is what lets the browser refuse to paint a map over a diagram that
+            went live between the toggle and the answer.
+            """
+            base = {"scd": d.scd_name, "connected": d.connected}
+            m = d.vb_sources()
+            if m is None:
+                return {**base, "sources": {}, "census": {},
+                        "error": "nenhum SCD foi escolhido para este diagrama"}
+            return {**base, **m.to_dict()}
 
         def _resolve_gle(self, st, relay: str, gle: str, ip_raw: str):
             """Validate a (relay, GLE) pair + IP and resolve the relay model.
@@ -577,10 +611,10 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
             # not.
             port = (DEFAULT_PORTS[SCAN_MMS] if scan_mode == SCAN_MMS
                     else defaults.port)
-            scd_path = self._resolve_scd_path(scd_sha)
+            scd_path, scd_name = self._resolve_scd(scd_sha)
             d = _open_diagram(st, gle_path, relay, gle, ip, port, relay_model,
                               scan_mode=scan_mode, scd_sha=scd_sha,
-                              scd_path=scd_path)
+                              scd_path=scd_path, scd_name=scd_name)
             logger.info("[glv] diagrama %s aberto: %s / %s em %s:%d (modo "
                         "%s, desconectado)", d.id, relay, gle,
                         ip or "(sem IP)", port, scan_mode)
@@ -639,12 +673,13 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
                 # o resto respeita o `[tcp] port` do config.ini.
                 port = (DEFAULT_PORTS[SCAN_MMS] if scan_mode == SCAN_MMS
                         else defaults.port)
-                scd_path = self._resolve_scd_path(scd_sha)
+                scd_path, scd_name = self._resolve_scd(scd_sha)
                 job.fraction(f"Renderizando {gle} ({i + 1}/{total})", i, total)
                 try:
                     d = _open_diagram(st, gle_path, relay, gle, ip, port,
                                       relay_model, scan_mode=scan_mode,
-                                      scd_sha=scd_sha, scd_path=scd_path)
+                                      scd_sha=scd_sha, scd_path=scd_path,
+                                      scd_name=scd_name)
                 except Exception as e:   # one bad GLE must not take the batch with it
                     logger.exception("[glv] falha ao abrir %s / %s", relay, gle)
                     errors.append(f"{relay} / {gle}: {e}")
