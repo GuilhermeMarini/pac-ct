@@ -683,8 +683,16 @@ function paintDirty() {
     : 'sem edições pendentes';
   const here = RDB ? (RDB_DIRTY[RDB] || 0) : 0;
   const stuck = !!(UNSAVED && UNSAVED.rdb === RDB);
+  // `UNSAVED` e' um so' para toda a tela, mas o erro que ele manda ler e' de
+  // UMA tela: limpar um nome e clicar noutro GLE trava o "Gerar RDB" com a
+  // marca no GLE anterior, e a mensagem cairia sobre um passo 3 onde nao ha
+  // nada errado. Entao ela diz ONDE -- so' fala em "acima" quando o GLE preso
+  // e' mesmo o que esta aberto.
+  const mine = stuck && UNSAVED.relay === RELAY && UNSAVED.gle === GLE;
   document.getElementById('tabs-count').textContent = stuck
-    ? 'alteração não salva — corrija o erro acima'
+    ? (mine ? 'alteração não salva — corrija o erro acima'
+            : 'alteração não salva em ' + UNSAVED.relay + ' · ' + UNSAVED.gle +
+              ' — volte a esse GLE para corrigir')
     : (here ? here + ' GLE(s) alterado(s) neste RDB'
             : 'sem alterações neste RDB');
   document.getElementById('tabs-count').classList.toggle('stuck', stuck);
@@ -726,6 +734,13 @@ document.getElementById('gerar').onclick = async () => {
   const out = document.getElementById('out');
   const btn = document.getElementById('gerar');
   if (btn.disabled) return;
+  // O RDB e' preso AQUI, no clique, exatamente como `sendStage` prende o dele
+  // na saida. `#step-tabs` fica escondido enquanto se troca de RDB, mas nao
+  // travado, e a drenagem abaixo alargou a janela: ler a global na hora do
+  // POST geraria um RDB de ajustes a partir do arquivo ERRADO, com mensagem de
+  // sucesso e link de download -- e o arquivo entra no acervo do projeto, onde
+  // nada o distingue do certo.
+  const rdb = RDB;
   // Travado ja' aqui: um segundo clique enquanto este drena entraria na fila
   // atras do primeiro e mandaria um segundo /gerar em paralelo.
   btn.disabled = true;
@@ -744,13 +759,15 @@ document.getElementById('gerar').onclick = async () => {
     while (STAGE_INFLIGHT) {
       try { await STAGE_INFLIGHT; } catch (e) { }
     }
-    // A ultima encenacao drenada pode ter sido recusada: `paintDirty` e' quem
-    // decide o estado do botao, entao perguntar a ele e' perguntar ao estado
-    // real depois da drenagem.
+    // A ultima encenacao drenada pode ter sido recusada. `paintDirty` repinta
+    // a tela, mas a decisao de seguir e' sobre o RDB PRESO, e nao sobre o que
+    // estiver selecionado agora: as duas perguntas so' coincidem enquanto
+    // ninguem troca de arquivo durante a drenagem.
     paintDirty();
-    if (btn.disabled) return;
+    if (!(RDB_DIRTY[rdb] > 0)) return;
+    if (UNSAVED && UNSAVED.rdb === rdb) return;
     btn.disabled = true;
-    const r = await SelProgress.post('/gerar', {rdb: RDB},
+    const r = await SelProgress.post('/gerar', {rdb: rdb},
                                      {label: 'Gerando RDB'});
     const d = r.data || {};
     out.textContent = '';

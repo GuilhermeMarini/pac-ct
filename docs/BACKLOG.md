@@ -282,8 +282,8 @@ been verified by measurement; one has been verified only by inference.
 
 **1. Tab order is determined by the order of `<page>` children in the `.gle` XML.**
 This is the whole premise the tool rests on: there is no index attribute
-anywhere in the file, and a scan of the local corpus (`sellib`'s packaged
-`relay_models/`, 215 `.gle` files, 3,111 page names) confirms page names appear
+anywhere in the file, and a scan of the local corpus (`cache/rdb/`, the RDB
+extraction cache, 215 `.gle` files, 3,111 page names) confirms page names appear
 **nowhere else** in the RDB — not in the 24 `SET_*.TXT` settings streams, not in
 `SET_HMI.TXT`, not in `Misc/Cfg.txt`. But the only evidence that QuickSet reads
 tab order from that child order is the absence of alternative sources — nobody
@@ -305,13 +305,16 @@ to verify this tool** — which is worth stating explicitly, because this projec
 convention is to flag when a change requires one, and a reader should not have
 to infer its absence.
 
-**Known limitation:** the "Gerar RDB" button reads the currently-selected RDB at
-the moment it sends, and the tab list is hidden but not locked while the user
-switches RDBs — so clicking Gerar and then picking a different RDB before the
-request goes out would generate against the newly-selected one instead. This is
-a pre-existing shape of the dispatcher (see item 8 in `mount.py`'s cycle), not
-something this tool introduced. The fix would capture the RDB at click time the
-way the dirty-count bookkeeping already does.
+**Fixed, and recorded because the shape recurs:** "Gerar RDB" used to read the
+mutable global `RDB` at the moment the POST left, and `#step-tabs` is hidden but
+not locked while the user switches RDBs — so clicking Gerar and then picking a
+different RDB before the request went out generated against the newly-selected
+file, with a success message and a download link, and the wrong RDB then entered
+the project library where nothing distinguishes it. The bug was this tool's own
+template JS, not the dispatcher's. It now captures `const rdb = RDB` at click
+time, exactly as `sendStage` already captured its own, and the re-check after
+the stage drain is scoped to that captured key rather than to whatever is
+selected when the drain finishes.
 
 ---
 
