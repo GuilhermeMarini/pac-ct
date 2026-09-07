@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Organizador de Abas GLE</title>
+</head>
+<body>
+<div class="page">
+<header>
+  <div>
+    <h1>Organizador de Abas GLE</h1>
+    <div class="sub">Reordena e renomeia as abas da l&oacute;gica gr&aacute;fica</div>
+  </div>
+  <span class="spacer"></span>
+  <a class="lnk" href="/" title="Voltar ao menu de ferramentas">&#x2190; Menu</a>
+</header>
+<div class="shell">
+<!--NAV:gle-tabs-->
+<main>
+  <section id="step-rdb">
+    <h2>1. RDB do projeto</h2>
+    <div id="rdb-list">Carregando&hellip;</div>
+  </section>
+  <section id="step-gle" hidden>
+    <h2>2. Rel&eacute; e GLE</h2>
+    <div id="gle-list"></div>
+  </section>
+  <section id="step-tabs" hidden>
+    <h2>3. Abas</h2>
+    <div id="tab-list"></div>
+  </section>
+</main>
+</div>
+</div>
+<script>
+// The dispatcher injects a shim that re-prefixes fetch(), so routes are
+// written here as if this tool owned the root.
+async function loadRdbs() {
+  const box = document.getElementById('rdb-list');
+  const r = await fetch('/rdbs');
+  const out = await r.json();
+  if (!out.ok || !out.rdbs.length) {
+    box.innerHTML = 'Nenhum RDB no projeto. ' +
+      'Envie um em <a class="lnk" href="../files/">Arquivos do Projeto</a>.';
+    return;
+  }
+  box.innerHTML = '';
+  for (const rdb of out.rdbs) {
+    const row = document.createElement('button');
+    row.className = 'row';
+    row.dataset.rdb = rdb.rdb;
+    row.textContent = rdb.name + (rdb.detail ? ' — ' + rdb.detail : '');
+    box.appendChild(row);
+  }
+}
+loadRdbs();
+</script>
+</body>
+</html>

@@ -51,7 +51,7 @@ DELTA_CSS = r"""
   border-color:var(--text);box-shadow:1px -2px 0 rgba(27,42,58,.12)}
 :root[data-theme=caderno] nav.tabs .tab.off{color:var(--text-3);border-style:dashed;
   pointer-events:none}
-/* Ao contrario do mockup, toda divisoria tem a base FECHADA: sao nove
+/* Ao contrario do mockup, toda divisoria tem a base FECHADA: sao dez
    ferramentas, que quebram em duas ou tres fileiras, e a base aberta que a
    fileira unica do mockup podia bancar deixaria abas penduradas sobre a
    fileira de baixo. O -1px da tira enfia o filete da ultima fileira embaixo da

@@ -144,6 +144,12 @@ SETTINGS_COMPARE_TEMPLATES_DIR: Path = (
     PACKAGE_DIR / "web" / "settings_compare" / "templates"
 )
 
+# HTML template for the Organizador de Abas GLE. Same reason as the GLV: a
+# real .html file, because the drag-and-drop list is mostly JavaScript.
+GLE_TABS_TEMPLATES_DIR: Path = (
+    PACKAGE_DIR / "web" / "gle_tabs" / "templates"
+)
+
 # Uploads de RDB feitos via landing page do dashboard.
 RDBS_DIR: Path = DATA_ROOT / "rdbs"
 

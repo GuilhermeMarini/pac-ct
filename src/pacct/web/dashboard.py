@@ -152,6 +152,7 @@ def main():
     # WSL portproxy.
     from pacct.web import gle_exporter, settings_compare, vb_updater, vlan_mapper
     from pacct.web.dnp_map.handler import build_dnp_map_handler
+    from pacct.web.gle_tabs.handler import build_gle_tabs_handler
     from pacct.web.project_files.handler import build_project_files_handler
 
     # Every visitor gets their own state and upload directory, identified by
@@ -221,6 +222,9 @@ def main():
         Mount("/dnp-map",
               build_dnp_map_handler(logger, sessions),
               "DNP Map Editor"),
+        Mount("/gle-tabs",
+              build_gle_tabs_handler(logger, sessions),
+              "GLE Tab Organiser"),
     ]
     # The default theme for someone who has not chosen. The factory setting
     # is "caderno" (10 Caderno de Campo); the key exists so a team can

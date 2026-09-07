@@ -101,7 +101,7 @@ def home() -> str:
     """The menu as a reference table, one numbered section per group.
 
     The Ref. column becomes `<section>.<row>`, which is how a real data sheet
-    numbers. The global ordinal (1..9) is still what Régua and Caderno print;
+    numbers. The global ordinal (1..10) is still what Régua and Caderno print;
     the data offers both and each direction chooses.
     """
     sections = []

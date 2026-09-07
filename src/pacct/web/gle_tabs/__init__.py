@@ -16,3 +16,10 @@ import here first would make this package fail to import on its own.
 """
 
 from __future__ import annotations
+
+from pacct.paths import GLE_TABS_TEMPLATES_DIR
+
+
+def load_template(name: str) -> str:
+    """Read one template. Read at import time, like the GLV and the DNP map."""
+    return (GLE_TABS_TEMPLATES_DIR / name).read_text(encoding="utf-8")
