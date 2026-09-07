@@ -58,6 +58,27 @@ header .spacer,.masthead .spacer,.bar .spacer,.filebar .spacer{flex:1}
   white-space:nowrap}
 .lnk:hover{background:var(--surface-2)}
 
+/* --- aviso: uma faixa entre o cabecalho e o corpo -------------------------- */
+/* Mora aqui, e nao numa direcao, porque e' inteiramente feito de tokens: as
+   tres direcoes o pintariam com estas mesmas regras. E mora FORA de `.shell`
+   -- em regua `.shell` e' um grid de duas colunas cuja primeira e' a
+   navegacao, e um terceiro filho cairia na celula errada. */
+.aviso{display:flex;align-items:baseline;gap:var(--s3);
+  padding:var(--s2) var(--pad-main);border-bottom:1px solid var(--border);
+  border-left:3px solid var(--warn);background:var(--surface-2);
+  font-size:var(--fs-2)}
+/* `display:flex` ganha do `[hidden]{display:none}` do navegador, entao sem
+   esta linha a faixa vazia aparece como uma tarja em branco em toda home sem
+   aviso -- e o botao Fechar nao fecha nada. */
+.aviso[hidden]{display:none}
+.aviso b{color:var(--text);font-weight:var(--w-bold)}
+.aviso .hint{color:var(--text-2)}
+.aviso code{font-size:var(--fs-1)}
+.aviso .fechar{margin-left:auto;background:none;border:0;cursor:pointer;
+  color:var(--text-2);font:var(--w-bold) var(--fs-3) var(--sans);
+  line-height:1;padding:0 var(--s2)}
+.aviso .fechar:hover{color:var(--text)}
+
 /* --- body: main column + margin column ------------------------------------ */
 .shell{display:grid;grid-template-columns:minmax(0,1fr);align-items:start}
 .grid{display:grid;grid-template-columns:minmax(0,1fr) 244px}

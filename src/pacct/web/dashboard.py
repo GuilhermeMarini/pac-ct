@@ -21,7 +21,9 @@ from pathlib import Path
 
 from sellib import rdb_cache
 
+import pacct
 from pacct.paths import CACHE_DIR, DEFAULT_CONFIG_FILE, ensure_config_file
+from pacct.web import update_check
 from pacct.web.glv.handler import GlvDefaults, build_glv_handler
 from pacct.web.glv.transport import SCAN_MMS, SCAN_TELNET
 from pacct.web.mount import Mount, serve
@@ -41,6 +43,15 @@ from pacct.web.session import SessionHandler, SessionManager
 # marker, resolved per request with the visitor's theme in hand. The catalogue
 # itself is data, in `pacct/web/themes/items.py`. What is left here is the
 # screen's shell.
+#
+# `<!--VERSION-->` is resolved by `do_GET` and not by `_resolve_markup`: it
+# does not depend on the visitor's theme, and unlike the nav it is one string.
+# A marker rather than an f-string because this document has `{` in its
+# `<style>`.
+#
+# The `#aviso` sits between the header and `.shell` on purpose. In Régua
+# `.shell` is a two-column grid whose FIRST column is the navigation, so a
+# banner inside it would land in the menu's cell.
 HOME_HTML = r"""<!doctype html>
 <html lang="pt-br">
 <head>
@@ -59,12 +70,45 @@ HOME_HTML = r"""<!doctype html>
     <div class="sub">Comissionamento de prote&ccedil;&atilde;o, automa&ccedil;&atilde;o e controle</div>
   </div>
   <span class="spacer"></span>
+  <div class="doc" title="Vers&atilde;o do PAC CT">v<!--VERSION--></div>
 </header>
+<div class="aviso" id="aviso" hidden></div>
 <div class="shell">
 <!--NAV:menu-->
 <!--HOME-->
 </div>
 </div>
+<script>
+// Regra 1 do `pacct/update.py` no navegador: a home ja' esta' pintada quando
+// esta pergunta sai. Numa subestacao sem rota para a internet a resposta
+// demora ate' 5 s, chega com `error` preenchido, e nada aparece -- o menu
+// nunca espera por ela.
+(function () {
+  var caixa = document.getElementById('aviso');
+  if (!caixa) return;
+  var CONSELHO = {
+    // Um clone git e' recusado pelo proprio `--atualizar`, entao mandar
+    // rodar o updater ali seria mandar rodar um comando que responde erro.
+    checkout: 'Cópia de desenvolvimento: <code>git pull</code>.',
+    outro: 'Rode <b>Atualizar</b> no menu do launcher, ou ' +
+           '<code>python app.py --atualizar</code>.'
+  };
+  fetch('/update-check').then(function (r) {
+    return r.ok ? r.json() : null;
+  }).then(function (d) {
+    if (!d || !d.available) return;
+    var conselho = CONSELHO[d.kind] || CONSELHO.outro;
+    caixa.innerHTML =
+      '<span><b>Versão ' + d.latest + ' disponível</b> ' +
+      '<span class="hint">(esta: ' + d.current + '). ' + conselho + '</span></span>' +
+      '<button class="fechar" type="button" title="Fechar">×</button>';
+    caixa.hidden = false;
+    caixa.querySelector('.fechar').onclick = function () {
+      caixa.hidden = true;
+    };
+  }).catch(function () { /* sem rede: sem aviso, e sem erro na tela */ });
+})();
+</script>
 </body>
 </html>
 """
@@ -85,10 +129,16 @@ def build_home_handler(logger: logging.Logger) -> type:
             if path in ("/", "/index.html"):
                 # The nav and the menu body are resolved by the dispatcher,
                 # which is what knows the visitor's theme
-                # (`mount.py:_resolve_markup`).
-                self._send(200, HOME_HTML, "text/html; charset=utf-8")
+                # (`mount.py:_resolve_markup`). The version is not themed, so
+                # it is resolved here.
+                body = HOME_HTML.replace("<!--VERSION-->", pacct.__version__)
+                self._send(200, body, "text/html; charset=utf-8")
             elif path == "/home-state":
                 self._send(200, '{"ok": true}', "application/json")
+            elif path == "/update-check":
+                # Cached in the process (`web/update_check.py`), so the tabs of
+                # a whole office are one question to GitHub and not one each.
+                self._send_json(200, update_check.status().as_dict())
             else:
                 self._send(404, "not found", "text/plain")
 
