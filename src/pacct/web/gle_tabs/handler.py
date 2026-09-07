@@ -9,9 +9,10 @@ from __future__ import annotations
 import logging
 from urllib.parse import parse_qs, urlparse
 
+from sellib import rdb as rdb_loader
 from sellib.rdb import short_sha as _short_sha
 
-from pacct.web.gle_tabs import load_template, state
+from pacct.web.gle_tabs import load_template, model, state
 from pacct.web.project_files import library as filelib
 from pacct.web.session import SessionHandler
 
@@ -62,6 +63,12 @@ def build_gle_tabs_handler(logger: logging.Logger, sessions) -> type:
             if path == "/rdbs":
                 self._serve_rdbs()
                 return
+            if path == "/gles":
+                self._serve_gles()
+                return
+            if path == "/pages":
+                self._serve_pages()
+                return
             self._send(404, "Não encontrado", "text/plain; charset=utf-8")
 
         def _serve_rdbs(self):
@@ -89,6 +96,77 @@ def build_gle_tabs_handler(logger: logging.Logger, sessions) -> type:
             # `FileLibrary.list` is in arrival order, so the last upload is last.
             out.reverse()
             self._send_json(200, {"ok": True, "rdbs": out})
+
+        def _gle_bytes(self, info, relay: str, gle: str) -> bytes | None:
+            """The GLE's extracted bytes, or None after sending a 404.
+
+            Read from the EXTRACTION rather than the OLE: it is the same
+            content, and this way reading tabs never opens the RDB.
+            """
+            entry = rdb_loader.find_gle(info, relay, gle)
+            if entry is None or not entry.fs_path.is_file():
+                self._send_json(404, {"ok": False,
+                                      "error": f"GLE {gle} não está em {relay}."})
+                return None
+            return entry.fs_path.read_bytes()
+
+        def _serve_gles(self):
+            """Each relay of the RDB with its GLE files and their page counts."""
+            q = self._query()
+            key = q.get("rdb", "")
+            info = self._rdb(key)
+            if info is None:
+                return
+            st = self.sess()
+            lock = self.require_session().lock
+            relays = []
+            for relay in info.relays:
+                gles = []
+                for g in relay.gles:
+                    try:
+                        pages = len(model.read_pages(g.fs_path.read_bytes()))
+                    except (OSError, model.GleTabsError) as exc:
+                        # One unreadable GLE must not take the whole list
+                        # down: the others are still editable.
+                        logger.warning("[gle-tabs] %s/%s ilegivel: %s",
+                                       relay.name, g.filename, exc)
+                        pages = None
+                    with lock:
+                        dirty = (key, relay.name, g.filename) in st.edits
+                    gles.append({"gle": g.filename, "pages": pages,
+                                 "dirty": dirty})
+                relays.append({"relay": relay.name, "model": relay.model,
+                               "gles": gles})
+            self._send_json(200, {"ok": True, "rdb": key, "relays": relays})
+
+        def _serve_pages(self):
+            """One GLE's tabs, plus whatever is staged for it."""
+            q = self._query()
+            key, relay, gle = q.get("rdb", ""), q.get("relay", ""), q.get("gle", "")
+            info = self._rdb(key)
+            if info is None:
+                return
+            raw = self._gle_bytes(info, relay, gle)
+            if raw is None:
+                return
+            try:
+                spans = model.read_pages(raw)
+            except model.GleTabsError as exc:
+                self._send_json(400, {"ok": False, "error": str(exc)})
+                return
+            st = self.sess()
+            with self.require_session().lock:
+                edit = st.edits.get((key, relay, gle))
+            self._send_json(200, {
+                "ok": True, "rdb": key, "relay": relay, "gle": gle,
+                "max_name": model.MAX_NAME,
+                "pages": [{"index": s.index, "name": s.name,
+                           "description": s.description,
+                           "elements": s.elements} for s in spans],
+                "order": edit.order if edit else [s.index for s in spans],
+                "names": {str(i): n for i, n in (edit.names if edit else {}).items()},
+                "dirty": edit is not None,
+            })
 
         # -- POST -------------------------------------------------------
 

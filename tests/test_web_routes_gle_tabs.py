@@ -41,3 +41,41 @@ def test_it_lists_the_projects_rdbs(tmp_path):
     assert out["ok"] is True
     assert [r["name"] for r in out["rdbs"]] == ["projeto.rdb"]
     assert out["rdbs"][0]["dirty"] == 0
+
+
+# -- reading the tabs -------------------------------------------------------
+
+def test_it_lists_the_relays_and_their_gles(tmp_path):
+    h, info = _harness(tmp_path)
+    key = info.sha256[:12]
+    out = h.get(f"/gles?rdb={key}").json()
+    assert out["ok"] is True
+    assert [r["relay"] for r in out["relays"]] == ["QPC1_TR1"]
+    assert [g["gle"] for g in out["relays"][0]["gles"]] == ["GL1.gle", "GL2.gle"]
+    assert out["relays"][0]["gles"][0]["pages"] == 6
+
+
+def test_gles_for_an_unknown_rdb_is_404(tmp_path):
+    h, _ = _harness(tmp_path)
+    assert h.get("/gles?rdb=naoexiste").status == 404
+
+
+def test_it_reads_one_gles_tabs(tmp_path):
+    h, info = _harness(tmp_path)
+    key = info.sha256[:12]
+    out = h.get(f"/pages?rdb={key}&relay=QPC1_TR1&gle=GL1.gle").json()
+    assert out["ok"] is True
+    assert [p["name"] for p in out["pages"]] == [
+        "Capa", "Entradas Críticas", "U>U< I >I<",
+        "RESERVA", "RESERVA", "52- CMD DE FECHAMENT",
+    ]
+    assert [p["elements"] for p in out["pages"]] == [1, 2, 0, 0, 0, 0]
+    assert out["order"] == [0, 1, 2, 3, 4, 5]      # nothing staged yet
+    assert out["dirty"] is False
+
+
+def test_pages_for_a_gle_the_relay_does_not_have_is_404(tmp_path):
+    h, info = _harness(tmp_path)
+    key = info.sha256[:12]
+    r = h.get(f"/pages?rdb={key}&relay=QPC1_TR1&gle=GL9.gle")
+    assert r.status == 404
