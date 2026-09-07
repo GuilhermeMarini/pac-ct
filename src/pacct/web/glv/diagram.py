@@ -72,7 +72,7 @@ class GlvDiagram:
         self.scd_name = scd_name
         # `vb_source.read()` of THIS diagram's SCD, computed on the first ask
         # and kept. The parse alone is 368 ms on a real 22 MB SCD, and the
-        # offline panel is toggled and re-rendered on every page switch --
+        # panel is toggled and re-rendered on every page switch --
         # reading it per request would put that parse on the click.
         #
         # Not invalidated, deliberately: the SCD is the one the diagram was

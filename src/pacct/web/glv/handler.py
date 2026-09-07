@@ -504,7 +504,7 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
             Absence (empty sha, file left the project, or not an SCD) is not
             an error: the MMS transport still has the factory table as a
             second source, and a diagram without an SCD is a valid case, just
-            less covered -- and offline it simply has no VB source to show.
+            less covered -- it simply has no VB source to show.
 
             The name travels beside the path because the library stores an SCD
             as `<sha12>.scd`: the panel has to say `subestacao.scd`, not a
@@ -523,7 +523,7 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
             return entry.scd_path, entry.display_name
 
         def _vb_source_payload(self, d) -> dict:
-            """What the offline VB-source layer draws with.
+            """What the VB-source layer draws with.
 
             The WHOLE map in one trip -- 256 entries at most, a few kB -- and
             not per page: the layer is re-applied on every page switch, and a
@@ -531,11 +531,13 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
             today is a cached SVG. `GlvDiagram.vb_sources` reads once per
             diagram and keeps it.
 
-            `connected` travels with it because the layer is offline-only: it
-            is what lets the browser refuse to paint a map over a diagram that
-            went live between the toggle and the answer.
+            The same answer serves a live diagram and a dead one: what the
+            connection changes is only how the browser DRAWS the map (live,
+            the block fill belongs to the bit state, so only the signature
+            and the hover card come out), and the browser already knows that
+            from the tab strip it polls anyway.
             """
-            base = {"scd": d.scd_name, "connected": d.connected}
+            base = {"scd": d.scd_name}
             m = d.vb_sources()
             if m is None:
                 return {**base, "sources": {}, "census": {},

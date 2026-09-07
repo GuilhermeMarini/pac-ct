@@ -370,12 +370,13 @@
   }
   .zoom-btn.active { background: var(--accent-strong); color: var(--accent-fg); }
 
-  /* --- Fonte dos VB, so' com o diagrama desconectado ------------------
-     A camada e' offline por construcao: quando o rele esta sendo lido, as
-     cores do bloco sao o ESTADO do bit, e pintar procedencia por cima delas
-     seria duas linguagens no mesmo desenho. Por isso o grupo inteiro some
-     em vez de ficar desabilitado -- um botao apagado convida a perguntar
-     por que, e a resposta ("o diagrama esta ao vivo") ja esta no cabecalho.
+  /* --- Fonte dos VB ---------------------------------------------------
+     A camada vale conectado ou nao, e o botao esta sempre no cabecalho. O
+     que a conexao muda e' a TINTA: com o rele sendo lido as cores do bloco
+     sao o ESTADO do bit, e pintar procedencia por cima delas seriam duas
+     linguagens no mesmo desenho, com a mais importante das duas perdendo.
+     Entao ao vivo a camada desenha so' a assinatura ao lado do bloco e o
+     cartao no hover -- a metade que nao disputa cor com nada.
 
      A tinta vai no `style` do elemento com `!important`, e nao num atributo:
      as regras de estado logo acima ja sao `!important`, e um atributo de
@@ -423,6 +424,7 @@
     word-break: break-all;
   }
   #vbsrc-legend .err { color: var(--warn); font-size: 10px; }
+  #vbsrc-legend .note { color: var(--text-3); font-size: 10px; }
 
   body.tool-highlight #viewer { cursor: crosshair; }
   body.tool-highlight #viewer svg .symbol-grp,
@@ -675,7 +677,7 @@
       <div id="var-search-dropdown" role="listbox" aria-label="Resultados"></div>
     </div>
     <span class="spacer"></span>
-    <div id="vbsrc-group" hidden>
+    <div id="vbsrc-group">
       <span class="tool-label">SCD</span>
       <button id="vbsrc-toggle" class="tool-btn" type="button" aria-pressed="false"
               title="Mostrar de onde vem cada Virtual Bit, segundo o SCD do projeto">
@@ -720,10 +722,11 @@
     <div class="legend-row"><span class="legend-swatch" style="background:#fff4c8; border:1px dashed #d49a00"></span> Indeterminado</div>
   </section>
   <section id="vbsrc-section" hidden>
-    <!-- So' existe com a camada ligada, e a camada so' existe offline. As
-         tres contagens sao o argumento inteiro da tinta: num SCD de SEL
-         Architect os 256 ExtRef estao sempre escritos, entao "nao ligado"
-         aparece como placeholder e nunca como ausencia. -->
+    <!-- So' existe com a camada ligada. As tres contagens sao o argumento
+         inteiro da tinta: num SCD de SEL Architect os 256 ExtRef estao
+         sempre escritos, entao "nao ligado" aparece como placeholder e nunca
+         como ausencia. Ao vivo nao ha tinta para legendar, e sobra a linha
+         que diz de qual SCD a assinatura saiu. -->
     <h3>Fonte dos VB</h3>
     <div id="vbsrc-legend"></div>
   </section>
@@ -3200,17 +3203,18 @@ async function closeDiagram(id) {
 // ENDERECO dentro do publicador; o `sAddr` do publicador e' que diz que
 // aquele endereco e' `PSV05`).
 //
-// A camada e' OFFLINE por construcao. Com o rele sendo lido, a cor do bloco e'
-// o estado do bit -- pintar procedencia por cima seriam duas linguagens no
-// mesmo desenho, e a mais importante das duas perderia. Por isso o botao some
-// quando o diagrama conecta, e a camada e' desmontada junto.
+// Conectado ou nao, a camada vale; o que a conexao tira e' a TINTA. Com o rele
+// sendo lido a cor do bloco e' o estado do bit, e pintar procedencia por cima
+// seriam duas linguagens no mesmo desenho, com a mais importante das duas
+// perdendo. Ao vivo sobram a assinatura e o cartao -- que e' justamente o que
+// se quer com o rele na frente -- e o bloco continua dizendo o estado.
 //
 // Tres coisas de uma vez, que e' como foram escolhidas depois de desenhadas:
 //   . a assinatura do SCD toma o lugar do comentario de porta que o GLE ja'
 //     desenha ao lado do VB (o espaco ja' existe e ja' esta alinhado);
 //   . a tinta de auditoria classifica o bloco -- assinado, qualidade GOOSE,
 //     placeholder -- que e' a unica leitura que responde "o que o integrador
-//     esqueceu";
+//     esqueceu" (so' desconectado, pelo motivo acima);
 //   . o cartao no hover traz o ExtRef inteiro, para quem esta comissionando
 //     aquele ponto.
 // =============================================================================
@@ -3306,7 +3310,9 @@ vbSourceCtl = (function setupVbSource() {
       const c = KINDS[r.kind] || KINDS.placeholder;
       g.style.setProperty('cursor', 'help');
       touched.push(g);
-      const rect = g.querySelector('rect');
+      // Conectado, o preenchimento do bloco pertence ao estado do bit: a
+      // camada nao encosta nele. O texto e o cartao saem nos dois casos.
+      const rect = connected ? null : g.querySelector('rect');
       if (rect) {
         paint(rect, 'fill', c.fill);
         paint(rect, 'stroke', c.stroke);
@@ -3457,6 +3463,15 @@ vbSourceCtl = (function setupVbSource() {
                      : '') + '</div>';
     }
     if (data.error) h += '<div class="err">' + esc(data.error) + '</div>';
+    // A legenda EXPLICA a tinta, e ao vivo nao ha tinta. Repetir as contagens
+    // aqui seria legendar um desenho que nao esta na tela: o que o visitante
+    // ve nos blocos e' o estado dos bits.
+    if (connected) {
+      h += '<div class="note">Ao vivo, só a assinatura: a cor dos blocos é o '
+         + 'estado dos bits.</div>';
+      legend.innerHTML = h;
+      return;
+    }
     const census = data.census || {};
     const total = Object.values(census).reduce((a, b) => a + b, 0);
     // Do RELE inteiro, nao da pagina aberta: e' a pergunta que a tinta
@@ -3508,9 +3523,10 @@ vbSourceCtl = (function setupVbSource() {
       btn.disabled = false;
       if (label) label.textContent = was;
     }
-    // Duas coisas podem ter acontecido durante a viagem: o visitante trocou
-    // de aba, ou o diagrama conectou. Nos dois casos esta resposta nao vale.
-    if (want !== activeDiagram || connected) return;
+    // O visitante pode ter trocado de aba durante a viagem, e ai' esta
+    // resposta e' de outro rele. Ter conectado no meio nao invalida nada:
+    // `apply()` le `connected` na hora de desenhar.
+    if (want !== activeDiagram) return;
     data = payload;
     on = true;
     setPressed(true);
@@ -3533,11 +3549,16 @@ vbSourceCtl = (function setupVbSource() {
     // Aba nova: outro rele, outro SCD, e a camada volta desligada. Sem isto
     // o mapa de um diagrama pintaria os VB de outro, que tem os mesmos nomes.
     reset() { data = null; if (on) turnOff(); },
-    // A camada e' offline. Conectou, ela sai; desconectou, o botao volta.
+    // Conectar nao desliga a camada, muda o que ela desenha. Repintar aqui
+    // e' o que troca a tinta pela assinatura sozinha no instante em que o
+    // rele entra, e o contrario quando ele sai. Chamada a cada volta da
+    // faixa de abas (2 s), entao so' a MUDANCA de estado faz trabalho.
     onConnection(isConnected) {
+      const was = connected;
       connected = !!isConnected;
-      group.hidden = connected;
-      if (connected && on) turnOff();
+      if (was === connected || !on) return;
+      apply();
+      renderLegend();
     },
   };
 })();

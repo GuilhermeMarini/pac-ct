@@ -1,4 +1,4 @@
-"""`GET /vb-source?d=` hands the offline layer the whole VB map at once.
+"""`GET /vb-source?d=` hands the layer the whole VB map at once.
 
 The layer is re-applied on every page switch -- the client caches a page's
 parsed SVG, so switching pages is otherwise free -- and the map behind it costs
@@ -6,9 +6,10 @@ a 368 ms parse of a 22 MB SCD. Asking per page would put that parse behind a
 click; asking once per diagram and keeping it is what makes the toggle
 instant the second time.
 
-The route also carries `connected`, because this whole view is offline-only:
-the browser has to be able to refuse to paint a source map onto a diagram that
-went live between the toggle and the answer.
+One answer serves a live diagram and a dead one. The connection changes only
+how the browser draws the map -- live, the block fill is the bit state, so
+only the signature and the hover card come out -- and it reads that off the
+tab strip it already polls.
 """
 
 from __future__ import annotations
@@ -104,12 +105,13 @@ def test_a_diagram_with_no_scd_says_so_instead_of_failing(tmp_path):
     assert "nenhum SCD" in data["error"]
 
 
-def test_the_answer_says_whether_the_diagram_is_live(tmp_path):
-    """The layer is offline-only, and the toggle and the answer are two
-    moments. Fails if the browser has no way to notice a diagram that
-    connected in between."""
+def test_the_answer_does_not_depend_on_the_link(tmp_path):
+    """The map is read from a file; whether the relay is being read has
+    nothing to do with it. Fails if the route grows a connection-dependent
+    field again -- the drawing mode is the browser's decision, taken from the
+    tab strip, not something to re-derive per request."""
     h, _ = _harness(tmp_path)
-    assert h.get("/vb-source?d=d1").json()["connected"] is False
+    assert "connected" not in h.get("/vb-source?d=d1").json()
 
 
 def test_an_unknown_diagram_is_a_404(tmp_path):
