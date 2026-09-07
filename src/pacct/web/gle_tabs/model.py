@@ -16,6 +16,7 @@ by 5 bytes and would shift every offset after the prolog. Overriding at
 from __future__ import annotations
 
 import xml.parsers.expat as expat
+from collections import Counter
 from dataclasses import dataclass
 
 from sellib.scl._xmlsafe import reject_dtd_in_bytes
@@ -142,3 +143,63 @@ def read_pages(raw: bytes) -> list[PageSpan]:
     except expat.ExpatError as exc:
         raise GleTabsError(f"GLE ilegível: {exc}") from exc
     return spans
+
+
+def escape_attr(s: str) -> str:
+    """Escape a string for an XML ATTRIBUTE value.
+
+    Not `rdb_write.xml_text_escape`, which is documented for TEXT content and
+    deliberately leaves `"` alone -- correct between tags, wrong inside
+    `name="..."`, where an unescaped quote closes the attribute and produces a
+    malformed GLE that goes into the output RDB and then into the project
+    library, where nothing distinguishes it from a good file. That is the same
+    failure `xml_text_escape`'s own docstring was written about.
+    """
+    return (s.replace("&", "&amp;").replace("<", "&lt;")
+             .replace(">", "&gt;").replace('"', "&quot;"))
+
+
+def _validate_name(name: str) -> None:
+    if not name.strip():
+        raise GleTabsError("o nome da aba não pode ficar vazio")
+    if len(name) > MAX_NAME:
+        raise GleTabsError(
+            f"“{name}” tem {len(name)} caracteres; o limite é {MAX_NAME}. "
+            "O limite foi MEDIDO nos 3.111 nomes de página do acervo (nenhum "
+            "passa disso, e vários estão truncados exatamente nele) — a SEL "
+            "não o documenta."
+        )
+    if any(ord(c) < 0x20 or ord(c) == 0x7F for c in name):
+        raise GleTabsError(f"“{name}” tem caractere de controle")
+    try:
+        name.encode("latin-1")
+    except UnicodeEncodeError:
+        raise GleTabsError(
+            f"“{name}” tem caractere que o GLE não guarda: o arquivo é "
+            "latin-1, mesmo declarando utf-8"
+        ) from None
+
+
+def validate_edit(spans: list[PageSpan], *, order: list[int],
+                  names: dict[int, str]) -> None:
+    """Raise `GleTabsError` unless this edit is one `apply_page_edits` will make."""
+    n = len(spans)
+    if sorted(order) != list(range(n)):
+        raise GleTabsError(
+            f"ordem inválida: esperava uma permutação das {n} abas. "
+            "Uma aba não pode ser removida por omissão."
+        )
+    for idx, new in names.items():
+        if not 0 <= idx < n:
+            raise GleTabsError(f"a página {idx} não existe neste GLE")
+        _validate_name(new)
+
+    # A rename must not CREATE a duplicate. Duplicates that were already in
+    # the file are tolerated: real files ship with them, and refusing one
+    # would reject a file for a state this tool did not cause.
+    # `glv/gle_pages.py:safe_page_id` documents what collisions cost.
+    before = Counter(s.name for s in spans)
+    after = Counter(names.get(s.index, s.name) for s in spans)
+    for name, count in after.items():
+        if count > 1 and count > before.get(name, 0):
+            raise GleTabsError(f"já existe uma aba chamada “{name}”")
