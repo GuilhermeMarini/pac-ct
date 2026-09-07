@@ -302,14 +302,20 @@ def build_gle_tabs_handler(logger: logging.Logger, sessions) -> type:
         def _serve_download(self):
             """Serve one generated RDB. Confined to THIS session's out dir.
 
-            The path comes from the request, resolved and checked against
-            the sandbox exactly the way `gle_exporter`'s `/download` does:
-            the shared RDB cache holds every visitor's extractions and must
-            not be reachable from here.
+            `/gerar` answers `?f=<name>`, a bare FILE NAME, so the name is
+            resolved AGAINST the out dir. It used to be `Path(name).resolve()`,
+            which resolves a relative name against the process's working
+            directory -- never inside the sandbox, so `is_within` refused and
+            every single download answered 403. The refusal still stands for
+            anything that climbs out (`../..`) or arrives absolute: joining
+            first only decides where a relative name starts, `is_within` still
+            decides whether the result is allowed. The shared RDB cache holds
+            every visitor's extractions and must not be reachable from here.
             """
+            out_dir = self.sdir("out")
             name = self._query().get("f", "")
-            target = Path(name).resolve()
-            if not is_within(target, [self.sdir("out")]):
+            target = (out_dir / name).resolve()
+            if not is_within(target, [out_dir]):
                 self._send(403, "Proibido", "text/plain; charset=utf-8")
                 return
             if not target.is_file():

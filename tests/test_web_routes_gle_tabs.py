@@ -271,3 +271,19 @@ def test_download_refuses_a_path_outside_the_session(tmp_path):
     RDB cache, which holds every visitor's extractions."""
     h, _ = _harness(tmp_path)
     assert h.get("/download?f=../../../etc/passwd").status in (400, 403, 404)
+
+
+def test_download_serves_a_generated_file_by_its_bare_name(tmp_path):
+    """`/gerar` answers `?f=<name>`, so a bare name has to resolve.
+
+    Only the refusal above was pinned, and the success path was broken the
+    whole time: the route did `Path(name).resolve()`, which resolves a
+    relative name against the process's working directory -- never inside the
+    session's out dir, so `is_within` refused and EVERY download answered 403.
+    """
+    h, _ = _harness(tmp_path)
+    out_dir = h.session.subdir("gle-tabs-out")
+    (out_dir / "projeto_abas.rdb").write_bytes(b"conteudo do RDB")
+    r = h.get("/download?f=projeto_abas.rdb")
+    assert r.status == 200
+    assert r.body == b"conteudo do RDB"
