@@ -256,8 +256,8 @@ SAMPLES = Path(__file__).parent.parent / "samples"
 
 @pytest.fixture(scope="module")
 def lt2():
+    from py61850 import da_parts
     from sellib.gle import parse_gle
-    from sellib.scl.mms_tables import da_parts
     from sellib.scl.read import sel_short_addresses
 
     from pacct.web.glv.gle_pages import collect_bits_per_page
@@ -416,7 +416,7 @@ class TestDecoratedPoints:
 def test_the_breaker_position_reaches_the_map_on_the_real_relay(lt2):
     """End to end on the corpus: `QPC2_TR1_UPC1` -- the relay whose GL1 opened
     the subject -- only reaches `52A` through the decorated point."""
-    from sellib.scl.mms_tables import da_parts
+    from py61850 import da_parts
     from sellib.scl.read import sel_short_addresses
 
     points = sel_short_addresses(SAMPLES / "substation_demo.scd")["QPC2_TR1_UPC1"]

@@ -30,8 +30,8 @@ import json
 import re
 from pathlib import Path
 
+from py61850.scl import SclDocument
 from sellib.scl.mms_tables import norm_part  # noqa: F401  (re-exportado)
-from sellib.scl.read import load_scd as _ied_infos
 from sellib.scl.read import sel_short_addresses
 
 
@@ -45,17 +45,21 @@ def load_scd(path: Path) -> dict:
     `311C1` and the RDB writes its own; folding them is what stopped the 311C
     matching nothing and reporting 100% missing.
 
-    Two passes over the file, deliberately: ~0.7 s on the 23 MB corpus SCD,
-    against having one implementation of the sAddr walk instead of two.
+    One parse for both halves. It used to be two, deliberately -- ~0.7 s on
+    the 23 MB corpus SCD, paid so there would be one implementation of the
+    sAddr walk instead of two. That trade is gone: `py61850` parses the file
+    and both halves are read off the same document, so the walk is still
+    single and the parse is no longer doubled.
     """
     bits, part, cfgver, name_of = {}, {}, {}, {}
-    for ied_name, points in sel_short_addresses(Path(path)).items():
+    doc = SclDocument.parse(Path(path))
+    for ied_name, points in sel_short_addresses(doc).items():
         key = norm_part(ied_name)
         name_of[key] = ied_name
         bits[key] = set(points)
-    for ied in _ied_infos(Path(path)):
-        key = norm_part(ied.name)
-        cv = ied.config_version or ""
+    for ied_name, header in doc.ied_headers.items():
+        key = norm_part(ied_name)
+        cv = header.config_version or ""
         cfgver[key] = cv
         m = re.match(r"ICD-([A-Z0-9]+)-", cv)
         part[key] = norm_part(m.group(1)) if m else None

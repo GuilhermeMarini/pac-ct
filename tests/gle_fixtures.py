@@ -18,6 +18,8 @@ matter to the regexes:
 
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
+
 # The XML declaration says utf-8 and the bytes are latin-1. That is not a bug
 # in the fixture -- it is what AcSELerator QuickSet writes, and the reason
 # every writer in this codebase encodes with latin-1.
@@ -96,7 +98,7 @@ SAMPLE_GLE = gle(
 # -----------------------------------------------------------------------------
 
 def scd(*ieds: bytes, ips: dict[str, str] | None = None) -> bytes:
-    """An SCL document around the given IEDs.
+    """An SCL document around the given IEDs, with matching type templates.
 
     `ips` adds the `<Communication>` block, `{ied_name: ip}`. It is separate
     from `ied()` because that is where an address actually lives in SCL -- on
@@ -105,6 +107,15 @@ def scd(*ieds: bytes, ips: dict[str, str] | None = None) -> bytes:
     RID and NEVER by name, two files routinely naming the same bay
     differently. An SCD built without `ips` is deliberately unmatchable,
     which is the case `unmatched_rdb` exists to report.
+
+    `<DataTypeTemplates>` is DERIVED from the instances above, by
+    `_templates_for`, rather than written by hand. It has to exist at all now
+    that an SCD is read as an object model: an instance `<DAI>` reaches a
+    reader through the `<DOType>` its LN's `lnType` resolves to, so a document
+    with no templates declares no attributes and every `sAddr` in it addresses
+    nothing. Deriving it is what makes that impossible to forget, and it is
+    what a real ICD guarantees anyway -- the templates always describe the
+    instances.
     """
     comm = b""
     if ips:
@@ -120,23 +131,94 @@ def scd(*ieds: bytes, ips: dict[str, str] | None = None) -> bytes:
                 + aps
                 + b'    </SubNetwork>\r\n'
                 b'  </Communication>\r\n')
+    body = comm + b"".join(ieds)
     return (b'<?xml version="1.0" encoding="UTF-8"?>\r\n'
             b'<SCL xmlns="http://www.iec.ch/61850/2003/SCL" '
             b'xmlns:esel="http://www.selinc.com/2005/SCL">\r\n'
-            + comm
-            + b"".join(ieds)
+            + body
+            + _templates_for(body)
             + b'</SCL>\r\n')
+
+
+def _templates_for(body: bytes) -> bytes:
+    """The `<DataTypeTemplates>` the instances in `body` need, derived.
+
+    Every `<LN>`/`<LN0>` gets its `lnType` declared, listing the `<DOI>` names
+    it carries; every DO gets a `<DOType>` listing the `<DAI>` names under it.
+    Where one `lnType` is reused by LNs carrying different DOs the declaration
+    is the union of them, which is how a real LNodeType works -- it declares
+    what the type HAS and an instance configures the subset it uses.
+
+    Everything is `fc="ST" bType="BOOLEAN"`: these fixtures address Relay Word
+    bits, and a bit is a boolean status. A fixture that needs another
+    constraint should say so explicitly rather than widen this.
+    """
+    root = ET.fromstring(body.decode("utf-8").join(
+        ('<SCL xmlns="http://www.iec.ch/61850/2003/SCL" '
+         'xmlns:esel="http://www.selinc.com/2005/SCL">', "</SCL>")))
+
+    def local(el):
+        return el.tag.rsplit("}", 1)[-1]
+
+    dos_by_lntype: dict[str, dict[str, str]] = {}
+    das_by_dotype: dict[str, set[str]] = {}
+    for node in root.iter():
+        if local(node) not in ("LN", "LN0"):
+            continue
+        ln_type = node.get("lnType")
+        if not ln_type:
+            continue
+        dos = dos_by_lntype.setdefault(ln_type, {})
+        for doi in node:
+            if local(doi) != "DOI" or not doi.get("name"):
+                continue
+            do_type = f"{ln_type}_{doi.get('name')}"
+            dos[doi.get("name")] = do_type
+            das = das_by_dotype.setdefault(do_type, set())
+            for dai in doi:
+                if local(dai) == "DAI" and dai.get("name"):
+                    das.add(dai.get("name"))
+
+    if not dos_by_lntype:
+        return b""
+    out = b"  <DataTypeTemplates>\r\n"
+    for ln_type, dos in dos_by_lntype.items():
+        inner = b"".join(
+            b'<DO name="' + n.encode() + b'" type="' + t.encode() + b'"/>'
+            for n, t in sorted(dos.items()))
+        out += (b'    <LNodeType id="' + ln_type.encode()
+                + b'" lnClass="GGIO">' + inner + b"</LNodeType>\r\n")
+    for do_type, das in das_by_dotype.items():
+        inner = b"".join(
+            b'<DA name="' + d.encode() + b'" fc="ST" bType="BOOLEAN"/>'
+            for d in sorted(das))
+        out += (b'    <DOType id="' + do_type.encode()
+                + b'" cdc="SPS">' + inner + b"</DOType>\r\n")
+    return out + b"  </DataTypeTemplates>\r\n"
 
 
 def ied(name: str, *extrefs: bytes, private: bytes = b"") -> bytes:
     """One `<IED>`. `private` is the SEL private block, if any -- see
-    `goose_subscriptions`."""
+    `goose_subscriptions`.
+
+    `<Inputs>` sits inside `Server > LDevice > LN0`, which is the only place
+    61850-6 allows one. It used to hang directly under `<AccessPoint>`, and
+    that worked for as long as the reader scanned the IED subtree for
+    `<ExtRef>` elements by name; an object model walks the logical nodes and
+    finds nothing there.
+    """
     return (b'  <IED name="' + name.encode() + b'" type="SEL-411L">\r\n'
             + private
             + b'    <AccessPoint name="S1">\r\n'
-            b'      <Inputs>\r\n'
+            b'      <Server>\r\n'
+            b'        <LDevice inst="CFG">\r\n'
+            b'          <LN0 lnClass="LLN0" inst="" lnType="T_LLN0">\r\n'
+            b'            <Inputs>\r\n'
             + b"".join(extrefs)
-            + b'      </Inputs>\r\n'
+            + b'            </Inputs>\r\n'
+            b'          </LN0>\r\n'
+            b'        </LDevice>\r\n'
+            b'      </Server>\r\n'
             b'    </AccessPoint>\r\n'
             b'  </IED>\r\n')
 

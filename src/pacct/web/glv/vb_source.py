@@ -39,7 +39,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from sellib.scl import read as scl
+from py61850.scl import ExtRef, Ied, SclDocument
+from sellib.scl.read import sel_goose_rx_status, sel_short_addresses
 
 _logger = logging.getLogger(__name__)
 
@@ -55,7 +56,11 @@ _VB_RE = re.compile(r"^VB0*(\d+)$", re.IGNORECASE)
 # The ExtRef attributes that make up the address inside the publisher. `prefix`
 # is optional in SCL and is joined straight onto lnClass+lnInst, which is how
 # `sel_short_addresses` spells a logical node back.
-_ADDRESS = ("ldInst", "prefix", "lnClass", "lnInst", "doName", "daName")
+#: The ExtRef fields the drawn address is built from, as
+#: `py61850.scl.ExtRef` spells them. The model reports every attribute as the
+#: file does, so these are `ldInst`, `prefix`, `lnClass`, `lnInst`, `doName`
+#: and `daName` under their Python names.
+_ADDRESS = ("ld_inst", "prefix", "ln_class", "ln_inst", "do_name", "da_name")
 
 
 def normalise(name: str) -> str:
@@ -124,32 +129,28 @@ def read(scd_path, *, relay_name: str, ip: str) -> VbSourceMap:
     """
     path = Path(scd_path)
     try:
-        doc = scl.ScdDocument.load(path)
+        doc = SclDocument.load(path)
     except Exception as e:                       # pragma: no cover - defensive
         return VbSourceMap(error=f"SCD ilegível: {e}")
     if doc is None:
         return VbSourceMap(error=f"SCD ilegível ou ausente: {path.name}")
 
-    ieds = doc.ieds()
-    ied_name, matched_by = _match_ied(ieds, relay_name=relay_name, ip=ip)
+    names = doc.ied_names
+    ied_name, matched_by = _match_ied(doc, relay_name=relay_name, ip=ip)
     if not ied_name:
         return VbSourceMap(error=(
-            f"o SCD tem {len(ieds)} IEDs e nenhum casa com "
+            f"o SCD tem {len(names)} IEDs e nenhum casa com "
             f"{relay_name!r} nem com o IP {ip or 'não informado'}"))
 
-    element = None
-    for el in scl._iter_local(doc.root, "IED"):
-        if el.attrib.get("name") == ied_name:
-            element = el
-            break
-    if element is None:                          # pragma: no cover - defensive
+    ied = doc.ied(ied_name)
+    if ied is None:                              # pragma: no cover - defensive
         return VbSourceMap(error=f"IED {ied_name!r} sumiu do SCD entre duas leituras")
 
     return VbSourceMap(ied=ied_name, matched_by=matched_by,
-                       sources=_sources(doc, element, ied_name))
+                       sources=_sources(doc, ied, ied_name))
 
 
-def _match_ied(ieds: list, *, relay_name: str, ip: str) -> tuple[str, str]:
+def _match_ied(doc: SclDocument, *, relay_name: str, ip: str) -> tuple[str, str]:
     """Which IED of the SCD this diagram's relay is, and by what.
 
     IP first. Offline there is no DEVID -- the key the live MMS path matches
@@ -161,17 +162,23 @@ def _match_ied(ieds: list, *, relay_name: str, ip: str) -> tuple[str, str]:
     Nothing matching returns `("", "")`. Picking an IED anyway would draw the
     NEIGHBOURING relay's GOOSE map onto this diagram, and nothing about that
     would look wrong.
+
+    First wins on a duplicate address, which is what the index this replaced
+    did: an SCD naming one IP twice is a configuration error to report
+    elsewhere, not one to resolve by picking the later device here.
     """
+    names = doc.ied_names
     if ip:
-        hit = scl.index_by_ip(ieds).get(ip)
-        if hit is not None:
-            return hit.name, "IP"
+        for candidate, address in doc.communication.ip_by_ied().items():
+            if address == ip and candidate in names:
+                return candidate, "IP"
     if relay_name:
-        hit = scl.index_by_name(ieds).get(relay_name.upper())
-        if hit is not None:
-            return hit.name, "nome"
-    if len(ieds) == 1:
-        return ieds[0].name, "único IED"
+        wanted = relay_name.upper()
+        for candidate in names:
+            if candidate.upper() == wanted:
+                return candidate, "nome"
+    if len(names) == 1:
+        return names[0], "único IED"
     return "", ""
 
 
@@ -183,31 +190,31 @@ def _quality_vbs(doc, ied_name: str) -> set:
     out here.
     """
     out = set()
-    for bit in doc.goose_rx_status_by_ied().get(ied_name, {}):
+    for bit in sel_goose_rx_status(doc).get(ied_name, {}):
         key = normalise(bit)
         if key:
             out.add(key)
     return out
 
 
-def _sources(doc, element, ied_name: str) -> dict:
+def _sources(doc: SclDocument, ied: Ied, ied_name: str) -> dict:
     """`{VBnnn: VbSource}` for one IED, joined against every publisher's sAddr."""
     health = _quality_vbs(doc, ied_name)
     # `{publisher: {(ld, ln, do, da): BIT}}`, the reverse of what
-    # `short_addresses` hands over. Built once for the whole SCD: an IED
+    # `sel_short_addresses` hands over. Built once for the whole SCD: an IED
     # subscribes to a handful of publishers and each lookup is a dict hit.
     bit_at: dict = {}
-    for publisher, bits in doc.short_addresses().items():
+    for publisher, bits in sel_short_addresses(doc).items():
         table = bit_at.setdefault(publisher, {})
         for bit, point in bits.items():
             table.setdefault((point.ld_inst, point.ln, point.do, point.da), bit)
 
     out: dict = {}
-    for ext in scl._iter_local(element, "ExtRef"):
-        vb = normalise(ext.attrib.get("intAddr") or "")
+    for ext in ied.ext_refs():
+        vb = normalise(ext.int_addr or "")
         if not vb:
             continue
-        row = _one(ext.attrib, vb, quality=vb in health, bit_at=bit_at)
+        row = _one(ext, vb, quality=vb in health, bit_at=bit_at)
         old = out.get(vb)
         # Several ExtRefs can carry the same intAddr -- typically a
         # placeholder alongside the real subscription. The wired one wins,
@@ -217,11 +224,11 @@ def _sources(doc, element, ied_name: str) -> dict:
     return dict(sorted(out.items()))
 
 
-def _one(attrs, vb: str, *, quality: bool, bit_at: dict) -> VbSource:
-    ied = (attrs.get("iedName") or "").strip()
-    cb = (attrs.get("srcCBName") or "").strip()
-    ld_cb = (attrs.get("srcLDInst") or "").strip()
-    desc = (attrs.get("desc") or "").strip()
+def _one(ext: ExtRef, vb: str, *, quality: bool, bit_at: dict) -> VbSource:
+    ied = (ext.ied_name or "").strip()
+    cb = (ext.src_cb_name or "").strip()
+    ld_cb = (ext.src_ld_inst or "").strip()
+    desc = (ext.desc or "").strip()
     if not ied:
         return VbSource(vb=vb, kind=PLACEHOLDER, desc=desc)
     if quality:
@@ -232,7 +239,7 @@ def _one(attrs, vb: str, *, quality: bool, bit_at: dict) -> VbSource:
         return VbSource(vb=vb, kind=QUALITY, ied=ied, cb=cb, ld_cb=ld_cb,
                         desc=desc)
     ld, prefix, ln_class, ln_inst, do, da = (
-        (attrs.get(k) or "").strip() for k in _ADDRESS)
+        (getattr(ext, k) or "").strip() for k in _ADDRESS)
     ln = f"{prefix}{ln_class}{ln_inst}"
     return VbSource(vb=vb, kind=SIGNAL, ied=ied, ld=ld, ln=ln, do=do, da=da,
                     bit=bit_at.get(ied, {}).get((ld, ln, do, da), ""),

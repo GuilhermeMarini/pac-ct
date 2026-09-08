@@ -35,12 +35,14 @@ dependencies = [
     # other is the kind of difference nobody notices until a relay is on the
     # bench.
     "cfbwrite>=1.0",
-    "SELlib>=2.2.0",
+    "SELlib>=3.0.1",
     "openpyxl>=3.1",
-    # PRE-RELEASE on purpose: the MMS client the GLV calls exists from
-    # 0.2.0.dev1 and 0.2.0 final does not exist. Naming a pre-release in the
-    # specifier is what lets pip take a dev without `--pre` (PEP 440).
-    "py61850>=0.2.0.dev1",
+    # Both the GLV's MMS transport and, since 0.3.0, the IEC 61850-6 reader
+    # four tools here read an SCD through. A FINAL, not a pre-release: a
+    # specifier naming a `.devN` tells the resolver pre-releases are eligible
+    # for that requirement, which would let a future `0.4.0.dev1` in silently.
+    # See requirements.txt for the full note.
+    "py61850>=0.3.0",
 ]
 
 [project.optional-dependencies]
