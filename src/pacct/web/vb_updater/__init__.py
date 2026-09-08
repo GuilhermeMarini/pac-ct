@@ -27,11 +27,12 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
+from py61850.scl import ExtRef, Ied, SclDocument
 from sellib import match as matcher
 from sellib import rdb as rdb_loader
 from sellib.gle import parse_gle
 from sellib.rdb import RdbInfo
-from sellib.scl import read as scd_loader
+from sellib.scl.read import sel_goose_rx_status
 
 from pacct.paths import VB_UPDATER_TEMPLATES_DIR, atomic_write_bytes, is_within
 from pacct.web import rdb_write
@@ -164,17 +165,42 @@ class ScdVbMap:
     quality: frozenset[str]
 
 
-def _find_ied(root: ET.Element, ied_name: str, scd_path: Path) -> ET.Element | None:
-    """The <IED name=...> element, or None with a log line."""
-    # _iter_local ignores the namespace, so 'IED' matches '{ns}IED'.
-    for el in scd_loader._iter_local(root, "IED"):
-        if el.attrib.get("name") == ied_name:
-            return el
-    _logger.info("IED %r nao encontrado no SCD %s", ied_name, scd_path)
-    return None
+def _find_ied(doc: SclDocument, ied_name: str, scd_path: Path) -> Ied | None:
+    """The resolved IED, or None with a log line."""
+    ied = doc.ied(ied_name)
+    if ied is None:
+        _logger.info("IED %r nao encontrado no SCD %s", ied_name, scd_path)
+    return ied
 
 
-def _quality_vbs(doc: scd_loader.ScdDocument, ied_name: str) -> frozenset[str]:
+# The SCL attribute names this module's Signal string is built from, and the
+# `py61850.scl.ExtRef` field each comes off. The model reports every attribute
+# as the file spells it, so this is a rename and never a reinterpretation --
+# it is here only because `_format_extref_signal` is written against the SCL
+# spellings, which is what an engineer comparing against the file reads.
+_EXTREF_ATTR_FIELDS = {
+    "iedName": "ied_name",
+    "srcLDInst": "src_ld_inst",
+    "srcLNClass": "src_ln_class",
+    "srcCBName": "src_cb_name",
+    "ldInst": "ld_inst",
+    "prefix": "prefix",
+    "lnClass": "ln_class",
+    "lnInst": "ln_inst",
+    "doName": "do_name",
+    "daName": "da_name",
+}
+
+
+def _extref_attrs(ext: ExtRef) -> dict[str, str]:
+    """One model ExtRef -> the `{SCL attribute: value}` dict the Signal is
+    formatted from. An attribute the file omits is "" here, as it was when
+    this read `element.attrib.get(k, "")`."""
+    return {scl: getattr(ext, field) or ""
+            for scl, field in _EXTREF_ATTR_FIELDS.items()}
+
+
+def _quality_vbs(doc: SclDocument, ied_name: str) -> frozenset[str]:
     """The IED's VBs that receive a GOOSE subscription's health.
 
     Comes from `sellib`, which reads them off the `pubRxStatus` SEL Architect
@@ -187,7 +213,7 @@ def _quality_vbs(doc: scd_loader.ScdDocument, ied_name: str) -> frozenset[str]:
     `pubRxStatus="VB050"` against `intAddr="VB50"` must still line up.
     """
     out: set[str] = set()
-    for bit in doc.goose_rx_status_by_ied().get(ied_name, {}):
+    for bit in sel_goose_rx_status(doc).get(ied_name, {}):
         m = _VB_NUMERIC_RE.match(bit)
         if m:
             out.add(f"VB{int(m.group(1))}")
@@ -195,23 +221,23 @@ def _quality_vbs(doc: scd_loader.ScdDocument, ied_name: str) -> frozenset[str]:
 
 
 def _vb_map_from_doc(
-    doc: scd_loader.ScdDocument, ied_name: str, scd_path: Path,
+    doc: SclDocument, ied_name: str, scd_path: Path,
 ) -> ScdVbMap:
-    target_ied = _find_ied(doc.root, ied_name, scd_path)
+    target_ied = _find_ied(doc, ied_name, scd_path)
     if target_ied is None:
         return ScdVbMap(descs={}, quality=frozenset())
     health = _quality_vbs(doc, ied_name)
     out: dict[str, str] = {}
     quality: set[str] = set()
-    for ext in scd_loader._iter_local(target_ied, "ExtRef"):
-        addr = (ext.attrib.get("intAddr") or "").strip()
+    for ext in target_ied.ext_refs():
+        addr = (ext.int_addr or "").strip()
         m = _VB_NUMERIC_RE.match(addr)
         if not m:
             continue
         key = f"VB{int(m.group(1))}"
         if key in health:
             quality.add(key)
-        desc = (ext.attrib.get("desc") or "").strip()
+        desc = (ext.desc or "").strip()
         existing = out.get(key, "")
         if existing and not desc:
             continue
@@ -228,7 +254,7 @@ def extract_vb_map_from_scd_ied(scd_path: Path, ied_name: str) -> ScdVbMap:
     matches VBnnn. Maps VBnnn -> the first non-empty `desc` found (several
     ExtRefs can reference the same intAddr).
     """
-    doc = scd_loader.ScdDocument.load(scd_path)
+    doc = SclDocument.load(scd_path)
     if doc is None:
         return ScdVbMap(descs={}, quality=frozenset())
     return _vb_map_from_doc(doc, ied_name, scd_path)
@@ -296,32 +322,31 @@ def extract_vb_extref_rows_from_scd_ied(
     (`pubRxStatus`); its Signal says so instead of naming a data attribute
     that does not exist.
     """
-    doc = scd_loader.ScdDocument.load(scd_path)
+    doc = SclDocument.load(scd_path)
     if doc is None:
         return []
     return _vb_rows_from_doc(doc, ied_name, scd_path)
 
 
 def _vb_rows_from_doc(
-    doc: scd_loader.ScdDocument, ied_name: str, scd_path: Path,
+    doc: SclDocument, ied_name: str, scd_path: Path,
 ) -> list[dict]:
     rows_by_vb: dict[str, dict] = {}
-    target_ied = _find_ied(doc.root, ied_name, scd_path)
+    target_ied = _find_ied(doc, ied_name, scd_path)
     if target_ied is None:
         return []
 
     health = _quality_vbs(doc, ied_name)
 
-    for ext in scd_loader._iter_local(target_ied, "ExtRef"):
-        addr = (ext.attrib.get("intAddr") or "").strip()
+    for ext in target_ied.ext_refs():
+        addr = (ext.int_addr or "").strip()
         m = _VB_NUMERIC_RE.match(addr)
         if not m:
             continue
         vb = f"VB{int(m.group(1))}"
         quality = vb in health
-        attrs = {k: ext.attrib.get(k, "") for k in _EXTREF_FIELDS}
-        signal = _format_extref_signal(attrs, quality=quality)
-        desc = (ext.attrib.get("desc") or "").strip()
+        signal = _format_extref_signal(_extref_attrs(ext), quality=quality)
+        desc = (ext.desc or "").strip()
         row = {"vb": vb, "signal": signal, "desc": desc, "quality": quality}
         existing = rows_by_vb.get(vb)
         if existing is None:
@@ -805,10 +830,12 @@ def build_vb_descriptions_xlsx(
     meta_font = Font(bold=True)
 
     # One parse for every sheet. This used to be one `ET.parse` per IED, and
-    # a real substation SCD is 22 MB and 27 IEDs -- see `ScdDocument`, which
-    # exists for exactly this. `None` (an unreadable file) gives empty sheets
-    # and a log line, the behaviour a per-IED read already had.
-    doc = scd_loader.ScdDocument.load(scd_path)
+    # a real substation SCD is 22 MB and 27 IEDs -- see `SclDocument`, which
+    # exists for exactly this, and which also caches each IED's model so the
+    # second sheet of the same device walks nothing. `None` (an unreadable
+    # file) gives empty sheets and a log line, the behaviour a per-IED read
+    # already had.
+    doc = SclDocument.load(scd_path)
 
     for ied in ied_names:
         rows = [] if doc is None else _vb_rows_from_doc(doc, ied, scd_path)

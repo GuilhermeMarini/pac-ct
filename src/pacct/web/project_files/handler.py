@@ -18,8 +18,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from olefile.olefile import OleFileError
+from py61850.scl import SclDocument
 from sellib import rdb as rdb_loader
-from sellib.scl import read as scd_loader
 
 from pacct.web.project_files import library, load_template
 from pacct.web.session import SessionHandler
@@ -254,7 +254,8 @@ def build_project_files_handler(logger: logging.Logger, sessions) -> type:
 
                 job.stage("Lendo SCD", 60)
                 try:
-                    ieds = scd_loader.load_scd(tmp)
+                    doc = SclDocument.load(tmp)
+                    ieds = list(doc.ied_headers) if doc is not None else []
                 except Exception as e:
                     job.fail(str(e))
                     self._send_json(400, {"ok": False,

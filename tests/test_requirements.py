@@ -32,40 +32,61 @@ def _lines():
             if ln.split("#", 1)[0].strip()]
 
 
-def test_py61850_requirement_reaches_a_version_that_exists():
-    """The MMS client the GLV calls (`MmsClient`, `decode_data_definition`,
-    `py61850.mms.pdu`) only exists from 0.2.0.dev1, and 0.2.0 final does not
-    exist yet -- PyPI carries 0.0.1 and the dev. So the line has to MENTION a
-    pre-release: that is what lets `pip install -r` take a dev without `--pre`
-    on the command line (PEP 440). A plain `py61850>=0.2.0` matches nothing
-    published, `pip install -r` fails, and `app.py` exits on it -- a clean
-    clone then boots NO tool at all, not just the MMS one.
+def test_no_requirement_pins_a_pre_release_any_more():
+    """A pin that names a `.devN` or `rcN` was necessary once and is now a
+    hazard, and the difference is only whether a final exists.
 
-    The line was a `@ git+...@<sha>` pin while nothing was published. That is
-    still acceptable here, but it costs the automatic pickup of a new dev, and
-    an upstream history rewrite orphans the sha.
+    It was necessary: the MMS client the GLV calls (`MmsClient`,
+    `decode_data_definition`, `py61850.mms.pdu`) first appeared in
+    `py61850==0.2.0.dev1` and no 0.2.0 was ever published. PEP 440 sorts a
+    `.devN` BEFORE its release, so a plain `>=0.2.0` matched nothing, `pip
+    install -r` failed, `app.py` exited on it, and a clean clone booted NO
+    tool at all -- not just the MMS one. Naming the pre-release in the
+    specifier is what let pip take it without `--pre` on the command line.
+
+    It is now a hazard: `py61850` 0.3.0 and `SELlib` 3.0.1 are both published
+    finals. A specifier that mentions a pre-release tells the resolver that
+    pre-releases are eligible FOR THAT REQUIREMENT, so leaving `>=0.3.0.dev2`
+    in place would let a future `0.4.0.dev1` in silently on a fresh install --
+    a development version of the library that reads relay settings, chosen by
+    nobody.
+
+    So the rule this pins is not "never name a pre-release". It is "name one
+    only while the version you need is genuinely unreleased", and right now
+    none is.
     """
-    line = [ln for ln in _lines() if ln.lower().startswith("py61850")]
-    assert len(line) == 1, "py61850 must appear exactly once"
-    line = line[0]
-    if " @ git+" in line:
-        assert "@" in line.split("git+", 1)[1], (
-            "a git reference must name a commit or tag, not a moving branch")
-        return
-    assert "dev" in line or "rc" in line or "a" in line.split("py61850", 1)[1], (
-        "a version specifier that does not mention a pre-release resolves to "
-        "nothing installable: 0.2.0 final does not exist")
+    for line in _lines():
+        if " @ git+" in line:
+            assert "@" in line.split("git+", 1)[1], (
+                "a git reference must name a commit or tag, not a branch")
+            continue
+        spec = line.split("==")[-1]
+        assert "dev" not in spec and "rc" not in spec, (
+            f"{line!r} names a pre-release. Every version this project needs "
+            f"is published as a final; a specifier that mentions a "
+            f"pre-release makes pre-releases eligible for that requirement "
+            f"for ever after")
+
+
+def test_py61850_appears_exactly_once():
+    """It is named directly now, not only reached through SELlib. Two lines
+    for one package is how a bundle and a venv end up on different versions
+    of the SCL reader four tools read an SCD through."""
+    lines = [ln for ln in _lines() if ln.lower().startswith("py61850")]
+    assert len(lines) == 1, lines
 
 
 def test_the_upgrade_path_asks_pip_for_pre_releases():
     """`--atualizar-deps` is the only place that goes looking for a NEW
-    version, and every version of py61850 that carries the MMS client is a
-    pre-release. Without `--pre` there the flag would report success and
-    upgrade nothing.
+    version, and it is an explicit request: somebody typed it. `--pre` there
+    is deliberate and stays even though no requirement pins a pre-release any
+    more -- it is what makes the flag able to reach one at all, which is the
+    whole reason to run it against a library still on `0.x`.
 
     The normal boot must NOT upgrade: `install_requirements` only runs pip
     when a package fails to import, because a substation has no internet and
-    `app.py` exits on a pip failure.
+    `app.py` exits on a pip failure. That is the line that matters -- a
+    pre-release can only arrive here when somebody asks for one.
     """
     import inspect
 

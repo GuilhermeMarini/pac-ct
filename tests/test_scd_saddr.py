@@ -252,24 +252,45 @@ class TestDecoratedAddressesInTheRealScd:
 # ICD that disagrees fail loudly instead of generating a wrong item.
 
 class TestDaFunctionalConstraints:
+    """The FC arrives ON the point now.
 
-    def test_it_resolves_the_fc_of_an_instance_da(self):
-        from sellib.scl.read import sel_da_fcs
-        fcs = sel_da_fcs(FIXTURE)["REL_A"]
-        assert fcs[("ANN", "PLT1GGIO1", "Ind01", "stVal")] == "ST"
-        assert fcs[("ANN", "BKR1CSWI1", "Pos", "stVal")] == "ST"
-        assert fcs[("ANN", "BKR1CSWI1", "Dir", "dirGeneral")] == "ST"
+    It used to take a second walk of the whole file (`sel_da_fcs`), joined
+    back to the address on a four-part key, because a walk down the
+    `DOI`/`SDI`/`DAI` elements cannot see the type chain. SELlib 3.0.0 reads
+    an SCD as an object model, which resolves the chain once and hands every
+    attribute its own FC, so the second walk and its join are gone.
 
-    def test_a_control_da_keeps_its_own_fc(self):
-        """`Oper` is `CO` on the DOType, and `ctlVal` descends inside it."""
-        from sellib.scl.read import sel_da_fcs
-        fcs = sel_da_fcs(FIXTURE)["REL_A"]
-        assert fcs[("ANN", "RBGGIO1", "SPCSO01", "Oper.ctlVal")] == "CO"
+    Measured over the corpus's 146 ICDs: all 2,030 decorated addresses fall
+    on `ST`. Reading the FC anyway, instead of hardcoding it, is what makes a
+    future ICD that disagrees fail loudly instead of generating a wrong item.
+    """
 
-    def test_an_unresolvable_da_is_absent_rather_than_guessed(self):
-        from sellib.scl.read import sel_da_fcs
-        fcs = sel_da_fcs(FIXTURE)["REL_A"]
-        assert ("ANN", "PLT1GGIO1", "Ind01", "naoExiste") not in fcs
+    def _points(self):
+        return sel_short_addresses(FIXTURE)["REL_A"]
+
+    def test_a_status_point_carries_its_own_fc(self):
+        points = self._points()
+        assert points["PLT01"].fc == "ST"
+        assert points["52A"].fc == "ST"
+
+    def test_a_control_da_keeps_the_fc_of_its_root(self):
+        """`Oper` is `CO` on the DOType, and `ctlVal` descends inside it. IEC
+        61850 puts the constraint on the root attribute and everything under
+        it comes along, which is what makes the item
+        `RBGGIO1$CO$SPCSO01$Oper$ctlVal`."""
+        point = self._points()["RB01"]
+        assert (point.ln, point.do, point.da) == ("RBGGIO1", "SPCSO01",
+                                                  "Oper.ctlVal")
+        assert point.fc == "CO"
+
+    def test_the_fc_and_the_address_can_no_longer_disagree(self):
+        """The point of folding the two walks into one. A key built in one
+        pass and looked up in another is a join that can miss -- and it did,
+        silently, for 3,124 addresses of the reference station whose descent
+        goes through an SDO (`A.phsA.instCVal.mag.f`): the flat type index
+        could not reach them, so they came back with no FC at all. Now there
+        is no key and nothing to miss."""
+        assert all(p.fc for p in self._points().values())
 
     def test_the_decoy_saddr_in_the_templates_is_not_a_bit(self):
         """`<DA name="q" fc="ST" sAddr="db:EN"/>` on a DOType is a template

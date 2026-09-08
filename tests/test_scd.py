@@ -1,52 +1,64 @@
-"""What `sellib.scl.read` is allowed to read out of an IEC 61850 SCD.
+"""What PAC CT gets out of an IEC 61850 SCD, across two libraries.
 
-These pin behaviour that already exists. That makes them characterization
-tests, so each one names, in its docstring, the production change that would
-make it fail -- otherwise a test that passed the moment it was written proves
-nothing.
+The SCD is the *other* half of every cross-check this toolkit does.
+`sellib.match` pairs a relay in the RDB with an IED here, the VB Updater
+copies descriptions out of `<ExtRef>` into the relay's diagram, and the VLAN
+Mapper builds the switch port map out of `<GSE>`. A parse that quietly returns
+nothing does not crash -- it produces an empty report that looks like "nothing
+to do", which is why the graceful paths are pinned as hard as the happy one.
 
-Why they matter: the SCD is the *other* half of every cross-check this toolkit
-does. `matchers/relay_scd.py` pairs a relay in the RDB with an IED here, the
-VB Updater copies descriptions out of `<ExtRef>` into the relay's diagram, and
-the VLAN Mapper builds the switch port map out of `<GSE>`. All three read
-through the four functions below. A parse that quietly returns nothing does not
-crash -- it produces an empty report that looks like "nothing to do".
+**This file used to characterise the reader itself**, in four namespace
+flavours, across 47 assertions. That reader is not here any more and is not
+SELlib's either: `py61850.scl` reads an SCL file as an IEC 61850-6 object
+model, for any vendor, and tests every one of those behaviours in its own
+suite -- namespace flavours included, since a hand-made SCD that declares none
+and a vendor export that declares four are both real. Re-asserting them here
+would be a second opinion about somebody else's code that can only ever drift
+from it.
 
-The documents are hand-built. `samples/*.scd` is 22 MB, which makes a failing
-assertion unreadable, and the shapes that matter here are three attributes and
-two nesting levels deep. Every document is built by `_scd_text()` in four
-namespace flavours, because `_strip_ns` / `_iter_local` exist precisely to
-survive a new vendor's export and that is the code most likely to break.
+What is pinned instead is the seam PAC CT actually stands on, and the parts of
+it that are PAC CT's own decisions rather than either library's:
+
+- the join between an IED's identity and its address, which no single section
+  of an SCD holds;
+- **GSE only** in the VLAN map -- an `SMV` is keyed the same way and is not a
+  GOOSE publication;
+- subscriptions arriving with SEL's `pubRxStatus` health bit already attached,
+  which is the whole reason a vendor library sits on top of the general one;
+- and that every one of those answers "" or `{}` for a file that cannot be
+  read, on the paths a web route reaches.
 """
 
 from __future__ import annotations
 
 import logging
-import re
 from pathlib import Path
 
 import pytest
-from sellib.scl import read as scd
+from py61850.scl import SclDocument
+from sellib.scl.read import sel_goose_rx_status, sel_goose_subscriptions
 
-# -----------------------------------------------------------------------------
-# Fixture documents
-# -----------------------------------------------------------------------------
+from pacct.web.glv import vb_source
+from pacct.web.vlan_mapper import compute_ied_vlan_rows
 
-#: Body of the reference SCD, namespace-free. Shapes copied from
-#: `samples/substation_demo.scd`:
+#: Shapes copied from `samples/substation_demo.scd`:
 #:
 #: - the IP does NOT live on the `<IED>`; it is cross-referenced from
 #:   `<ConnectedAP iedName=...>` in `<Communication>`;
-#: - `<GSE>` sits *inside* that same `<ConnectedAP>`, so anything walking
-#:   descendants of a ConnectedAP also walks the GSE's own `<Address>`;
+#: - `<GSE>` sits *inside* that same `<ConnectedAP>`, beside the AP's own
+#:   `<Address>`;
+#: - an `<SMV>` sits there too, keyed `(ied, ldInst, cbName)` exactly like a
+#:   GSE, and is a sampled-value stream rather than a GOOSE publication;
 #: - the second AP writes `type="ip"` in lower case, which real exports do;
 #: - `QPC1_SPARE` has no ConnectedAP at all -- a relay configured but not yet
 #:   given an address;
 #: - `QPC1_TR1_UPC1` subscribes twice to the same control block (two intAddrs
 #:   of one dataset), once to a second one, and carries a template ExtRef with
-#:   no publisher, which is what Architect writes before a link is closed.
+#:   no publisher, which is what Architect writes before a link is closed;
+#: - the SEL private block declares `VB001` as the health bit of `GCB09`.
 _BODY = """<?xml version="1.0" encoding="UTF-8"?>
-<SCL>
+<SCL xmlns="http://www.iec.ch/61850/2003/SCL"
+     xmlns:esel="http://www.selinc.com/2005/SCL">
   <Communication>
     <SubNetwork name="SUB1" type="8-MMS">
       <ConnectedAP iedName="QPC1_TR1_UPC1" apName="S1">
@@ -67,28 +79,45 @@ _BODY = """<?xml version="1.0" encoding="UTF-8"?>
             <P type="MAC-Address">01-0C-CD-01-00-02</P>
           </Address>
         </GSE>
-        <GSE ldInst="ANN" cbName="">
+        <SMV ldInst="MU" cbName="SV01">
           <Address>
-            <P type="MAC-Address">01-0C-CD-01-00-99</P>
+            <P type="MAC-Address">01-0C-CD-04-00-01</P>
+            <P type="VLAN-ID">0FF</P>
           </Address>
-        </GSE>
+        </SMV>
       </ConnectedAP>
       <ConnectedAP iedName="QPC1_LT1_UPC1" apName="S1">
         <Address>
           <P type="ip">192.0.2.61</P>
         </Address>
+        <GSE ldInst="PRO" cbName="GCB09">
+          <Address>
+            <P type="MAC-Address">01-0C-CD-01-00-09</P>
+            <P type="VLAN-ID">00B</P>
+          </Address>
+        </GSE>
+        <GSE ldInst="ANN" cbName="GCB10">
+          <Address>
+            <P type="MAC-Address">01-0C-CD-01-00-10</P>
+            <P type="VLAN-ID">00C</P>
+          </Address>
+        </GSE>
       </ConnectedAP>
     </SubNetwork>
   </Communication>
   <IED name="QPC1_TR1_UPC1" type="SEL_487E" manufacturer="SEL" desc="Trafo 1" configVersion="1.2">
+    <Private type="SEL_GooseSubscription">
+      <esel:GooseSubscription iedName="QPC1_LT1_UPC1" ldInst="PRO" cbName="GCB09"
+                              datSet="GOPB_138" pubRxStatus="VB001" confRev="1"/>
+    </Private>
     <AccessPoint name="S1">
       <Server>
         <LDevice inst="ANN">
-          <LN0>
+          <LN0 lnClass="LLN0" inst="" lnType="T_LLN0">
             <Inputs>
-              <ExtRef desc="LT1 falha GOOSE" iedName="QPC1_LT1_UPC1" ldInst="ANN" lnClass="GGIO" srcLDInst="PRO" srcCBName="GCB09" intAddr="VB001" serviceType="GOOSE"/>
-              <ExtRef desc="LT1 abertura" iedName="QPC1_LT1_UPC1" ldInst="ANN" lnClass="GGIO" srcLDInst="PRO" srcCBName="GCB09" intAddr="VB002" serviceType="GOOSE"/>
-              <ExtRef desc="LT1 anunciacao" iedName="QPC1_LT1_UPC1" ldInst="ANN" lnClass="GGIO" srcLDInst="ANN" srcCBName="GCB10" intAddr="VB003" serviceType="goose"/>
+              <ExtRef desc="LT1 falha GOOSE" iedName="QPC1_LT1_UPC1" srcLDInst="PRO" srcCBName="GCB09" intAddr="VB001" serviceType="GOOSE"/>
+              <ExtRef desc="LT1 abertura" iedName="QPC1_LT1_UPC1" ldInst="ANN" lnClass="GGIO" doName="Ind01" daName="stVal" srcLDInst="PRO" srcCBName="GCB09" intAddr="VB002" serviceType="GOOSE"/>
+              <ExtRef desc="LT1 anunciacao" iedName="QPC1_LT1_UPC1" ldInst="ANN" lnClass="GGIO" doName="Ind02" daName="stVal" srcLDInst="ANN" srcCBName="GCB10" intAddr="VB003" serviceType="goose"/>
               <ExtRef desc="relatorio" iedName="QPC1_LT1_UPC1" srcLDInst="PRO" srcCBName="RCB01" intAddr="VB004" serviceType="Report"/>
               <ExtRef desc="vazio" intAddr="VB009" serviceType="GOOSE"/>
             </Inputs>
@@ -99,393 +128,223 @@ _BODY = """<?xml version="1.0" encoding="UTF-8"?>
   </IED>
   <IED name="QPC1_LT1_UPC1" type="SEL-411L" manufacturer="SEL"/>
   <IED name="QPC1_SPARE"/>
+  <DataTypeTemplates>
+    <LNodeType id="T_LLN0" lnClass="LLN0"/>
+  </DataTypeTemplates>
 </SCL>
 """
 
-#: `</?TagName` -- attribute values never contain a `<`, so this only ever
-#: rewrites real tags.
-_TAG_RE = re.compile(r"(</?)([A-Za-z][A-Za-z0-9]*)")
-
-#: The edition-2 URI. Deliberately NOT the one `scd._SCL_NS` declares: the
-#: parser must not care which URI a vendor stamped on the document.
-_OTHER_NS = "http://www.iec.ch/61850/2007/SCL"
-
-
-def _scd_text(flavour: str = "bare") -> str:
-    """The same document in four namespace flavours.
-
-    ``bare``     no namespace at all (hand-written / stripped exports)
-    ``default``  ``xmlns=`` the standard SCL URI (what Architect writes)
-    ``prefixed`` every tag carries an ``scl:`` prefix
-    ``other``    ``xmlns=`` a DIFFERENT URI, e.g. an edition-2 export
-    """
-    if flavour == "bare":
-        return _BODY
-    if flavour == "default":
-        return _BODY.replace("<SCL>", f'<SCL xmlns="{scd._SCL_NS}">', 1)
-    if flavour == "other":
-        return _BODY.replace("<SCL>", f'<SCL xmlns="{_OTHER_NS}">', 1)
-    if flavour == "prefixed":
-        head, sep, rest = _BODY.partition("\n")
-        body = _TAG_RE.sub(lambda m: m.group(1) + "scl:" + m.group(2), rest)
-        return head + sep + body.replace(
-            "<scl:SCL>", f'<scl:SCL xmlns:scl="{scd._SCL_NS}">', 1)
-    raise AssertionError(f"unknown flavour {flavour!r}")
-
-
-FLAVOURS = ("bare", "default", "prefixed", "other")
+_SUBSCRIBER = "QPC1_TR1_UPC1"
+_PUBLISHER = "QPC1_LT1_UPC1"
 
 
 @pytest.fixture
 def scd_file(tmp_path: Path) -> Path:
-    """The reference document, no namespace."""
     p = tmp_path / "SE_TESTE.scd"
-    p.write_text(_scd_text("bare"), encoding="utf-8")
+    p.write_text(_BODY, encoding="utf-8")
     return p
 
 
-def _write(tmp_path: Path, text: str, name: str = "doc.scd") -> Path:
-    p = tmp_path / name
-    p.write_text(text, encoding="utf-8")
-    return p
+@pytest.fixture
+def doc(scd_file: Path) -> SclDocument:
+    parsed = SclDocument.parse(scd_file)
+    assert parsed is not None
+    return parsed
 
 
-def _by_name(ieds: list[scd.IedInfo]) -> dict[str, scd.IedInfo]:
-    return {i.name: i for i in ieds}
+def _rows(scd_file: Path) -> dict:
+    return {r.ied_name: r for r in compute_ied_vlan_rows(scd_file)}
 
 
-# -----------------------------------------------------------------------------
-# load_scd
-# -----------------------------------------------------------------------------
+# -- identity and address are in different sections -------------------------
 
-class TestLoadScd:
+class TestTheIdentityAddressJoin:
+    """No single section of an SCD says both who an IED is and where it is.
+    The identity is on `<IED>`, the address on a `<ConnectedAP>` that names it
+    from `<Communication>`. Joining them is the consumer's job, and every tool
+    here that lists relays does it."""
 
-    def test_reads_every_identifying_attribute_of_an_ied(self, scd_file):
-        """`IedInfo` is what the matcher and the VB Updater see of an IED.
-        Fails if any of the five attribute names it reads (`type`,
-        `manufacturer`, `desc`, `configVersion`, `name`) is renamed or
-        dropped."""
-        ied = _by_name(scd.load_scd(scd_file))["QPC1_TR1_UPC1"]
-        assert ied.relay_type == "SEL_487E"
-        assert ied.manufacturer == "SEL"
-        assert ied.description == "Trafo 1"
-        assert ied.config_version == "1.2"
+    def test_a_row_carries_the_identity_and_the_address_together(self, scd_file):
+        row = _rows(scd_file)[_SUBSCRIBER]
+        assert row.ip == "192.0.2.60"
+        assert row.relay_type == "SEL_487E"
+        assert row.description == "Trafo 1"
 
-    def test_the_ip_comes_from_the_communication_section_not_the_ied(self, scd_file):
-        """An `<IED>` carries no address; the IP is joined in from
-        `<ConnectedAP iedName=...>`. Fails if `_collect_ip_by_ied` stops keying
-        by `iedName` -- and then EVERY relay would fall back to the RID match,
-        which is the uncommissioned-relay path, not the normal one."""
-        ied = _by_name(scd.load_scd(scd_file))["QPC1_TR1_UPC1"]
-        assert ied.ip == "192.0.2.60"
+    def test_an_ied_with_no_connected_ap_is_listed_without_an_address(
+            self, scd_file):
+        """A relay configured but not yet addressed is a real state and is
+        exactly what the report exists to show. Dropping it would make an
+        unfinished station look finished."""
+        row = _rows(scd_file)["QPC1_SPARE"]
+        assert row.ip is None
+        assert row.ied_name == "QPC1_SPARE"
 
-    def test_only_the_p_of_type_ip_is_taken_and_the_type_is_upcased(self, scd_file):
-        """The first AP also holds an `IP-SUBNET`; the second writes
-        `type="ip"` in lower case. Fails if the `.upper()` on the `type`
-        attribute goes (the lower-case IED loses its IP) or if the `== "IP"`
-        loosens to a prefix match (the subnet mask becomes the address)."""
-        ieds = _by_name(scd.load_scd(scd_file))
-        assert ieds["QPC1_TR1_UPC1"].ip == "192.0.2.60"
-        assert ieds["QPC1_LT1_UPC1"].ip == "192.0.2.61"
+    def test_the_p_type_is_matched_case_insensitively(self, scd_file):
+        """The second ConnectedAP writes `type="ip"` in lower case, which real
+        exports do."""
+        assert _rows(scd_file)[_PUBLISHER].ip == "192.0.2.61"
 
-    def test_an_ied_with_no_connectedap_has_no_ip(self, scd_file):
-        """`QPC1_SPARE` is configured but not addressed. Fails if a missing IP
-        starts coming back as `""` -- `index_by_ip` skips on falsy, but
-        `_no_match_reason` in the matcher prints whatever it is given."""
-        assert _by_name(scd.load_scd(scd_file))["QPC1_SPARE"].ip is None
-
-    def test_a_missing_attribute_is_none_not_empty_string(self, scd_file):
-        """`QPC1_SPARE` declares only `name`. Fails if the reads switch to
-        `.get(k, "")` -- `_model_consistent` treats empty as 'no data, cannot
-        contradict' and None the same way, but `to_dict()` ships both to the
-        UI and they render differently."""
-        ied = _by_name(scd.load_scd(scd_file))["QPC1_SPARE"]
-        assert (ied.relay_type, ied.manufacturer,
-                ied.description, ied.config_version) == (None, None, None, None)
-
-    @pytest.mark.parametrize("flavour", FLAVOURS)
-    def test_every_namespace_flavour_parses_identically(self, tmp_path, flavour):
-        """The whole reason `_strip_ns` / `_iter_local` exist. `other` uses a
-        URI that is NOT `scd._SCL_NS`, so this also pins that the URI is
-        ignored rather than matched.
-
-        Fails the moment `_iter_local` is replaced by `root.iter("IED")` or by
-        a `findall` with the `_NS` prefix map -- three of the four flavours
-        would then return an empty list, and an empty list is reported as
-        'SCD vazio ou ilegivel', not as a crash."""
-        got = scd.load_scd(_write(tmp_path, _scd_text(flavour)))
-        assert [(i.name, i.ip, i.relay_type) for i in got] == [
-            ("QPC1_TR1_UPC1", "192.0.2.60", "SEL_487E"),
-            ("QPC1_LT1_UPC1", "192.0.2.61", "SEL-411L"),
-            ("QPC1_SPARE", None, None),
-        ]
-
-    def test_document_order_is_preserved(self, scd_file):
-        """`load_scd` returns a list, and the VLAN Mapper's tables are rendered
-        in that order. Fails if the walk starts sorting or de-duplicating into
-        a dict and back."""
-        assert [i.name for i in scd.load_scd(scd_file)] == [
-            "QPC1_TR1_UPC1", "QPC1_LT1_UPC1", "QPC1_SPARE"]
-
-    def test_a_repeated_ied_name_is_kept_once(self, tmp_path):
-        """The `seen` set. Fails if it goes: `index_by_name` would then be
-        built from two entries with one key and the matcher's
-        `used_scd_names` bookkeeping would count an IED it never matched."""
-        doc = _BODY.replace('<IED name="QPC1_SPARE"/>',
-                            '<IED name="QPC1_SPARE"/>\n  '
-                            '<IED name="QPC1_SPARE" type="SEL-751"/>')
-        got = scd.load_scd(_write(tmp_path, doc))
-        assert [i.name for i in got].count("QPC1_SPARE") == 1
-        assert _by_name(got)["QPC1_SPARE"].relay_type is None   # first wins
-
-    def test_an_ied_without_a_name_is_skipped(self, tmp_path):
-        """A nameless IED has no key to match on. Fails if the `if not name`
-        guard goes and an entry with `name=None` reaches `index_by_name`, whose
-        `.upper()` would raise."""
-        doc = _BODY.replace('<IED name="QPC1_SPARE"/>', '<IED type="SEL-751"/>')
-        assert [i.name for i in scd.load_scd(_write(tmp_path, doc))] == [
-            "QPC1_TR1_UPC1", "QPC1_LT1_UPC1"]
-
-    def test_a_missing_file_returns_an_empty_list(self, tmp_path):
-        """Graceful, not fatal: the tools call this on a path the user chose.
-        Fails if it starts raising -- a 500 instead of 'SCD vazio ou
-        ilegivel'."""
-        assert scd.load_scd(tmp_path / "nope.scd") == []
-
-    def test_malformed_xml_returns_an_empty_list(self, tmp_path):
-        """Same contract for a truncated upload. Fails if `ET.ParseError` stops
-        being caught."""
-        assert scd.load_scd(_write(tmp_path, "<SCL><IED name=")) == []
-
-    def test_a_directory_is_not_a_file(self, tmp_path):
-        """`is_file()`, not `exists()`. Fails if the guard loosens and
-        `ET.parse` gets a directory, which raises `IsADirectoryError` --
-        an `OSError`, so it is caught, but only by luck."""
-        assert scd.load_scd(tmp_path) == []
+    def test_every_ied_gets_a_row(self, scd_file):
+        assert set(_rows(scd_file)) == {
+            _SUBSCRIBER, _PUBLISHER, "QPC1_SPARE"}
 
 
-# -----------------------------------------------------------------------------
-# index_by_ip / index_by_name
-# -----------------------------------------------------------------------------
+# -- the VLAN map is GOOSE, and only GOOSE ----------------------------------
 
-class TestIndexes:
+class TestOnlyGooseReachesTheVlanMap:
+    """`ControlBlockAddress` keys a `<GSE>` and an `<SMV>` the same way --
+    `(iedName, ldInst, cbName)` -- because that is the triple a subscription
+    resolves against either of them by. They are not the same thing: an SMV
+    carries sampled values at 4 kHz and no GOOSE subscription ever points at
+    one. The filter is this tool's, not the library's, and it is here because
+    a mixed station has both: the reference mixed-vendor SCD carries 16 SMV
+    control blocks beside its GSEs.
+    """
 
-    def test_index_by_ip_skips_ieds_without_one(self, scd_file):
-        """Fails if the `if not ied.ip` guard goes: a `None` key would then
-        match every relay whose RDB has no readable IPADDR."""
-        idx = scd.index_by_ip(scd.load_scd(scd_file))
-        assert set(idx) == {"192.0.2.60", "192.0.2.61"}
+    def test_a_publishers_own_gse_vlans_are_its_tx(self, scd_file):
+        row = _rows(scd_file)[_PUBLISHER]
+        assert row.tx_vlans == ["00B", "00C"]
 
-    def test_a_duplicate_ip_keeps_the_first_ied_and_warns(self, tmp_path, caplog):
-        """Two IEDs on one address is a project error the engineer must see.
-        Fails if the `continue` becomes an overwrite (last wins, silently) or
-        if the warning is dropped."""
-        doc = _BODY.replace('<P type="ip">192.0.2.61</P>',
-                            '<P type="ip">192.0.2.60</P>')
-        ieds = scd.load_scd(_write(tmp_path, doc))
-        with caplog.at_level(logging.WARNING, logger="sellib.scl.read"):
-            idx = scd.index_by_ip(ieds)
-        assert idx["192.0.2.60"].name == "QPC1_TR1_UPC1"
-        assert "IP duplicado" in caplog.text
+    def test_an_smv_vlan_is_not_reported_as_goose(self, scd_file):
+        """`SV01` publishes on VLAN 0FF. If the SMV got in, this relay's TX
+        list would claim a GOOSE VLAN that carries no GOOSE at all, and the
+        switch port map built from it would be wrong."""
+        row = _rows(scd_file)[_SUBSCRIBER]
+        assert "0FF" not in row.tx_vlans
 
-    def test_index_by_name_upcases_the_key(self, scd_file):
-        """The matcher looks up `r.rid.upper()`. Fails if this stops upcasing:
-        the RID fallback -- the whole uncommissioned-relay path -- would match
-        only when the engineer typed the RID in exactly the case Architect
-        used."""
-        idx = scd.index_by_name(scd.load_scd(scd_file))
-        assert "QPC1_TR1_UPC1" in idx
-        assert idx["QPC1_TR1_UPC1"].ip == "192.0.2.60"
-
-    def test_index_by_name_does_not_lowercase_the_stored_name(self, scd_file):
-        """Only the KEY is upcased. Fails if the value is normalised too --
-        `Match.scd_name` is shown on screen and pasted into reports, so it must
-        stay as the SCD spells it."""
-        idx = scd.index_by_name(scd.load_scd(scd_file))
-        assert idx["QPC1_TR1_UPC1"].name == "QPC1_TR1_UPC1"
+    def test_a_subscription_resolves_to_the_publishers_vlan(self, scd_file):
+        row = _rows(scd_file)[_SUBSCRIBER]
+        assert row.rx_vlans == ["00B", "00C"]
+        assert row.publishers_by_vlan["00B"] == [_PUBLISHER]
 
 
-# -----------------------------------------------------------------------------
-# extract_gse_communication_map
-# -----------------------------------------------------------------------------
+# -- subscriptions arrive with SEL's half already attached ------------------
 
-class TestGseMap:
+class TestSubscriptionsCarryTheSelHealthBit:
+    """The reason a vendor library sits on top of the general one. `<ExtRef>`
+    is standard SCL and says nothing about health; `pubRxStatus` lives in a
+    `<Private>` block on the IED and says which bit goes to 1 when the
+    publisher stops arriving. Only the two together tell a tool that `VB001`
+    is not a signal out of the dataset."""
 
-    def test_keys_a_control_block_by_publisher_ldinst_and_cbname(self, scd_file):
-        """The triple is the identity of a GOOSE control block; the VLAN Mapper
-        joins subscriptions to addresses on it. Fails if `_gse_key` changes
-        shape or order -- the join would silently produce zero matches."""
-        got = scd.extract_gse_communication_map(scd_file)
-        assert set(got) == {
-            ("QPC1_TR1_UPC1", "PRO", "GCB01"),
-            ("QPC1_TR1_UPC1", "ANN", "GCB02"),
-        }
+    def test_a_health_bit_is_named_by_the_private_block(self, doc):
+        health = sel_goose_rx_status(doc)[_SUBSCRIBER]
+        assert set(health) == {"VB001"}
+        assert health["VB001"].src_cb_name == "GCB09"
 
-    def test_reads_all_four_address_parameters(self, scd_file):
-        """MAC / APPID / VLAN-ID / VLAN-PRIORITY are the switch port map.
-        Fails if a `P type` spelling changes -- the row would render blank and
-        the engineer would configure the switch from an empty table."""
-        gse = scd.extract_gse_communication_map(scd_file)[
-            ("QPC1_TR1_UPC1", "PRO", "GCB01")]
-        assert gse.mac_address == "01-0C-CD-01-00-01"
-        assert gse.appid == "0001"
-        assert gse.vlan_id == "00A"
-        assert gse.vlan_priority == "4"
+    def test_the_subscription_carries_the_bit_that_watches_it(self, doc):
+        subs = {s.src_cb_name: s for s in sel_goose_subscriptions(doc)[_SUBSCRIBER]}
+        assert subs["GCB09"].rx_status_bit == "VB001"
+        assert subs["GCB10"].rx_status_bit is None
 
-    def test_the_vlan_id_stays_a_string(self, scd_file):
-        """`00A` is hexadecimal in some exports and decimal in others, and this
-        module refuses to guess. Fails if anything here starts calling `int()`
-        -- `00A` would raise and `010` would silently become 10."""
-        gse = scd.extract_gse_communication_map(scd_file)[
-            ("QPC1_TR1_UPC1", "PRO", "GCB01")]
-        assert isinstance(gse.vlan_id, str)
+    def test_two_intaddrs_of_one_control_block_are_one_subscription(self, doc):
+        """`VB001` and `VB002` both point at `GCB09`. They are two uses of one
+        dataset, and counting them twice would double the RX count the VLAN
+        Mapper reports for a switch port."""
+        subs = sel_goose_subscriptions(doc)[_SUBSCRIBER]
+        assert [s.src_cb_name for s in subs] == ["GCB09", "GCB10"]
 
-    def test_an_absent_parameter_is_none(self, scd_file):
-        """GCB02 declares only a MAC. Fails if the missing keys start coming
-        back as `""`, which renders as a filled-in-but-blank cell rather than
-        an obviously missing one."""
-        gse = scd.extract_gse_communication_map(scd_file)[
-            ("QPC1_TR1_UPC1", "ANN", "GCB02")]
-        assert (gse.appid, gse.vlan_id, gse.vlan_priority) == (None, None, None)
+    def test_a_non_goose_extref_is_not_a_goose_subscription(self, doc):
+        """`RCB01` is a Report control block. It is a real input and py61850
+        reports it; what it is not is a GOOSE publication with a VLAN."""
+        subs = sel_goose_subscriptions(doc)[_SUBSCRIBER]
+        assert "RCB01" not in {s.src_cb_name for s in subs}
 
-    def test_a_gse_without_a_cbname_is_skipped(self, scd_file):
-        """The third `<GSE>` in the fixture has `cbName=""`. Without a control
-        block name there is nothing a subscription could join to. Fails if the
-        `if not cb_name` guard goes and an unjoinable row appears in the map."""
-        got = scd.extract_gse_communication_map(scd_file)
-        assert not [k for k in got if k[2] == ""]
+    def test_a_template_extref_with_no_publisher_is_not_a_subscription(self, doc):
+        """`VB009` names no publisher: a slot Architect wrote and nobody
+        wired. 232 of the 256 in a reference SCD look like this."""
+        subs = sel_goose_subscriptions(doc)[_SUBSCRIBER]
+        assert all(s.publisher_ied for s in subs)
 
-    def test_a_p_type_is_matched_case_insensitively(self, tmp_path):
-        """The fixture writes `MAC-Address`; the lookup key is
-        `MAC-ADDRESS`. Fails if the `.upper()` on the `type` attribute goes --
-        every MAC in the map would become None, for every real SCD, because
-        that is the spelling Architect uses."""
-        gse = scd.extract_gse_communication_map(
-            _write(tmp_path, _scd_text("bare")))[("QPC1_TR1_UPC1", "PRO", "GCB01")]
-        assert gse.mac_address == "01-0C-CD-01-00-01"
-
-    @pytest.mark.parametrize("flavour", FLAVOURS)
-    def test_every_namespace_flavour_yields_the_same_map(self, tmp_path, flavour):
-        """Companion to the `load_scd` flavour test; fails the same way."""
-        got = scd.extract_gse_communication_map(
-            _write(tmp_path, _scd_text(flavour)))
-        assert sorted(got) == [("QPC1_TR1_UPC1", "ANN", "GCB02"),
-                               ("QPC1_TR1_UPC1", "PRO", "GCB01")]
-
-    def test_a_missing_file_returns_an_empty_map(self, tmp_path):
-        """Fails if it starts raising."""
-        assert scd.extract_gse_communication_map(tmp_path / "nope.scd") == {}
-
-    def test_malformed_xml_returns_an_empty_map(self, tmp_path):
-        """Fails if `ET.ParseError` stops being caught."""
-        assert scd.extract_gse_communication_map(_write(tmp_path, "<SCL")) == {}
+    def test_an_ied_that_subscribes_to_nothing_is_absent(self, doc):
+        assert _PUBLISHER not in sel_goose_subscriptions(doc)
+        assert "QPC1_SPARE" not in sel_goose_subscriptions(doc)
 
 
-# -----------------------------------------------------------------------------
-# extract_goose_subscriptions_by_ied
-# -----------------------------------------------------------------------------
+# -- a file that cannot be read must not take a route down ------------------
 
-class TestGooseSubscriptions:
+class TestAnUnreadableFileIsEmptyAndNeverAnException:
+    """Every one of these is reached from a web route with a file a visitor
+    uploaded. An exception here is a 500 on a page that should have said "no
+    IEDs found"; each of them had the graceful behaviour before the libraries
+    split and has to keep it."""
 
-    def test_groups_subscriptions_under_the_subscribing_ied(self, scd_file):
-        """Keyed by the IED that OWNS the `<ExtRef>`, not by the publisher.
-        Fails if the walk starts keying by `ExtRef@iedName` -- publisher and
-        subscriber would swap and every VLAN would be assigned to the wrong
-        switch port."""
-        got = scd.extract_goose_subscriptions_by_ied(scd_file)
-        assert set(got) == {"QPC1_TR1_UPC1"}
-        assert {s.publisher_ied for s in got["QPC1_TR1_UPC1"]} == {"QPC1_LT1_UPC1"}
+    @pytest.fixture(params=["missing", "malformed", "directory"])
+    def unusable(self, request, tmp_path):
+        if request.param == "missing":
+            return tmp_path / "nao_existe.scd"
+        if request.param == "malformed":
+            p = tmp_path / "quebrado.scd"
+            p.write_text("<SCL><IED name=", encoding="utf-8")
+            return p
+        return tmp_path
 
-    def test_an_ied_with_no_subscriptions_is_absent_from_the_map(self, scd_file):
-        """`if subs:` -- the caller iterates the dict and an empty list would
-        render an IED with an empty table. Fails if the guard goes."""
-        got = scd.extract_goose_subscriptions_by_ied(scd_file)
-        assert "QPC1_LT1_UPC1" not in got
-        assert "QPC1_SPARE" not in got
+    def test_the_vlan_rows_are_empty(self, unusable):
+        assert compute_ied_vlan_rows(unusable) == []
 
-    def test_two_intaddrs_of_one_control_block_are_one_subscription(self, scd_file):
-        """VB001 and VB002 come from the same dataset over one GOOSE. Fails if
-        the `seen` set goes -- a 60-point dataset would appear as 60 identical
-        rows in the VLAN table."""
-        got = scd.extract_goose_subscriptions_by_ied(scd_file)["QPC1_TR1_UPC1"]
-        assert [(s.src_ld_inst, s.src_cb_name) for s in got] == [
-            ("PRO", "GCB09"), ("ANN", "GCB10")]
+    def test_the_sel_readers_are_empty(self, unusable):
+        assert sel_goose_rx_status(unusable) == {}
+        assert sel_goose_subscriptions(unusable) == {}
 
-    def test_the_first_occurrence_keeps_its_desc_and_intaddr(self, scd_file):
-        """De-duplication keeps the FIRST row, so `desc`/`intAddr` describe one
-        arbitrary point of the dataset and are documented as informative. Fails
-        if the dedup starts keeping the last -- the label on screen would
-        change for no visible reason."""
-        first = scd.extract_goose_subscriptions_by_ied(scd_file)["QPC1_TR1_UPC1"][0]
-        assert first.desc == "LT1 falha GOOSE"
-        assert first.int_addr == "VB001"
-
-    def test_the_service_type_is_matched_case_insensitively(self, scd_file):
-        """The fixture's GCB10 row writes `serviceType="goose"`. Fails if the
-        `.upper()` goes: exports that lower-case it would come back with no
-        subscriptions at all."""
-        got = scd.extract_goose_subscriptions_by_ied(scd_file)["QPC1_TR1_UPC1"]
-        assert ("ANN", "GCB10") in [(s.src_ld_inst, s.src_cb_name) for s in got]
-
-    def test_a_non_goose_extref_is_ignored(self, scd_file):
-        """The `serviceType="Report"` row points at `RCB01`. Fails if the
-        filter goes -- report control blocks would be assigned GOOSE VLANs."""
-        got = scd.extract_goose_subscriptions_by_ied(scd_file)["QPC1_TR1_UPC1"]
-        assert "RCB01" not in [s.src_cb_name for s in got]
-
-    def test_a_template_extref_with_no_publisher_is_ignored(self, scd_file):
-        """Architect writes `<ExtRef serviceType="GOOSE">` with no `iedName`
-        or `srcCBName` for a link the engineer has not closed yet. Fails if
-        the guard goes: those become subscriptions with empty keys and the
-        VLAN report claims links that do not exist."""
-        got = scd.extract_goose_subscriptions_by_ied(scd_file)["QPC1_TR1_UPC1"]
-        assert all(s.publisher_ied and s.src_cb_name for s in got)
-
-    def test_a_subscription_may_have_no_matching_gse(self, scd_file):
-        """GCB09/GCB10 are published by an IED whose `<ConnectedAP>` declares
-        no `<GSE>`, and the subscriptions are still returned. That is
-        deliberate -- an unresolvable subscription is the diagnostic. Fails if
-        the extraction starts filtering against the communication map."""
-        subs = scd.extract_goose_subscriptions_by_ied(scd_file)["QPC1_TR1_UPC1"]
-        comm = scd.extract_gse_communication_map(scd_file)
-        assert subs
-        assert all((s.publisher_ied, s.src_ld_inst, s.src_cb_name) not in comm
-                   for s in subs)
-
-    @pytest.mark.parametrize("flavour", FLAVOURS)
-    def test_every_namespace_flavour_yields_the_same_subscriptions(
-            self, tmp_path, flavour):
-        """Companion to the other two flavour tests; fails the same way."""
-        got = scd.extract_goose_subscriptions_by_ied(
-            _write(tmp_path, _scd_text(flavour)))
-        assert {k: [(s.publisher_ied, s.src_ld_inst, s.src_cb_name)
-                    for s in v] for k, v in got.items()} == {
-            "QPC1_TR1_UPC1": [("QPC1_LT1_UPC1", "PRO", "GCB09"),
-                              ("QPC1_LT1_UPC1", "ANN", "GCB10")]}
-
-    def test_a_missing_file_returns_an_empty_dict(self, tmp_path):
-        """Fails if it starts raising."""
-        assert scd.extract_goose_subscriptions_by_ied(tmp_path / "nope.scd") == {}
-
-    def test_malformed_xml_returns_an_empty_dict(self, tmp_path):
-        """Fails if `ET.ParseError` stops being caught."""
-        assert scd.extract_goose_subscriptions_by_ied(
-            _write(tmp_path, "<SCL")) == {}
+    def test_the_vb_source_map_reports_the_reason_rather_than_raising(
+            self, unusable):
+        result = vb_source.read(unusable, relay_name="X", ip="")
+        assert result.error and result.sources == {}
 
 
-# -----------------------------------------------------------------------------
-# _strip_ns / _iter_local, directly
-# -----------------------------------------------------------------------------
+# -- which IED a diagram belongs to -----------------------------------------
 
-class TestNamespaceHelpers:
+class TestMatchingADiagramToItsIed:
+    """`vb_source` picks the IED whose GOOSE map is drawn onto an open
+    diagram. Picking the wrong one draws the NEIGHBOURING relay's
+    subscriptions, and nothing about that looks wrong on screen."""
 
-    def test_strip_ns_removes_a_braced_uri(self):
-        """`ElementTree` reports `{uri}Local` for any namespaced tag, whether
-        the document used a default xmlns or a prefix. Fails if the split
-        changes side or separator."""
-        assert scd._strip_ns("{http://www.iec.ch/61850/2003/SCL}IED") == "IED"
+    def test_the_ip_is_tried_before_the_name(self, doc):
+        """Offline there is no DEVID -- the key the live MMS path matches on,
+        read off the relay itself. The IP is the one identifier the visitor
+        typed in and that the SCD states outright; the RDB relay name is a
+        hint, because an RDB and an SCD routinely spell a bay differently."""
+        assert vb_source._match_ied(
+            doc, relay_name=_PUBLISHER, ip="192.0.2.60") == (_SUBSCRIBER, "IP")
 
-    def test_strip_ns_leaves_a_bare_tag_alone(self):
-        """Fails if the `"}" in tag` guard goes -- `rsplit` on a bare tag is
-        harmless, but the guard is what documents that both shapes arrive."""
-        assert scd._strip_ns("IED") == "IED"
+    def test_the_name_is_matched_case_insensitively(self, doc):
+        assert vb_source._match_ied(
+            doc, relay_name=_SUBSCRIBER.lower(), ip="") == (_SUBSCRIBER, "nome")
+
+    def test_a_duplicate_address_keeps_the_first_ied(self, tmp_path):
+        """Two IEDs on one IP is a configuration error to report elsewhere,
+        not one to resolve by silently preferring the later device. First
+        wins, which is what the index this replaced did."""
+        text = _BODY.replace('<P type="ip">192.0.2.61</P>',
+                             '<P type="IP">192.0.2.60</P>')
+        p = tmp_path / "dup.scd"
+        p.write_text(text, encoding="utf-8")
+        parsed = SclDocument.parse(p)
+        assert vb_source._match_ied(
+            parsed, relay_name="", ip="192.0.2.60") == (_SUBSCRIBER, "IP")
+
+    def test_nothing_matching_picks_nothing(self, doc):
+        assert vb_source._match_ied(doc, relay_name="OUTRO", ip="10.0.0.1") \
+            == ("", "")
+
+    def test_a_single_ied_document_needs_no_identifier(self, tmp_path):
+        p = tmp_path / "solo.scd"
+        p.write_text('<?xml version="1.0"?>'
+                     '<SCL xmlns="http://www.iec.ch/61850/2003/SCL">'
+                     '<IED name="SOLO"/></SCL>', encoding="utf-8")
+        parsed = SclDocument.parse(p)
+        assert vb_source._match_ied(parsed, relay_name="", ip="") \
+            == ("SOLO", "único IED")
+
+
+def test_an_unreadable_scd_is_logged_and_not_swallowed_in_silence(
+        tmp_path, caplog):
+    """The failure mode this whole class of test exists for: an empty result
+    that looks like "nothing to do". A log line is what tells an engineer the
+    difference between a station with no GOOSE and a file that would not
+    open."""
+    bad = tmp_path / "quebrado.scd"
+    bad.write_text("<SCL><IED name=", encoding="utf-8")
+    with caplog.at_level(logging.WARNING, logger="py61850.scl.document"):
+        assert compute_ied_vlan_rows(bad) == []
+    assert any("quebrado.scd" in r.getMessage() for r in caplog.records)

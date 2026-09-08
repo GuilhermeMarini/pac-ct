@@ -15,9 +15,14 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
+# The standard half comes from py61850 and the SEL half from sellib. An FC is
+# the same FC whether it was read out of a file or matched against a live
+# GetLogicalDeviceDirectory, and how a data attribute's descent is spelled is
+# 61850-8-1's business; `is_boolean_status` and the two enum tests are a
+# name-only heuristic measured against SEL's corpus, and stay SEL's.
+from py61850 import da_parts
+from py61850 import fc_read_rank as fc_rank
 from sellib.scl.mms_tables import (
-    da_parts,
-    fc_rank,
     is_boolean_status,
     is_enum_do,
     is_enum_status,

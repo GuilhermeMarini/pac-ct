@@ -33,8 +33,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
-from sellib.scl import read as scd_loader
-from sellib.scl.read import GooseSubscription, GseAddress, IedInfo
+from py61850.scl import ControlBlockAddress, IedHeader, SclDocument
+from sellib.scl.read import SelGooseSubscription, sel_goose_subscriptions
 
 from pacct.paths import VLAN_MAPPER_TEMPLATES_DIR
 from pacct.web.project_files import library as filelib
@@ -111,30 +111,44 @@ def compute_ied_vlan_rows(scd_path: Path) -> list[IedVlanRow]:
     # time went: 1406 ms total, 1104 ms (78%) of it re-parsing the same bytes.
     # One document answers all three in 670 ms.
     #
+    # Two libraries read this one document and neither re-opens it. The
+    # standard half -- the IEDs, their addresses, the GSE control blocks --
+    # is `py61850.scl`'s and is not SEL's in any way. What sellib adds is the
+    # SEL half: the `pubRxStatus` health bit joined onto each subscription,
+    # which lives in a `<Private>` block and nowhere a general reader looks.
+    #
     # `load()` is the graceful constructor, so a file the visitor uploaded
     # that will not parse gives None and a log line rather than an exception
     # -- the same behaviour the three functions had, and what this route
     # already relies on.
-    doc = scd_loader.ScdDocument.load(scd_path)
+    doc = SclDocument.load(scd_path)
     if doc is None:
         return []
-    ieds: list[IedInfo] = doc.ieds()
-    gse_map: dict[tuple[str, str, str], GseAddress] = doc.gse_communication_map()
-    subs_by_ied: dict[str, list[GooseSubscription]] = doc.goose_subscriptions_by_ied()
+    ieds: dict[str, IedHeader] = doc.ied_headers
+    ip_by_ied: dict[str, str] = doc.communication.ip_by_ied()
+    # GSE only: an `SMV` shares the key shape and is a sampled-value stream,
+    # not a GOOSE publication, so a subscription must never resolve onto one.
+    gse_map: dict[tuple[str, str, str], ControlBlockAddress] = {
+        key: cb
+        for key, cb in doc.communication.control_block_addresses().items()
+        if cb.kind == "GSE"
+    }
+    subs_by_ied: dict[str, list[SelGooseSubscription]] = \
+        sel_goose_subscriptions(doc)
 
     # Index GSE by publisher for a fast TX lookup.
-    gse_by_publisher: dict[str, list[GseAddress]] = {}
+    gse_by_publisher: dict[str, list[ControlBlockAddress]] = {}
     for pub_addr in gse_map.values():
-        gse_by_publisher.setdefault(pub_addr.publisher_ied, []).append(pub_addr)
+        gse_by_publisher.setdefault(pub_addr.ied_name, []).append(pub_addr)
 
     rows: list[IedVlanRow] = []
-    for ied in ieds:
+    for ied_name, ied in ieds.items():
         # RX: resolve each subscription -> VLAN-ID via gse_map.
         rx_set: set[str] = set()
         rx_publishers: dict[str, set[str]] = {}  # vlan_id -> {publisher_ied}
         rx_count = 0
         unresolved: list[str] = []
-        for sub in subs_by_ied.get(ied.name, []):
+        for sub in subs_by_ied.get(ied_name, []):
             rx_count += 1
             key = (sub.publisher_ied, sub.src_ld_inst, sub.src_cb_name)
             addr = gse_map.get(key)
@@ -145,30 +159,31 @@ def compute_ied_vlan_rows(scd_path: Path) -> list[IedVlanRow]:
                     if cand.cb_name == sub.src_cb_name:
                         addr = cand
                         break
-            if addr is None or not addr.vlan_id:
+            if addr is None or not addr.address.vlan_id:
                 unresolved.append(
                     f"{sub.publisher_ied}/{sub.src_ld_inst or '?'}/{sub.src_cb_name}"
                 )
                 continue
-            rx_set.add(addr.vlan_id)
-            rx_publishers.setdefault(addr.vlan_id, set()).add(sub.publisher_ied)
+            rx_set.add(addr.address.vlan_id)
+            rx_publishers.setdefault(addr.address.vlan_id,
+                                     set()).add(sub.publisher_ied)
 
         # TX: VLAN-IDs of this IED's own GSE.
-        tx_addrs = gse_by_publisher.get(ied.name, [])
+        tx_addrs = gse_by_publisher.get(ied_name, [])
         tx_set: set[str] = set()
         for addr in tx_addrs:
-            if addr.vlan_id:
-                tx_set.add(addr.vlan_id)
+            if addr.address.vlan_id:
+                tx_set.add(addr.address.vlan_id)
 
         publishers_by_vlan = {
             vid: sorted(pubs) for vid, pubs in rx_publishers.items()
         }
 
         rows.append(IedVlanRow(
-            ied_name=ied.name,
-            ip=ied.ip,
-            relay_type=ied.relay_type,
-            description=ied.description,
+            ied_name=ied_name,
+            ip=ip_by_ied.get(ied_name),
+            relay_type=ied.type,
+            description=ied.desc,
             rx_vlans=_sort_vlans(rx_set),
             tx_vlans=_sort_vlans(tx_set),
             publishers_by_vlan=publishers_by_vlan,

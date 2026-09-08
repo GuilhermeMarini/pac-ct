@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 
 import pytest
-from sellib.scl._xmlsafe import DtdNotAllowed
+from py61850.scl import DtdNotAllowed
 
 from pacct.web.gle_tabs import model
 from tests import gle_fixtures as fx

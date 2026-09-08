@@ -19,7 +19,7 @@ import xml.parsers.expat as expat
 from collections import Counter
 from dataclasses import dataclass
 
-from sellib.scl._xmlsafe import DtdNotAllowed, reject_dtd_in_bytes
+from py61850.scl import DtdNotAllowed, reject_dtd_in_bytes
 
 # Measured across the 3.111 page names of the 215 `.gle` in the local corpus:
 # none is longer, 67 sit exactly here, and several are visibly truncated

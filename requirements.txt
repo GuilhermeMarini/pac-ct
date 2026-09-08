@@ -13,7 +13,9 @@ olefile>=0.47
 # tools -- `app.py` exits on a pip failure.
 cfbwrite>=1.0
 # The file formats an SEL project is made of: RDB, SET_*.TXT, DNP maps, GLE,
-# SELOGIC, SCL/IEC 61850, and the per-model registries. This was
+# SELOGIC, the SEL half of an SCL file, and the per-model registries. The
+# STANDARD half of IEC 61850 is not in it any more -- 3.0.0 moved that to
+# py61850, below, and kept only what SEL writes inside a standard format. This was
 # `pacct/parsers/`, `pacct/core/` and `pacct/matchers/` -- the layer that
 # already did not know the web existed:
 # https://github.com/GuilhermeMarini/sellib
@@ -25,27 +27,30 @@ cfbwrite>=1.0
 # distribution was deleted from PyPI, so `selfiles` resolves to nothing
 # at all -- an older checkout of this file fails at pip rather than
 # booting on a version from before the rename.
-SELlib>=2.2.0
+SELlib>=3.0.1
 openpyxl>=3.1
-# py61850 (the GLV's MMS transport). Until 2026-08-31 this was a commit pin
-# (`py61850 @ git+https://...@<sha>`), because PyPI carried only 0.0.1 and the
-# client the GLV calls (`MmsClient`, `decode_data_definition`,
-# `py61850.mms.pdu`) was not published anywhere. Now it is: PyPI serves
-# 0.2.0.dev1, a PRE-RELEASE -- 0.2.0 final still does not exist.
+# py61850. Two things now, where it used to be one. It is still the GLV's MMS
+# transport (`MmsClient`, `decode_data_definition`, `py61850.mms.pdu`), and
+# since 0.3.0 it is also the IEC 61850-6 reader: `py61850.scl` builds the
+# document, the type templates and the per-IED model that four tools here read
+# an SCD through. SELlib 3.0.0 deleted its own copy of that reader and depends
+# on this one, so pip would install it either way -- naming it here is what
+# says pac-ct calls it directly and would notice it going away.
 #
-# Naming a pre-release in the specifier itself is what lets pip install a dev
-# WITHOUT `--pre` on the command line (PEP 440 / pip: pre-releases are eligible
-# when the requirement mentions them). Hence `>=0.2.0.dev1` and not
-# `>=0.2.0`: the latter matches no published version today.
+# `>=0.3.0`, a FINAL. Until 2026-09-08 this file pinned `>=0.2.0.dev1` and had
+# to: PyPI carried no 0.2.0, and PEP 440 sorts a `.devN` BEFORE its release, so
+# a plain `>=0.2.0` matched nothing, pip failed, `app.py` exited and not one of
+# the nine tools came up. Naming a pre-release in the specifier is also what
+# lets pip take one without `--pre` on the command line.
 #
-# It is also what makes a NEW dev get picked up without editing this file:
-#
-#   python3 app.py --atualizar-deps        # pip install --pre -U -r requirements.txt
+# That is over, and the pin must not name a pre-release again while a final
+# exists: a specifier that mentions one tells the resolver pre-releases are
+# eligible FOR THAT REQUIREMENT, so `>=0.3.0.dev2` would keep letting a future
+# `0.4.0.dev1` in silently on a fresh install.
 #
 # A normal boot deliberately does NOT update: `app.py` calls pip only when a
 # package fails to import, and a substation usually has no internet -- a
 # `pip install -U` on every `--web` would turn "no network" into "not one of
-# the nine tools comes up" (app.py exits on pip's error).
-#
-# Switch to `py61850>=0.2.0` the day the final is published.
-py61850>=0.2.0.dev1
+# the nine tools comes up" (app.py exits on pip's error). To update on
+# purpose: `python3 app.py --atualizar-deps`.
+py61850>=0.3.0

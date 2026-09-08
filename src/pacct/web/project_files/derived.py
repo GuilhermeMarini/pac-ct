@@ -30,8 +30,8 @@ import shutil
 import tempfile
 from pathlib import Path
 
+from py61850.scl import SclDocument
 from sellib import rdb as rdb_loader
-from sellib.scl import read as scd_loader
 
 from pacct.web.project_files import library
 
@@ -161,7 +161,8 @@ def _scd_entry(src: Path, size: int, name: str, sha: str, origin: str, session):
     target = library.path_for(library.files_dir(session), sha, ".scd")
     _copy_atomic(src, target)
     try:
-        ieds = scd_loader.load_scd(target)
+        doc = SclDocument.load(target)
+        ieds = list(doc.ied_headers) if doc is not None else []
     except Exception:
         # A generated SCD that does not parse is this server's bug, not the
         # visitor's, and hiding the file would hide the evidence. It enters
