@@ -48,6 +48,13 @@ to contract.
 | `pacct.web.mount` | `Mount`, `inject_head` | 6 |
 | `pacct.web.themes` | theme tokens | 6 |
 | `pacct.library` (new) | the project file library, extracted from `project_files` | — |
+| `pacct.scl_session` (new, Idea 3) | working SCL documents, the edit journal, undo/redo and push | — |
+
+`pacct.scl_session` arrives with Idea 3 and is listed here because it is
+platform by the same test as `project_files`: several tools depend on it and it
+owns no screen of its own. Nothing else about this contract changes for the SCL
+tools — they are ordinary tools in a new menu group, not a second kind of
+plugin. See `../03-scl-editor/02-specification.md` §7.
 
 **Rules:**
 

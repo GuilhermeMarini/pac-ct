@@ -21,6 +21,13 @@ no documentation as a framework.
 **Turns on:** whether anyone other than the current maintainer is expected to
 work on this code, and over what horizon.
 
+**Partly settled by Idea 3.** An SLD designer, a subscription binder and a
+DataTypeTemplates tree browser cannot reasonably be built in inline `<script>`
+blocks, so if the SCL editor proceeds, B2 or B3 stops being optional. That
+does not by itself answer whether the *backend* framework is worth replacing —
+Q3 is still open — but it removes "stay vanilla" from the frontend half.
+See `../03-scl-editor/01-stack.md` §4.
+
 ---
 
 ## Q2. Do the three themes keep their separate markup?
