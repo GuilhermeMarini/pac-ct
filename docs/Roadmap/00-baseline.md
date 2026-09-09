@@ -1,7 +1,7 @@
 # Baseline — the tree as it stands
 
-Measured 2026-09-08 against `pac-ct` 1.11.4. Both roadmap items depend on
-these facts; if any of them changes, the documents that rest on it need
+Measured 2026-09-08 against `pac-ct` 1.11.4. All three roadmap items depend
+on these facts; if any of them changes, the documents that rest on it need
 re-reading.
 
 ---
@@ -174,14 +174,16 @@ These are not preferences. They come from where the application runs.
 
 ## 5. Shared prerequisites
 
-Work both ideas need, and which stands on its own merits regardless.
+Work all three ideas need, and which stands on its own merits regardless.
+`IMPLEMENTATION-ORDER.md` schedules these as Stage 0, on the Foundation track.
 
 ### 5.1 Split the four single-file tools
 
 `vb_updater`, `gle_exporter`, `settings_compare` and `vlan_mapper` each have
 routing, domain logic and HTML generation in one `__init__.py`. Neither idea
 can proceed cleanly through them: Idea 1 cannot separate their handlers from
-their models, and Idea 2 cannot package them as units with a declared surface.
+their models, Idea 2 cannot package them as units with a declared surface, and
+Idea 3 cannot give them a live document.
 
 Already `BACKLOG.md` item 4. The route tests in `tests/test_web_routes_*.py`
 mean a split that breaks something fails loudly, which is why the backlog
@@ -191,9 +193,9 @@ describes the risk as low.
 
 Section 3 lists what tools actually import. Nothing declares that list as a
 contract, so every one of those imports is equally revocable and equally
-load-bearing, with no way to tell which. Both ideas need the distinction:
+load-bearing, with no way to tell which. All three ideas need the distinction:
 Idea 1 to know what survives a framework change, Idea 2 to know what a plugin
-is allowed to reach.
+is allowed to reach, Idea 3 to know where the document session sits.
 
 This is a documentation task first — describe what is already true — and only
 then a question of whether the boundary should move.
@@ -202,6 +204,6 @@ then a question of whether the boundary should move.
 
 It is imported by all seven other tools, by `mount.py` and by `session.py`,
 and `/library` is served by the dispatcher rather than by the tool. It is
-platform wearing a tool's clothes. Both ideas need this resolved, and the
+platform wearing a tool's clothes. All three ideas need this resolved, and the
 answer is probably to split it: a `library` platform module, and a thin
 `/files` screen that is a tool like any other.

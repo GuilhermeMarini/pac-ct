@@ -3,7 +3,7 @@
 This folder maps work that is **wanted but not committed to**. It is not a
 backlog of defects (that is `docs/BACKLOG.md`) and not a record of what was
 done (that is `docs/ENGINEERING-NOTES.md` and `docs/MIGRATION.md`). It holds
-the two structural changes the application has been asked to consider, each
+the three structural changes the application has been asked to consider, each
 with its measured starting point, the stack it would need, a specification of
 the end state, and a phased route from one to the other.
 
@@ -27,9 +27,15 @@ against facts instead of impressions.
 | **3** | A live SCL editor | Reimplement OpenSCD's concepts on `py61850`, which is 1,695 lines of read-only and already the right shape | [`03-scl-editor/`](03-scl-editor/) |
 
 [`00-baseline.md`](00-baseline.md) is the measured description of the tree as
-it stands today. Both ideas depend on it, and it also records the shared
+it stands today. All three ideas depend on it, and it also records the shared
 prerequisites — the work that has to happen regardless of which idea proceeds,
-or whether either does.
+or whether any does.
+
+[`IMPLEMENTATION-ORDER.md`](IMPLEMENTATION-ORDER.md) is the **how**: the three
+tracks the work actually divides into, the staged sequence across all three
+ideas, and Stages 0 and 1 broken into session-sized phases. It also records
+which open question gates which stage, and which items are deferred
+indefinitely.
 
 ---
 
@@ -62,6 +68,7 @@ functional-spec format that makes a rebuild checkable).
 | Idea 3 — SCL editor | **architecture decided, scope not** | Idea 1 Phase 0 and its frontend choice; the IEC data licensing question in `03/04-open-questions.md` Q1 |
 | Idea 3, Phases 1–2 (`py61850` writes SCL) | **ready, and independently valuable** | nothing — no pac-ct work involved |
 | Shared prerequisite — split the 4 single-file tools | **ready** | nothing; already `BACKLOG.md` item 4 (S3) |
+| **Implementation order** | **planned for Stages 0–1, gated beyond** | see `IMPLEMENTATION-ORDER.md` §8 |
 
 ---
 
