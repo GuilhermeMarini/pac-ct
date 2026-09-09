@@ -11,6 +11,7 @@ import re
 from pathlib import Path
 
 import pytest
+from packaging.specifiers import SpecifierSet
 
 from pacct import __version__
 from pacct import version as V
@@ -98,12 +99,51 @@ def test_requirements_and_pyproject_pin_the_same_libraries():
     of difference nobody notices until a relay is on the bench."""
     req = (ROOT / "requirements.txt").read_text(encoding="utf-8")
     proj = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    for name in ("cfbwrite", "SELlib"):
+    for name in ("cfbwrite", "SELlib", "py61850"):
         req_line = _pins(req, name)
         assert len(req_line) == 1, f"{name} must appear once in requirements.txt"
         pin = req_line[0].split("#", 1)[0].strip()
         assert f'"{pin}"' in proj, (
             f"pyproject.toml does not carry the same pin for {name}: {pin!r}")
+
+
+def test_the_py61850_pin_is_bounded_above():
+    """The ceiling is what keeps the NEXT library minor out of THIS release.
+
+    0.4.0 changes how `py61850` walks an SCL document: it keeps XML comments,
+    and `strip_ns` then receives a comment node's `tag` -- a function, not a
+    string -- so `iter_local` and `children_local`, which call it on every node
+    they walk, raise `AttributeError: 'function' object has no attribute
+    'rsplit'` on any SCD that carries a comment. Real vendor files carry
+    comments. Unbounded, `>=0.3.0` means a CLEAN install of the application in
+    production resolves to that release by itself and not one of the tools that
+    read an SCD comes up. Installed trees and the offline bundles are safe
+    either way -- `app.py` runs pip only when an import fails, and a bundle
+    carries pinned wheels -- so the exposure is exactly the clean install and
+    `--atualizar-deps`.
+
+    The property pinned here is therefore not the string `<0.4`, it is what the
+    specifier admits. PEP 440's exclusive comparison also refuses pre-releases
+    OF THE VERSION IT NAMES, which is what keeps a `0.4.0.dev1` out of
+    `--atualizar-deps` -- the one path that passes `--pre` to pip.
+
+    Raising the ceiling is a deliberate act, taken once 0.4.0 has been verified
+    against this suite, never a side effect of another change. If this test is
+    in the way, that is the test working.
+    """
+    req = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+    proj = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    specifiers = [_pins(req, "py61850")[0].split("#", 1)[0].strip()
+                  .removeprefix("py61850")]
+    specifiers += re.findall(r'"py61850([^"]*)"', proj)
+    assert len(specifiers) == 2, specifiers
+    for spec in specifiers:
+        admits = SpecifierSet(spec)
+        assert admits.contains("0.3.0") and admits.contains("0.3.9"), spec
+        for blocked in ("0.4.0", "0.4.0.dev1", "0.4.0rc1", "1.0.0"):
+            assert not admits.contains(blocked, prereleases=True), (
+                f"{spec!r} still admits {blocked}: the pin is not bounded "
+                f"below the release that changes the parser")
 
 
 def test_the_unpublished_libraries_are_pinned_to_a_commit_not_a_branch():
