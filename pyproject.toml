@@ -41,8 +41,11 @@ dependencies = [
     # four tools here read an SCD through. A FINAL, not a pre-release: a
     # specifier naming a `.devN` tells the resolver pre-releases are eligible
     # for that requirement, which would let a future `0.4.0.dev1` in silently.
-    # See requirements.txt for the full note.
-    "py61850>=0.3.0",
+    # And bounded above: 0.4.0 changes how the parser walks a document, so an
+    # unbounded pin would put a parser that raises on any SCD carrying an XML
+    # comment into a clean install of THIS release. See requirements.txt for
+    # the full note, and raise the ceiling deliberately or not at all.
+    "py61850>=0.3.0,<0.4",
 ]
 
 [project.optional-dependencies]

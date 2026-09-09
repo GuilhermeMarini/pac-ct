@@ -53,4 +53,21 @@ openpyxl>=3.1
 # `pip install -U` on every `--web` would turn "no network" into "not one of
 # the nine tools comes up" (app.py exits on pip's error). To update on
 # purpose: `python3 app.py --atualizar-deps`.
-py61850>=0.3.0
+# `<0.4` is the CEILING, and it is insurance rather than a preference. The next
+# minor of the library changes how the SCL parser walks a document: it keeps XML
+# comments, and `strip_ns` then receives a comment node's `tag`, which is a
+# FUNCTION and not a string -- so `iter_local` and `children_local`, which call
+# it on every node they walk, raise `AttributeError: 'function' object has no
+# attribute 'rsplit'` on any SCD that contains a comment. Real vendor files
+# contain comments. With the pin unbounded, a CLEAN install of this application
+# -- or `--atualizar-deps` -- would resolve to that release by itself and not
+# one of the tools that read an SCD would come up. Existing installs and the
+# offline bundles are safe either way: they carry pinned wheels, and `app.py`
+# runs pip only when an import fails.
+#
+# PEP 440 makes the ceiling stricter than it looks: an exclusive comparison
+# refuses pre-releases OF THE VERSION IT NAMES, so `<0.4` keeps `0.4.0.dev1` and
+# `0.4.0rc1` out as well -- including under `--atualizar-deps`, which passes
+# `--pre`. Raise it deliberately, once 0.4.0 has been verified against this
+# suite, and never as a side effect of some other change.
+py61850>=0.3.0,<0.4
