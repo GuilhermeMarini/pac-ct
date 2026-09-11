@@ -301,3 +301,39 @@ def test_download_serves_a_generated_file_by_its_bare_name(tmp_path):
     r = h.get("/download?f=projeto_abas.rdb")
     assert r.status == 200
     assert r.body == b"conteudo do RDB"
+
+
+# -- where the JavaScript lives ---------------------------------------------
+#
+# Nothing in the suite runs JavaScript, and a page whose script never loads
+# still answers 200 -- the landing renders blank, because `SelLibrary.picker`
+# is called at the top level of that file. These assertions cover the one
+# failure a route test can see: the tag and the file disagreeing about the
+# path, after a rename or a file that did not ship. Two screens, so four.
+
+def test_the_landing_reaches_its_script_file():
+    from pacct.paths import STATIC_DIR
+    from pacct.web.gle_tabs import handler
+
+    assert '<script src="/static/js/gle_tabs/landing.js">' in handler.LANDING_HTML
+    assert (STATIC_DIR / "js" / "gle_tabs" / "landing.js").is_file()
+
+
+def test_the_landing_carries_no_inline_script_body():
+    from pacct.web.gle_tabs import handler
+
+    assert "<script>" not in handler.LANDING_HTML
+
+
+def test_the_editor_reaches_its_script_file():
+    from pacct.paths import STATIC_DIR
+    from pacct.web.gle_tabs import handler
+
+    assert '<script src="/static/js/gle_tabs/editor.js">' in handler.EDITOR_HTML
+    assert (STATIC_DIR / "js" / "gle_tabs" / "editor.js").is_file()
+
+
+def test_the_editor_carries_no_inline_script_body():
+    from pacct.web.gle_tabs import handler
+
+    assert "<script>" not in handler.EDITOR_HTML
