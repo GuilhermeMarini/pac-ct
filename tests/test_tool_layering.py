@@ -77,4 +77,5 @@ def test_the_check_is_not_vacuous():
     """A rename or a move that leaves no `model.py` behind would make the test
     above pass by finding nothing, so name the tools that are split today."""
     found = {path.parent.name for path in _model_files()}
-    assert {"dnp_map", "gle_tabs", "vlan_mapper"} <= found
+    assert {"dnp_map", "gle_tabs", "settings_compare",
+            "vlan_mapper"} <= found

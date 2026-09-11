@@ -144,7 +144,7 @@ def _rdb_entry(src: Path, size: int, name: str, sha: str, origin: str):
         info = rdb_loader.process_upload_stream(fh, size, name)
     # The name to SHOW, over the one `sellib` sanitized. It goes on the
     # `RdbInfo` and not only on the entry because five screens read it from
-    # there (`glv/handler.py:184`, `settings_compare:131`, `vb_updater:1113`,
+    # there (`glv/handler.py:184`, `settings_compare/state.py:90`, `vb_updater:1113`,
     # `gle_exporter:844`, `dnp_map/handler.py:649`) -- and the field is
     # documented as "the name THIS upload carried", which is exactly what
     # this is. What `sellib` keeps is the cache's own record in

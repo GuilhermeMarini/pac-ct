@@ -357,7 +357,7 @@ def test_a_generated_rdb_enters_the_library_with_its_accents(tmp_path,
 
     The assert on `entry.rdb` is the point: five screens read the name off the
     `RdbInfo` rather than off the library entry (`glv/handler.py:184`,
-    `settings_compare:131`, `vb_updater:1113`, `gle_exporter:844`,
+    `settings_compare/state.py:90`, `vb_updater:1113`, `gle_exporter:844`,
     `dnp_map/handler.py:649`), and two of those build an output filename with
     it.
     """
