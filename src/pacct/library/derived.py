@@ -5,7 +5,7 @@ DNP Map Editor wrote a corrected RDB, and the only way to feed either into the
 next tool was to download it and upload it again -- a 140 MB round trip through
 the substation's network to move a file between two tabs of the same server.
 
-`adopt()` is the other half of `handler.py:_do_upload`. It takes the file a
+`adopt()` is the other half of `web/files/handler.py:_do_upload`. It takes the file a
 tool just wrote and puts it in the same library an upload lands in, by the same
 rules: keyed by the sha256 of the content, RDB extracted into the shared
 content cache, SCD copied into the session's `files/`. From there every
@@ -33,11 +33,12 @@ from pathlib import Path
 from py61850.scl import SclDocument
 from sellib import rdb as rdb_loader
 
-from pacct.web.project_files import library
+from pacct.library import model as library
 
 # The output-only kind. Deliberately absent from `library.kind_for`, which is
-# what `_do_upload` validates against: a spreadsheet is not something a visitor
-# uploads INTO the project, it is something the project produced.
+# what `web/files/handler.py:_do_upload` validates against: a spreadsheet is
+# not something a visitor uploads INTO the project, it is something the
+# project produced.
 KIND_XLSX = library.KIND_XLSX
 
 
@@ -144,13 +145,13 @@ def _rdb_entry(src: Path, size: int, name: str, sha: str, origin: str):
         info = rdb_loader.process_upload_stream(fh, size, name)
     # The name to SHOW, over the one `sellib` sanitized. It goes on the
     # `RdbInfo` and not only on the entry because six screens read it from
-    # there -- `glv/handler.py`, `settings_compare/state.py`, `vb_updater` and
-    # `gle_exporter` (each in both its `state.py` and its `handler.py`, which
-    # builds both of that tool's output names with it), `gle_tabs/handler.py`
-    # and `dnp_map/handler.py` -- and the
-    # field is documented as "the name THIS upload carried", which is exactly what
-    # this is. What `sellib` keeps is the cache's own record in
-    # `meta.json`, which no screen reads.
+    # there, and all six are under `web/` -- `glv/handler.py`,
+    # `settings_compare/state.py`, `vb_updater` and `gle_exporter` (each in
+    # both its `state.py` and its `handler.py`, which builds both of that
+    # tool's output names with it), `gle_tabs/handler.py` and
+    # `dnp_map/handler.py` -- and the field is documented as "the name THIS
+    # upload carried", which is exactly what this is. What `sellib` keeps is
+    # the cache's own record in `meta.json`, which no screen reads.
     # Files, not line numbers, and that is a correction rather than laziness:
     # this list carried five `file:line` citations and by the time anyone
     # checked, all five pointed at the wrong line -- one of them three lines

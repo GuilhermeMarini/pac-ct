@@ -28,8 +28,8 @@ import json
 import logging
 from pathlib import Path
 
+from pacct import library as filelib
 from pacct.web import theme as themes
-from pacct.web.project_files import library as filelib
 from pacct.web.session import Session, SessionManager
 
 LOGGER = logging.getLogger("test")

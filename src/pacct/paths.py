@@ -116,9 +116,7 @@ DNP_TEMPLATES_DIR: Path = PACKAGE_DIR / "web" / "dnp_map" / "templates"
 
 # HTML template for the Arquivos do Projeto tab. Same reason as the GLV and
 # the DNP map: a real .html file, because most of it is JavaScript.
-PROJECT_FILES_TEMPLATES_DIR: Path = (
-    PACKAGE_DIR / "web" / "project_files" / "templates"
-)
+FILES_TEMPLATES_DIR: Path = PACKAGE_DIR / "web" / "files" / "templates"
 
 # HTML template for the VLAN Mapper. Same reason as the GLV: a real .html file,
 # because most of it is JavaScript.

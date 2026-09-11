@@ -15,8 +15,8 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import unquote
 
-from pacct.web.project_files import library as filelib
-from pacct.web.project_files.handler import build_project_files_handler
+from pacct import library as filelib
+from pacct.web.files.handler import build_files_handler
 from tests.web_harness import build
 
 _SCD = Path(__file__).parent / "fixtures" / "saddr_min.scd"
@@ -24,7 +24,7 @@ _SCD_BYTES = _SCD.read_bytes()
 
 
 def _harness(tmp_path):
-    return build(build_project_files_handler, tmp_path)
+    return build(build_files_handler, tmp_path)
 
 
 def _upload(h, data: bytes, filename: str = "projeto.scd", **kw):
@@ -201,7 +201,7 @@ def test_an_uploaded_rdb_keeps_its_accents(tmp_path, monkeypatch):
     """
     from sellib.rdb import RdbInfo
 
-    from pacct.web.project_files import handler as files_handler
+    from pacct.web.files import handler as files_handler
 
     def fake_stream(source, length, filename, **kw):
         source.read(length)               # the route hands over `rfile`

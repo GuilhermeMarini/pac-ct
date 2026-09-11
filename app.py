@@ -9,14 +9,16 @@ Project layout (a summary; the full map is in the README):
     +-- src/pacct/              (this application's own code)
     |   +-- paths.py            (path constants -- always resolve from here)
     |   +-- core/               (what talks to a relay: relay_conn, TARGET)
+    |   +-- library/            (the project's files: platform, not a tool --
+    |   |                        every screen reads it, it reads no screen)
     |   +-- cli/runner.py       (CLI mode: polling in the terminal)
     |   +-- web/
     |       +-- dashboard.py    (the home + main(): mounts the tools)
     |       +-- mount.py        (ONE server, routed by path prefix)
     |       +-- session.py      (per-visitor session, cookie `selsid`)
     |       +-- rdb_write.py    (the only place that writes bytes into an RDB)
-    |       +-- project_files/  (Arquivos do Projeto: the only screen with an
-    |       |                    upload)
+    |       +-- files/          (Arquivos do Projeto: the only screen with an
+    |       |                    upload; the library itself is above)
     |       +-- glv/ dnp_map/ vb_updater/ vlan_mapper/ gle_exporter/
     |       +-- settings_compare/  themes/  progress.py
     +-- data/                   (overlay for user-supplied model data; starts

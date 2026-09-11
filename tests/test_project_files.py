@@ -6,7 +6,7 @@ import logging
 import time
 from pathlib import Path
 
-from pacct.web.project_files import library
+from pacct.library import model as library
 from pacct.web.session import SessionManager
 
 
@@ -204,7 +204,7 @@ def test_the_library_directory_is_not_prefixed_by_a_tool_key(tmp_path):
 def test_the_nav_marker_sits_inside_the_shell_not_the_header():
     """In régua, `.shell` is a two-column grid whose first column IS the nav.
     A marker left in `<header>` collapses the page to about 200px wide."""
-    from pacct.web.project_files import handler as pf_handler
+    from pacct.web.files import handler as pf_handler
 
     html = pf_handler.LIBRARY_HTML
     shell = html.index('<div class="shell">')
@@ -217,7 +217,7 @@ def test_the_nav_marker_sits_inside_the_shell_not_the_header():
 def test_the_page_never_bakes_a_nav_at_import_time():
     """The three directions do not share nav markup; resolving the marker
     here would freeze one direction's markup into all three."""
-    from pacct.web.project_files import handler as pf_handler
+    from pacct.web.files import handler as pf_handler
 
     html = pf_handler.LIBRARY_HTML
     for frozen in ('class="toc"', 'class="strip"', 'class="tabs"'):
@@ -225,11 +225,11 @@ def test_the_page_never_bakes_a_nav_at_import_time():
 
 
 def test_the_handler_owns_the_library_key(tmp_path):
-    from pacct.web.project_files import handler as pf_handler
+    from pacct.web.files import handler as pf_handler
 
     log = logging.getLogger("test")
     mgr = SessionManager(root=tmp_path, logger=log)
-    cls = pf_handler.build_project_files_handler(log, mgr)
+    cls = pf_handler.build_files_handler(log, mgr)
     assert cls.session_key == library.LIBRARY_KEY
     assert cls.state_factory is library.FileLibrary
 
@@ -275,7 +275,7 @@ def _picker_js() -> str:
 
 
 def test_the_runtime_goes_in_before_the_closing_body():
-    from pacct.web.project_files import client
+    from pacct.library import client
 
     html = "<html><body><p>oi</p></body></html>"
     out = client.inject_library_runtime(html)
@@ -284,7 +284,7 @@ def test_the_runtime_goes_in_before_the_closing_body():
 
 
 def test_the_runtime_survives_a_page_without_a_body_tag():
-    from pacct.web.project_files import client
+    from pacct.library import client
 
     out = client.inject_library_runtime("<p>oi</p>")
     assert client.CLIENT_JS_URL in out
@@ -316,7 +316,7 @@ def _session(tmp_path):
 def test_a_spreadsheet_is_an_output_kind_and_never_an_upload():
     """`kind_for` is what /upload validates against and must keep refusing a
     spreadsheet; `kind_for_output` is what a tool's own file goes through."""
-    from pacct.web.project_files import derived
+    from pacct.library import derived
 
     assert library.kind_for("planilha.xlsx") is None
     assert derived.kind_for_output("planilha.xlsx") == library.KIND_XLSX
@@ -325,7 +325,7 @@ def test_a_spreadsheet_is_an_output_kind_and_never_an_upload():
 
 
 def test_a_generated_scd_enters_the_library_with_its_origin(tmp_path):
-    from pacct.web.project_files import derived
+    from pacct.library import derived
 
     mgr, sess = _session(tmp_path)
     src = tmp_path / "sub_comments_updated.scd"
@@ -366,7 +366,7 @@ def test_a_generated_rdb_enters_the_library_with_its_accents(tmp_path,
     """
     from sellib.rdb import RdbInfo
 
-    from pacct.web.project_files import derived
+    from pacct.library import derived
 
     mgr, sess = _session(tmp_path)
     src = tmp_path / "subestação_dnp_updated.rdb"
@@ -398,7 +398,7 @@ def test_a_generated_rdb_enters_the_library_with_its_accents(tmp_path,
 
 
 def test_adopting_the_same_output_twice_is_one_entry(tmp_path):
-    from pacct.web.project_files import derived
+    from pacct.library import derived
 
     mgr, sess = _session(tmp_path)
     src = tmp_path / "sub.scd"
@@ -412,7 +412,7 @@ def test_adopting_the_same_output_twice_is_one_entry(tmp_path):
 
 
 def test_a_generated_spreadsheet_is_kept_but_no_picker_asks_for_it(tmp_path):
-    from pacct.web.project_files import derived
+    from pacct.library import derived
 
     mgr, sess = _session(tmp_path)
     src = tmp_path / "comments.xlsx"
@@ -430,7 +430,7 @@ def test_a_generated_spreadsheet_is_kept_but_no_picker_asks_for_it(tmp_path):
 def test_an_output_that_cannot_be_adopted_never_raises(tmp_path):
     """Adoption is best-effort: the export that triggered it already
     succeeded, and must not fail because the library refused the file."""
-    from pacct.web.project_files import derived
+    from pacct.library import derived
 
     mgr, sess = _session(tmp_path)
     unknown = tmp_path / "relatorio.txt"
@@ -490,9 +490,9 @@ def test_the_download_source_follows_the_kind(tmp_path):
 # `scd_path` answered "Arquivo não está mais no projeto".
 
 def _handler_class(tmp_path):
-    from pacct.web.project_files.handler import build_project_files_handler
+    from pacct.web.files.handler import build_files_handler
     mgr = SessionManager(root=tmp_path, logger=logging.getLogger("test"))
-    return build_project_files_handler(logging.getLogger("test"), mgr)
+    return build_files_handler(logging.getLogger("test"), mgr)
 
 
 def test_re_uploading_an_scd_keeps_the_file_the_library_points_at(tmp_path):
@@ -538,7 +538,7 @@ def test_the_duplicate_branch_tells_discard_what_to_keep(tmp_path):
     """The guard only works if the call site hands `keep` over. It is one
     keyword on one line and reverting it is silent -- the entry stays on
     screen and only the file goes -- so it is pinned here."""
-    from pacct.web.project_files import handler as h
+    from pacct.web.files import handler as h
     src = Path(h.__file__).read_text(encoding="utf-8")
     assert "self._discard(entry, keep=existing)" in src
 
@@ -589,7 +589,7 @@ def _minimal_rdb(tmp_path) -> bytes:
 
 
 def test_an_rdbs_detail_counts_ieds_like_an_scds_does(tmp_path):
-    from pacct.web.project_files import derived
+    from pacct.library import derived
 
     mgr, sess = _session(tmp_path)
     rdb_src = tmp_path / "projeto.rdb"
@@ -613,8 +613,8 @@ def test_neither_producer_says_rele_any_more():
     real request -- cheaper to pin the source than to stand up a POST just to
     read one f-string. The two producers are one line each and drift apart
     silently: the listing is the only place they meet."""
-    from pacct.web.project_files import derived
-    from pacct.web.project_files import handler as h
+    from pacct.library import derived
+    from pacct.web.files import handler as h
     for mod in (h, derived):
         src = Path(mod.__file__).read_text(encoding="utf-8")
         assert "relé(s)" not in src, f"{mod.__name__} still counts relés"

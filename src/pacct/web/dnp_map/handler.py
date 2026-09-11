@@ -20,10 +20,10 @@ from sellib import dnp_profile
 from sellib.models import wordbits
 from sellib.rdb import short_sha as _short_sha
 
+from pacct import library as filelib
 from pacct.paths import is_within
 from pacct.web.dnp_map import export as exporter
 from pacct.web.dnp_map import load_template, model
-from pacct.web.project_files import library as filelib
 from pacct.web.session import SessionHandler
 
 # A device profile bundle is a few hundred KB of XML plus the XSLT/XSD that

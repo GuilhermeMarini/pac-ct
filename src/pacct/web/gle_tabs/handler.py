@@ -13,10 +13,10 @@ from urllib.parse import parse_qs, quote, urlparse
 from sellib import rdb as rdb_loader
 from sellib.rdb import short_sha as _short_sha
 
+from pacct import library as filelib
 from pacct.paths import is_within
 from pacct.web import rdb_write
 from pacct.web.gle_tabs import export, load_template, model, state
-from pacct.web.project_files import library as filelib
 from pacct.web.session import SessionHandler
 
 LANDING_HTML = load_template("landing.html")

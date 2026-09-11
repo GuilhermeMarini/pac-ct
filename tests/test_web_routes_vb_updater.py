@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from urllib.parse import quote, unquote
 
-from pacct.web.project_files import library as filelib
+from pacct import library as filelib
 from pacct.web.vb_updater import build_vb_updater_handler
 from tests import gle_fixtures as fx
 from tests.web_harness import build, fake_rdb

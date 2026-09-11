@@ -21,6 +21,7 @@ from urllib.parse import quote, urlparse
 
 from sellib import rdb as rdb_loader
 
+from pacct import library as filelib
 from pacct.paths import is_within
 from pacct.web.gle_exporter import load_template
 from pacct.web.gle_exporter.export import (
@@ -30,7 +31,6 @@ from pacct.web.gle_exporter.export import (
 )
 from pacct.web.gle_exporter.model import extract_port_instances_from_gle
 from pacct.web.gle_exporter.state import SessionState, state_payload
-from pacct.web.project_files import library as filelib
 from pacct.web.rdb_write import (
     with_suffix_before_ext as _with_suffix_before_ext,
 )

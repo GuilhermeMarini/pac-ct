@@ -101,7 +101,7 @@ def test_an_entry_of_the_wrong_kind_is_refused(tmp_path):
     """`/select-scd` checks the kind, not just the presence: an RDB shares the
     library with the SCDs and its sha would otherwise resolve."""
     h = _harness(tmp_path)
-    from pacct.web.project_files import library as filelib
+    from pacct import library as filelib
     with h.session.lock:
         h.library().add(filelib.FileEntry(
             sha256="a" * 64, kind=filelib.KIND_RDB,

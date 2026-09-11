@@ -4,13 +4,15 @@ Two uploads of the same bytes are the same file, so the key is the content and
 never the name: `projeto.rdb` from two different substations coexist, and the
 same substation sent twice does not.
 
-This module knows nothing about HTTP -- `handler.py` serves the routes. It
-also holds no lock of its own: callers hold `Session.lock`, the way every
-other tool already guards its own state.
+This module knows nothing about HTTP -- `web/files/handler.py` serves the
+screen's routes and `web/mount.py` the shared `/library` listing. It also
+holds no lock of its own: callers hold `Session.lock`, the way every other
+tool already guards its own state.
 """
 
 from __future__ import annotations
 
+import json
 import re
 import time
 from dataclasses import dataclass, field
@@ -254,3 +256,28 @@ def files_dir(session) -> Path:
     directory and undo the whole point of a shared library.
     """
     return session.subdir("files")
+
+
+def library_response(sessions, session, kind: str = "") -> bytes:
+    """The JSON `GET <prefix>/library` answers: this visitor's files, filtered.
+
+    The payload lives here and the HTTP framing stays in `web/mount.py`, the
+    same split `progress.progress_response` already has one function below it
+    there. What that buys is the guard on the next line: it is a property of
+    the LIBRARY, not of the dispatcher, and it has to survive whichever
+    framework serves the route.
+
+    `session` is None when the request arrived with no cookie. The library of
+    someone with no session is empty, and that is the answer -- minting a
+    session here is what caused the identity swap `mount.py:_dispatch`
+    describes: every cookie-less request added a phantom session, each got a
+    different `Set-Cookie`, concurrent ones traded the identity between them
+    and every upload landed in a new empty project. `/library` is
+    infrastructure; only a tool's own page mints.
+    """
+    files: list[dict] = []
+    if sessions is not None and session is not None:
+        lib = library_for(sessions, session)
+        with session.lock:
+            files = [e.to_json() for e in lib.list(kind or None)]
+    return json.dumps({"files": files}).encode("utf-8")
