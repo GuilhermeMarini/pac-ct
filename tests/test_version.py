@@ -110,26 +110,34 @@ def test_requirements_and_pyproject_pin_the_same_libraries():
 def test_the_py61850_pin_is_bounded_above():
     """The ceiling is what keeps the NEXT library minor out of THIS release.
 
-    0.4.0 changes how `py61850` walks an SCL document: it keeps XML comments,
-    and `strip_ns` then receives a comment node's `tag` -- a function, not a
-    string -- so `iter_local` and `children_local`, which call it on every node
-    they walk, raise `AttributeError: 'function' object has no attribute
-    'rsplit'` on any SCD that carries a comment. Real vendor files carry
-    comments. Unbounded, `>=0.3.0` means a CLEAN install of the application in
-    production resolves to that release by itself and not one of the tools that
-    read an SCD comes up. Installed trees and the offline bundles are safe
-    either way -- `app.py` runs pip only when an import fails, and a bundle
-    carries pinned wheels -- so the exposure is exactly the clean install and
-    `--atualizar-deps`.
+    It used to be `<0.4`, and that was insurance against a real defect: 0.4.0
+    makes the parser keep XML comments, and `strip_ns` then received a comment
+    node's `tag` -- a function, not a string -- so `iter_local` and
+    `children_local` raised `AttributeError: 'function' object has no attribute
+    'rsplit'` on any SCD carrying one. Real vendor files carry comments.
 
-    The property pinned here is therefore not the string `<0.4`, it is what the
-    specifier admits. PEP 440's exclusive comparison also refuses pre-releases
-    OF THE VERSION IT NAMES, which is what keeps a `0.4.0.dev1` out of
+    **0.4.0 fixed that at the source**: `strip_ns` returns `""` for a tag that
+    is not a string, and the guard sits in that one function because every
+    traversal in the package -- and every vendor library reaching the tree
+    through it -- funnels there. So the ceiling moved to `<0.5` on 2026-09-11,
+    for the same reason it existed, and only after the seam nothing in CI
+    checks was measured: 931 tests here and 275 in SELlib, both against the
+    released SELlib 3.0.1, which is what a clean install actually resolves to
+    (SELlib's own pin is an unbounded `py61850>=0.3.0`).
+
+    The FLOOR moved with it. `>=0.3.0,<0.5` would have been the smaller edit
+    and would have left 0.3.x admissible and untested; `>=0.4.0` means exactly
+    one library line is supported and it is the line the numbers above were
+    measured on. That is asserted below, not just described.
+
+    The property pinned here is not the string `<0.5`, it is what the specifier
+    admits. PEP 440's exclusive comparison also refuses pre-releases OF THE
+    VERSION IT NAMES, which is what keeps a `0.5.0.dev1` out of
     `--atualizar-deps` -- the one path that passes `--pre` to pip.
 
-    Raising the ceiling is a deliberate act, taken once 0.4.0 has been verified
-    against this suite, never a side effect of another change. If this test is
-    in the way, that is the test working.
+    Raising the ceiling is a deliberate act, taken once the next minor has been
+    verified against this suite, never a side effect of another change. If this
+    test is in the way, that is the test working.
     """
     req = (ROOT / "requirements.txt").read_text(encoding="utf-8")
     proj = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
@@ -139,11 +147,17 @@ def test_the_py61850_pin_is_bounded_above():
     assert len(specifiers) == 2, specifiers
     for spec in specifiers:
         admits = SpecifierSet(spec)
-        assert admits.contains("0.3.0") and admits.contains("0.3.9"), spec
-        for blocked in ("0.4.0", "0.4.0.dev1", "0.4.0rc1", "1.0.0"):
+        assert admits.contains("0.4.0") and admits.contains("0.4.9"), spec
+        # One supported line: the 0.3 series is deliberately out, not merely
+        # older. A pin that still admitted it would admit a version this
+        # release has never been run against.
+        assert not admits.contains("0.3.9"), (
+            f"{spec!r} still admits 0.3.9: the floor did not move with the "
+            f"ceiling, so an untested library line is still installable")
+        for blocked in ("0.5.0", "0.5.0.dev1", "0.5.0rc1", "1.0.0"):
             assert not admits.contains(blocked, prereleases=True), (
                 f"{spec!r} still admits {blocked}: the pin is not bounded "
-                f"below the release that changes the parser")
+                f"below the next release that could change the parser")
 
 
 def test_the_unpublished_libraries_are_pinned_to_a_commit_not_a_branch():
