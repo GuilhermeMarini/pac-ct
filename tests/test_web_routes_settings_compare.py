@@ -170,3 +170,25 @@ def test_diff_of_a_relay_that_is_not_there_is_400(tmp_path):
     r = h.post("/diff", {"relays": [_ref(short, "NAO_EXISTE")],
                          "groups": ["S1"]})
     assert r.status == 400
+
+
+# -- where the JavaScript lives ---------------------------------------------
+#
+# Nothing in the suite runs JavaScript, and a page whose script never loads
+# still answers 200 -- it just renders blank, because the whole body is one
+# IIFE that ends in `loadState()` and mounts the picker on the way. These two
+# assertions cover the one failure a route test can see: the tag and the file
+# disagreeing about the path, after a rename or a file that did not ship.
+
+def test_the_page_reaches_its_script_file():
+    from pacct.paths import STATIC_DIR
+    from pacct.web import settings_compare
+
+    assert '<script src="/static/js/settings_compare/index.js">' in settings_compare.INDEX_HTML
+    assert (STATIC_DIR / "js" / "settings_compare" / "index.js").is_file()
+
+
+def test_the_page_carries_no_inline_script_body():
+    from pacct.web import settings_compare
+
+    assert "<script>" not in settings_compare.INDEX_HTML
