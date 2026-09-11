@@ -109,7 +109,7 @@ python3 app.py --reverter     # point `current` back one version
     - `handler.py` — the routes and the per-session diagram list; `GlvDefaults` holds the `config.ini` values, read once at boot.
     - `templates/dashboard.html`, `templates/landing.html` — real `.html` files, read at import (`glv.load_template`). Same `${...}` substitution as when they were raw strings in the `.py`.
   - `pacct/web/dnp_map/` — the **Editor de Mapa DNP**: `model.py` (edits as per-session diffs, never a rewritten document), `export.py` (builds the new stream bytes, then hands them to the shared `web/rdb_write.py`), `handler.py` (routes), `templates/`. The `SET_D` parser lives in `sellib.dnp_map` (contract: `parse(b).serialize() == b`), the Compound File writer in **`cfbwrite`** (its own repository, https://github.com/GuilhermeMarini/cfbwrite — extracted from this project, and carrying its own copy of these guarantees).
-  - `pacct/web/project_files/` — the **Arquivos do Projeto** tab (`/files/`): the only screen that accepts an RDB or an SCD. `library.py` is the model (a session-scoped `FileLibrary` keyed by sha256; `library_for(sessions, session)`, never a module singleton), `handler.py` the routes (including `GET /download?sha256=`), `derived.py` the way a tool's OUTPUT enters the same library, and `client.py` the `SelLibrary` picker injected into every page. The seven tools pick from it and no longer upload.
+  - `pacct/web/project_files/` — the **Arquivos do Projeto** tab (`/files/`): the only screen that accepts an RDB or an SCD. `library.py` is the model (a session-scoped `FileLibrary` keyed by sha256; `library_for(sessions, session)`, never a module singleton), `handler.py` the routes (including `GET /download?sha256=`), `derived.py` the way a tool's OUTPUT enters the same library, and `client.py` the one `<script src>` injected into every page, reaching `web/static/js/lib/file-picker.js` (the `SelLibrary` picker and `PacPage`) — see **Where the JavaScript lives**. The seven tools pick from it and no longer upload.
   - `pacct/web/mount.py` — mounts every tool on **one** `ThreadingHTTPServer` by path prefix (`/`, `/glv/`, `/vb-updater/`, `/vlan-mapper/`, `/gle-exporter/`, `/settings-compare/`, `/dnp-map/`), so all tools are usable at the same time in different tabs. Each tool exposes a `build_*_handler(logger, sessions) -> type` factory and never opens a socket itself.
   - `pacct/web/themes/` — **the three directions, each owning its own CSS *and* its own markup**. `tokens.py` is the only place the palette lives: one semantic vocabulary (`--bg`, `--surface`, `--border`, `--text`, `--ok`, `--s1..--s5`, `--sans`, `--radius`, …) declared once in `_TOKEN_CSS`, filled by three themes (`caderno` = Caderno de Campo, the default; `folha` = Folha de Dados; `regua` = Régua de Bornes); a theme missing a name raises at boot. `shell.py` holds only what the three mockups write identically. `folha.py` / `regua.py` / `caderno.py` each hold that direction's `DELTA_CSS` **plus** its `nav()` and `home()` renderers. `items.py` is the tool catalogue as data. `pacct/web/theme.py` is a thin re-export kept so `from pacct.web import theme as themes` still works. Tools must **not** define colours, radii, font stacks or paddings of their own — reach for a token.
   - `pacct/web/progress.py` — the progress bar. `ProgressRegistry` holds each job's stage server-side; the client runtime (`SelProgress`) is injected into every page and drives a fixed bar at the top of the viewport.
@@ -118,6 +118,32 @@ python3 app.py --reverter     # point `current` back one version
 - `selprotopy/` — **vendored, patched** MIT library. Treat as read-only; do not modify unless the user explicitly asks. Lives at `PROJECT_ROOT` (outside `pacct/`) and is added to `sys.path` by the dashboard at startup.
 - `config/config.ini` — runtime configuration: relay IP, telnet credentials, polling interval, serial port, default GLE/relay model. Many code paths read this at startup — check it first when behavior seems off. **It is gitignored** — the versioned file is `config/config.ini.example`, and `paths.ensure_config_file()` seeds one from the other on first boot (see gotcha).
 - `cache/`, `rdbs/` — generated/uploaded at runtime; gitignored. `cache/rdb/<sha256>/` is the RDB extraction cache, shared on purpose (see gotcha below); `cache/sessions/<sid>/` is per visitor and wiped at boot.
+
+## Where the JavaScript lives
+
+**Client code goes in `src/pacct/web/static/js/`, never inside a `.html` and never inside a `.py`.** The `/static` route in `mount.py` serves it at the root *and* behind every mount prefix, so one absolute path works from all nine screens.
+
+```
+web/static/js/lib/file-picker.js     shared: PacPage + SelLibrary, injected into every page
+web/static/js/<tool>/<page>.js       one file per screen
+```
+
+This is the pattern the remaining tools follow as their inline scripts come out. Five things make it work, and each of them has already cost this project a blank screen or an afternoon:
+
+- **The `<script src>` goes exactly where the inline block was** — just before `</body>`, with **no `defer` and no `async`**. `inject_progress_runtime` splices `SelProgress` in before `</body>` as well, *after* the page's own script, which is why nothing may touch `SelProgress` at the top level; `async` would break that order, and moving the tag into `<head>` would break it the other way.
+- **`src` is absolute** (`/static/js/...`). The prefix shim rewrites `fetch` and `XMLHttpRequest`; it does **not** rewrite a `src` attribute, and it never sees an `<a href>` either. The absolute path is safe because `mount.py` answers `/static/` at any prefix — the same reason the themes point at `/static/fonts/`.
+- **The server hands data down through one `page-data` block per page**, not by substituting into a script body — which stopped being possible the moment the body left the `.html`:
+
+  ```html
+  <script type="application/json" id="page-data">${PAGE_DATA}</script>
+  <script src="/static/js/<tool>/<page>.js"></script>
+  ```
+
+  filled with the `.replace("${PAGE_DATA}", json.dumps(...))` idiom the GLV already uses for `${BOOT_JSON}`, and read with **`PacPage.data()`**. A page with no block gets `{}`; a block that does not parse throws, naming the page. The block comes **before** the tag. Keep it to data the server owns — `library.EXTENSIONS` on `/files/` is the model: one table in Python, no second copy in JavaScript.
+- **`_STATIC_TYPES` in `mount.py` must know the extension.** A `.js` served as `application/octet-stream` is refused by any browser with `nosniff` on.
+- **Nothing here is covered by a test.** Route tests do not read markup and nothing in the suite runs JavaScript, so a change under `static/js/` is verified in a browser, on the affected screen, **in all three themes**, with the console open. A tool whose script throws at the top level renders blank and still answers 200.
+
+**Two naming leftovers.** `SelLibrary` (the picker over the project's file library) and `SelProgress` (the progress bar) keep the `Sel` prefix from when the application only read SEL files; it reads SCDs now, and the prefix means nothing. Renaming them touches the top of seven tools' scripts and has not been done. New client globals use **`Pac`** — `PacPage` is the first — so the prefix to grow is that one. And note `SelLibrary` is unrelated to **`sellib`**, the Python package that reads SEL relay formats: same three letters, nothing else.
 
 ## Conventions
 

@@ -261,13 +261,25 @@ def test_a_non_ole_file_is_a_client_error_not_a_server_error():
 
 
 # -- the shared runtime -----------------------------------------------------
+#
+# The JavaScript is a real file now -- `web/static/js/lib/file-picker.js` --
+# and `client.py` injects only the tag that reaches it. These assertions are
+# the ones that were here before, reading the file instead of a Python string:
+# nothing else in the tree covers JavaScript at all, and both guarantees below
+# are ones the browser reports as a blank screen rather than an error.
+
+def _picker_js() -> str:
+    from pacct.paths import STATIC_DIR
+
+    return (STATIC_DIR / "js" / "lib" / "file-picker.js").read_text(encoding="utf-8")
+
 
 def test_the_runtime_goes_in_before_the_closing_body():
     from pacct.web.project_files import client
 
     html = "<html><body><p>oi</p></body></html>"
     out = client.inject_library_runtime(html)
-    assert out.index("SelLibrary") < out.index("</body>")
+    assert out.index(client.CLIENT_JS_URL) < out.index("</body>")
     assert out.count("</body>") == 1
 
 
@@ -275,24 +287,22 @@ def test_the_runtime_survives_a_page_without_a_body_tag():
     from pacct.web.project_files import client
 
     out = client.inject_library_runtime("<p>oi</p>")
-    assert "SelLibrary" in out
+    assert client.CLIENT_JS_URL in out
 
 
 def test_the_runtime_refuses_to_define_itself_twice():
     """Every page gets it injected; a tool that also inlined it must not
     clobber a picker that is already mounted."""
-    from pacct.web.project_files import client
-
-    assert "if (window.SelLibrary) return;" in client.LIBRARY_JS
+    assert "if (window.SelLibrary) return;" in _picker_js()
 
 
 def test_the_picker_links_the_tab_relatively():
     """A cross-page link is one of the two things the fetch shim cannot
     reach, so it must be relative and not absolute."""
-    from pacct.web.project_files import client
+    js = _picker_js()
 
-    assert "../files/" in client.LIBRARY_JS
-    assert 'href="/files/"' not in client.LIBRARY_JS
+    assert "../files/" in js
+    assert 'href="/files/"' not in js
 
 
 # -- what a tool generated, entering the project ----------------------------
