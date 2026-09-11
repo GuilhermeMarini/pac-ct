@@ -41,11 +41,14 @@ dependencies = [
     # four tools here read an SCD through. A FINAL, not a pre-release: a
     # specifier naming a `.devN` tells the resolver pre-releases are eligible
     # for that requirement, which would let a future `0.4.0.dev1` in silently.
-    # And bounded above: 0.4.0 changes how the parser walks a document, so an
-    # unbounded pin would put a parser that raises on any SCD carrying an XML
-    # comment into a clean install of THIS release. See requirements.txt for
-    # the full note, and raise the ceiling deliberately or not at all.
-    "py61850>=0.3.0,<0.4",
+    # Floor and ceiling both moved on 2026-09-11, from `>=0.3.0,<0.4`. The old
+    # ceiling kept out a parser that raised on any SCD carrying an XML comment;
+    # 0.4.0 fixed that at the source (`strip_ns` guards a non-string tag), and
+    # the move was made only after 931 tests here and 275 in SELlib passed
+    # against it. The floor moved too so that one library line is supported and
+    # it is the tested one. See requirements.txt for the full note, and raise
+    # the ceiling deliberately or not at all.
+    "py61850>=0.4.0,<0.5",
 ]
 
 [project.optional-dependencies]
