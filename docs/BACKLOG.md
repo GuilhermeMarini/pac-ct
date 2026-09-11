@@ -85,10 +85,19 @@ is not a path either way. What changed is that pac-ct now overwrites
 `RdbInfo` is a plain dataclass, it is rebuilt by every `process_upload` call
 rather than cached, and the field is documented as "the name THIS upload
 carried". Setting it there rather than only on the `FileEntry` is what reaches
-the five screens that read the name off the `RdbInfo` — `glv/handler.py:184`,
-`settings_compare:131`, `vb_updater:1113`, `gle_exporter:844` and
-`dnp_map/handler.py:649`, the last two of which build an output filename with
-it.
+every screen that reads the name off the `RdbInfo` — `glv/handler.py`,
+`settings_compare/state.py`, `vb_updater` (both its `state.py` and its
+`handler.py`), `gle_exporter` (both of those too), `gle_tabs/handler.py` and
+`dnp_map/handler.py`. Four of them build an output filename with it.
+
+Files, not `file:line`, and that is a correction rather than laziness: this
+sentence carried five `file:line` citations and every one of them was wrong by
+the time anybody checked — `vb_updater:1113` landed on a `COMPARE_HTML_TEMPLATE`
+argument. `grep -rn display_name src/pacct/web/` answers it in a second and is
+never stale. The same list is carried in `src/pacct/web/project_files/derived.py`
+and in `tests/test_project_files.py`, where it was converted for the same
+reason; it said five screens in all three places and it is six, because
+`gle_tabs` grew one after the sentence was written.
 
 ## 2. `NEG` is declared by nothing and drawn by nothing
 
@@ -338,6 +347,40 @@ template JS, not the dispatcher's. It now captures `const rdb = RDB` at click
 time, exactly as `sendStage` already captured its own, and the re-check after
 the stage drain is scoped to that captured key rather than to whatever is
 selected when the drain finishes.
+
+---
+
+## 11. One SCD write out of two is not atomic
+
+**Repo:** `pac-ct`. **Size:** one line, plus the reasoning for why it was two
+lines apart in the first place.
+
+The VB Updater writes a corrected SCD on two routes and only one of them writes
+it atomically. `/apply` in the `gle-to-scd` direction goes through
+`update_scd_with_gle_comments`, which ends at `pacct.paths.atomic_write_bytes`
+and carries a comment saying exactly why: *"the corrected SCD is adopted into
+the project library right after, and a truncated one there is
+indistinguishable from a whole one."* `/import-descriptions` goes through
+`update_scd_with_descriptions_multi`, which ends at a plain
+`output_path.write_bytes(raw)`.
+
+**Both outputs are published the same way.** Each route takes the result's
+`output_path` and hands it straight to `publish_output`, so the reasoning in
+that comment applies word for word to the second one. A 22 MB SCD half-written
+because the disk filled or the process died enters the library looking like a
+finished file, and nothing downstream can tell.
+
+**Nobody has seen it happen**, and that is the honest size of it: the window is
+one `write_bytes` of a file that has already been fully computed in memory, so
+it needs an interrupted process or a full disk to open at all. It is recorded
+here rather than fixed in place because it was found during the B10 package
+split, whose whole claim is that nothing changed — a behaviour change smuggled
+into a 1,600-line move is a behaviour change nobody reviewed.
+
+**The fix is `atomic_write_bytes(output_path, raw)` in
+`vb_updater/export.py`**, the same call its sibling four functions above
+already makes. `atomic_write_bytes` creates the parent directory itself, so the
+`output_path.parent.mkdir` line above it goes at the same time.
 
 ---
 

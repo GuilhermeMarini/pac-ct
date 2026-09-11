@@ -78,4 +78,4 @@ def test_the_check_is_not_vacuous():
     above pass by finding nothing, so name the tools that are split today."""
     found = {path.parent.name for path in _model_files()}
     assert {"dnp_map", "gle_exporter", "gle_tabs", "settings_compare",
-            "vlan_mapper"} <= found
+            "vb_updater", "vlan_mapper"} <= found

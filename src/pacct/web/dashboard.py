@@ -200,7 +200,6 @@ def main():
     # take turns on the port -- opening one took the other down -- and now they
     # are all up at once, with a single port to open in the firewall or the
     # WSL portproxy.
-    from pacct.web import vb_updater
     from pacct.web.dnp_map.handler import build_dnp_map_handler
     from pacct.web.gle_exporter.handler import build_gle_exporter_handler
     from pacct.web.gle_tabs.handler import build_gle_tabs_handler
@@ -208,6 +207,7 @@ def main():
     from pacct.web.settings_compare.handler import (
         build_settings_compare_handler,
     )
+    from pacct.web.vb_updater.handler import build_vb_updater_handler
     from pacct.web.vlan_mapper.handler import build_vlan_mapper_handler
 
     # Every visitor gets their own state and upload directory, identified by
@@ -264,7 +264,7 @@ def main():
               "Project Files"),
         Mount("/glv", build_glv_handler(logger, sessions, glv_defaults),
               "Graphical Logic Viewer"),
-        Mount("/vb-updater", vb_updater.build_vb_updater_handler(logger, sessions),
+        Mount("/vb-updater", build_vb_updater_handler(logger, sessions),
               "VB Updater"),
         Mount("/vlan-mapper", build_vlan_mapper_handler(logger, sessions),
               "VLAN Mapper"),
