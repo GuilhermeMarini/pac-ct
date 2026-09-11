@@ -11,6 +11,7 @@ picker needs it -- see `mount.py`.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import tempfile
@@ -29,7 +30,21 @@ from pacct.web.session import SessionHandler
 # be substituted here: the three directions do not share nav markup (`.toc`,
 # `.strip`/`.borne`, `.tabs`), so resolving at import time would freeze one
 # direction's markup into all three.
-LIBRARY_HTML = load_template("library.html")
+#
+# `${PAGE_DATA}` IS substituted here, and at import time on purpose: it holds
+# nothing about the visitor, only the extension table, which is the same for
+# everybody and cannot change while the process runs. Same `.replace()` idiom
+# the GLV uses for `${BOOT_JSON}` (`glv/handler.py`), so no second
+# substitution mechanism enters the tree.
+#
+# The table is handed down rather than retyped: the page used to carry its own
+# copy of it in JavaScript, keyed without the dots, under a comment saying it
+# mirrored `library.kind_for`. Now `library.EXTENSIONS` is the only copy and
+# the client reads it through `PacPage.data()`.
+LIBRARY_HTML = load_template("library.html").replace(
+    "${PAGE_DATA}",
+    json.dumps({"kinds": library.EXTENSIONS}, ensure_ascii=False),
+)
 
 
 def build_project_files_handler(logger: logging.Logger, sessions) -> type:

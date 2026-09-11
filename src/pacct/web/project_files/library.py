@@ -36,7 +36,12 @@ KIND_XLSX = "xlsx"
 RDB_MAX_BYTES = 500 * 1024 * 1024
 SCD_MAX_BYTES = 200 * 1024 * 1024
 
-_EXTENSIONS = {".rdb": KIND_RDB, ".scd": KIND_SCD, ".xml": KIND_SCD}
+# Public because the browser gets it too: `/files/` serialises this table into
+# its `page-data` block instead of carrying a second copy in JavaScript. The
+# copy was there, it was keyed without the dots, and its own comment said it
+# mirrored `kind_for` -- which is the whole argument for handing the table
+# down rather than retyping it.
+EXTENSIONS = {".rdb": KIND_RDB, ".scd": KIND_SCD, ".xml": KIND_SCD}
 
 # C0 and DEL. CR and LF are the two that matter -- they reach a response
 # header -- and the rest are dropped with them because none of them is a
@@ -46,7 +51,7 @@ _CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
 
 def kind_for(filename: str) -> str | None:
     """The file's kind, by extension. None means it is not a project file."""
-    return _EXTENSIONS.get(Path(filename or "").suffix.lower())
+    return EXTENSIONS.get(Path(filename or "").suffix.lower())
 
 
 def max_bytes_for(kind: str) -> int:

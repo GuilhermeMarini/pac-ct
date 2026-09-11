@@ -422,12 +422,16 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
             self.send_header("Content-Length", "0")
             self.end_headers()
 
-        # Extension -> Content-Type. Deliberately short: only the embedded
-        # fonts, the OFL licences and the NOTICE that has to travel with them
-        # live here.
+        # Extension -> Content-Type. Deliberately short: the embedded fonts,
+        # the OFL licences and the NOTICE that has to travel with them, and
+        # `js/`, which is where the pages' JavaScript lives now that it is out
+        # of the templates. A `.js` served as `application/octet-stream` is
+        # refused outright by a browser with `nosniff` on, and by every
+        # `type="module"` load regardless -- so the type is not cosmetic.
         _STATIC_TYPES = {
             ".woff2": "font/woff2",
             ".woff": "font/woff",
+            ".js": "text/javascript; charset=utf-8",
             ".css": "text/css; charset=utf-8",
             ".txt": "text/plain; charset=utf-8",
             ".md": "text/plain; charset=utf-8",
