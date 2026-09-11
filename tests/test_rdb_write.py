@@ -257,22 +257,42 @@ class TestNoPaddingPathCameBack:
     the size constraint.
     """
 
-    @pytest.mark.parametrize("module", ["vb_updater", "gle_exporter"])
-    def test_the_module_has_no_size_fitting_helper(self, module):
+    @staticmethod
+    def _sources(module: str) -> dict[str, str]:
+        """Every `.py` of the tool, not just the module object's own file.
+
+        `inspect.getsource` of a PACKAGE reads `__init__.py` and stops there,
+        which was enough while both tools were one file and stopped being
+        enough the moment one was split: the write path moves into
+        `export.py`, `__init__.py` keeps a docstring and four re-exports, and
+        the assertions below pass by finding nothing. Passing by finding
+        nothing is not the same as passing. So the check walks whatever the
+        tool is made of -- one file or five -- and a tool split later picks
+        that up without this test being touched again.
+        """
         import importlib
         mod = importlib.import_module(f"pacct.web.{module}")
-        assert not hasattr(mod, "_fit_xml_to_size")
+        path = Path(mod.__file__)
+        files = sorted(path.parent.glob("*.py")) if path.name == "__init__.py" else [path]
+        assert files, f"no source found for pacct.web.{module}"
+        return {f.name: f.read_text(encoding="utf-8") for f in files}
+
+    @pytest.mark.parametrize("module", ["vb_updater", "gle_exporter"])
+    def test_the_module_has_no_size_fitting_helper(self, module):
+        """By name, in any file of the tool -- `hasattr` on the package would
+        miss a helper defined in a submodule and never re-exported."""
+        offenders = [name for name, src in self._sources(module).items()
+                     if "_fit_xml_to_size" in src]
+        assert offenders == []
 
     @pytest.mark.parametrize("module", ["vb_updater", "gle_exporter"])
     def test_the_module_does_not_call_write_stream_itself(self, module):
         """Every RDB write goes through `rdb_write`, which verifies and writes
         atomically. A tool reaching for `olefile` directly is the shape the
         padding path grew out of."""
-        import importlib
-        import inspect
-        src = inspect.getsource(importlib.import_module(f"pacct.web.{module}"))
-        assert "write_stream(" not in src
-        assert "OleFileIO" not in src
+        for name, src in self._sources(module).items():
+            assert "write_stream(" not in src, name
+            assert "OleFileIO" not in src, name
 
 
 # -----------------------------------------------------------------------------
