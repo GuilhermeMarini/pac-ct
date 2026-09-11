@@ -216,3 +216,40 @@ def test_copying_a_relay_onto_itself_inside_one_rdb_changes_nothing(tmp_path):
         "targets": [{"relay": "QPC1_TR1", "session": "D1"}],
     })
     assert h.get("/rdbs").json()["rdbs"][0]["dirty"] == []
+
+
+# -- where the JavaScript lives ---------------------------------------------
+#
+# Nothing in the suite runs JavaScript, and a page whose script never loads
+# still answers 200 -- it just renders blank. Both of these screens are that
+# shape: the landing's body is an IIFE that mounts the picker and ends in
+# `loadModels()`, and the editor's ends in a top-level `load()`. These
+# assertions cover the one failure a route test can see: the tag and the file
+# disagreeing about the path, after a rename or a file that did not ship.
+
+def test_the_landing_reaches_its_script_file():
+    from pacct.paths import STATIC_DIR
+    from pacct.web.dnp_map import handler
+
+    assert '<script src="/static/js/dnp_map/landing.js">' in handler.LANDING_HTML
+    assert (STATIC_DIR / "js" / "dnp_map" / "landing.js").is_file()
+
+
+def test_the_landing_carries_no_inline_script_body():
+    from pacct.web.dnp_map import handler
+
+    assert "<script>" not in handler.LANDING_HTML
+
+
+def test_the_editor_reaches_its_script_file():
+    from pacct.paths import STATIC_DIR
+    from pacct.web.dnp_map import handler
+
+    assert '<script src="/static/js/dnp_map/editor.js">' in handler.EDITOR_HTML
+    assert (STATIC_DIR / "js" / "dnp_map" / "editor.js").is_file()
+
+
+def test_the_editor_carries_no_inline_script_body():
+    from pacct.web.dnp_map import handler
+
+    assert "<script>" not in handler.EDITOR_HTML
