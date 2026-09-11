@@ -107,3 +107,25 @@ def test_an_entry_of_the_wrong_kind_is_refused(tmp_path):
             sha256="a" * 64, kind=filelib.KIND_RDB,
             display_name="projeto.rdb", size=10))
     assert h.post("/select-scd", {"sha256": "a" * 64}).status == 404
+
+
+# -- where the JavaScript lives ---------------------------------------------
+#
+# Nothing in the suite runs JavaScript, and a page whose script never loads
+# still answers 200 -- it just renders blank, because `SelLibrary.picker(...)`
+# is called at the top level of that file. These two assertions cover the one
+# failure a route test can see: the tag and the file disagreeing about the
+# path, after a rename or a file that did not ship.
+
+def test_the_landing_reaches_its_script_file():
+    from pacct.paths import STATIC_DIR
+    from pacct.web import vlan_mapper
+
+    assert '<script src="/static/js/vlan_mapper/landing.js">' in vlan_mapper.LANDING_HTML
+    assert (STATIC_DIR / "js" / "vlan_mapper" / "landing.js").is_file()
+
+
+def test_the_landing_carries_no_inline_script_body():
+    from pacct.web import vlan_mapper
+
+    assert "<script>" not in vlan_mapper.LANDING_HTML
