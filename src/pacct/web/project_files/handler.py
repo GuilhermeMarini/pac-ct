@@ -33,9 +33,9 @@ from pacct.web.session import SessionHandler
 #
 # `${PAGE_DATA}` IS substituted here, and at import time on purpose: it holds
 # nothing about the visitor, only the extension table, which is the same for
-# everybody and cannot change while the process runs. Same `.replace()` idiom
-# the GLV uses for `${BOOT_JSON}` (`glv/handler.py`), so no second
-# substitution mechanism enters the tree.
+# everybody and cannot change while the process runs. The GLV substitutes the
+# same `${PAGE_DATA}` per REQUEST (`glv/handler.py`), which is the other half
+# of the same mechanism -- one marker, one idiom, two lifetimes.
 #
 # The table is handed down rather than retyped: the page used to carry its own
 # copy of it in JavaScript, keyed without the dots, under a comment saying it

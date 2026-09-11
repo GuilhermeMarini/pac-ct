@@ -50,5 +50,11 @@ def test_a_long_relay_name_cannot_widen_the_strip_past_the_viewport():
     rule = m.group(1)
     assert "max-width" in rule
     assert "text-overflow: ellipsis" in rule
-    # And the name has to CARRY the class that the rule paints.
-    assert "name.className = 'label';" in css
+    # And the name has to CARRY the class that the rule paints. The two halves
+    # live in two files now -- the rule in the template, `renderTabs` in
+    # `web/static/js/glv/dashboard.js` -- which is exactly why this assertion
+    # is worth keeping: a rule painting a class nobody sets is silent.
+    from pacct.paths import STATIC_DIR
+
+    js = (STATIC_DIR / "js" / "glv" / "dashboard.js").read_text(encoding="utf-8")
+    assert "name.className = 'label';" in js

@@ -211,9 +211,18 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
                 did = (qs.get("d") or [""])[0]
                 if did in st.diagrams:
                     st.active = did
+                # `${PAGE_DATA}` and not `${BOOT_JSON}`: the script that reads
+                # it is `web/static/js/glv/dashboard.js` now, and a `.js` takes
+                # no substitution -- the payload travels in the page's
+                # `<script type="application/json" id="page-data">` block and
+                # is read with `PacPage.data()`, same as `/files/`. Keyed under
+                # `boot` so a second thing the server wants to hand down needs
+                # no second mechanism. Substituted per REQUEST, unlike the
+                # `/files/` one: this is the visitor's open tabs.
                 html = DASHBOARD_HTML.replace(
-                    "${BOOT_JSON}",
-                    json.dumps(self._tabs_payload(st), ensure_ascii=False))
+                    "${PAGE_DATA}",
+                    json.dumps({"boot": self._tabs_payload(st)},
+                               ensure_ascii=False))
                 self._send(200, html, "text/html; charset=utf-8")
                 return
 

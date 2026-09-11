@@ -229,6 +229,29 @@ Outstanding since the migration: GLV telnet polling on 4xx/7xx/3xx, an MMS
 connect and read, and the D3 monotonic-clock fix under a real Fast Message
 deadline.
 
+**Most of that was closed on 2026-09-11**, on a live bench during the GLV
+JavaScript extraction, against three relays of the RONDONÓPOLIS III station
+(`SE_RONDONOPOLIS_III_R0t_07092026.rdb` + `fixtures/SCD/SEL/teste_sel.scd`):
+
+| | telnet | MMS |
+|---|---|---|
+| **451-5** `10.165.107.62` | connect 55 s, 34/34 bits | period control 0 / 500 / 100 applied |
+| **487E-3** `10.165.107.35` | connect 70 s cold, 39/45 bits | — |
+| **751** `10.165.107.41` | connect < 5 s warm, 24/24 bits, Fast Meter analogs grouped (`I_PH`) | connect 10 s, **39/39 Virtual Bits on the GOOSE page** |
+
+So `poll_loop` (4xx, TARGET region), `poll_loop_fastmeter` (7xx, A5D1 banks)
+and the MMS batched read are all exercised, along with `/events`, the `rev`
+skip, the rAF coalescing and `state.clear()` on disconnect. The numbers are in
+the `glv-javascript` commit body.
+
+**What is still open is the 3xx — `poll_loop_tar`.** No 311C was available at
+the bench on that date, so the ASCII `TAR <row>` path, its 1.5 s floor and the
+`wanted_bits` narrowing that path depends on remain unexercised outside the
+unit tests. It is the least-travelled of the three polling loops and the only
+one whose transport has never met its relay. **Test it the first time a 3xx is
+on the bench**, and note that it is also the family whose bit names are not
+zero-padded, so a naming fault would surface in the same session.
+
 Two things have been added to it since:
 
 - `web/glv/transport/telnet.py:poll()` was restructured so the Relay Word map
