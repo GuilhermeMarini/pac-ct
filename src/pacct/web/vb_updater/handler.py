@@ -27,8 +27,8 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 
 from sellib import rdb as rdb_loader
 
+from pacct import library as filelib
 from pacct.paths import is_within
-from pacct.web.project_files import library as filelib
 from pacct.web.rdb_write import (
     with_suffix_before_ext as _with_suffix_before_ext,
 )

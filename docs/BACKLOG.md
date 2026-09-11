@@ -55,7 +55,7 @@ project library. Its allowlist is `[^A-Za-z0-9._\- ]` — ASCII — so
 `filename*=UTF-8''` *because these names carry accents*, with none left to
 carry.
 
-The three display call sites now use `project_files.library.display_name_for()`,
+The three display call sites now use `pacct.library.display_name_for()`,
 which keeps the accents and drops only what is not part of a name: a directory
 (backslash included — a Windows browser used to prepend one), the control
 characters, and a name that is empty or `.` once those are gone.
@@ -93,8 +93,8 @@ every screen that reads the name off the `RdbInfo` — `glv/handler.py`,
 Files, not `file:line`, and that is a correction rather than laziness: this
 sentence carried five `file:line` citations and every one of them was wrong by
 the time anybody checked — `vb_updater:1113` landed on a `COMPARE_HTML_TEMPLATE`
-argument. `grep -rn display_name src/pacct/web/` answers it in a second and is
-never stale. The same list is carried in `src/pacct/web/project_files/derived.py`
+argument. `grep -rn display_name src/pacct/` answers it in a second and is
+never stale. The same list is carried in `src/pacct/library/derived.py`
 and in `tests/test_project_files.py`, where it was converted for the same
 reason; it said five screens in all three places and it is six, because
 `gle_tabs` grew one after the sentence was written.

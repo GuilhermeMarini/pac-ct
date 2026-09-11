@@ -19,7 +19,7 @@ from urllib.parse import urlparse
 
 from sellib.rdb import short_sha as _short_sha
 
-from pacct.web.project_files import library as filelib
+from pacct import library as filelib
 from pacct.web.session import SessionHandler
 from pacct.web.settings_compare import load_template, state
 

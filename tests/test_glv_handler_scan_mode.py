@@ -20,9 +20,9 @@ import logging
 
 from sellib.rdb import GleEntry, RdbInfo, RelayEntry
 
+from pacct import library as filelib
 from pacct.web.glv.handler import GlvDefaults, build_glv_handler
 from pacct.web.glv.transport import DEFAULT_PORTS, SCAN_MMS, SCAN_TELNET
-from pacct.web.project_files import library as filelib
 from pacct.web.session import SessionManager
 
 _GLE = (b'<?xml version="1.0" encoding="utf-8"?>\r\n'

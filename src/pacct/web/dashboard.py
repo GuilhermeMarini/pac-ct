@@ -201,9 +201,9 @@ def main():
     # are all up at once, with a single port to open in the firewall or the
     # WSL portproxy.
     from pacct.web.dnp_map.handler import build_dnp_map_handler
+    from pacct.web.files.handler import build_files_handler
     from pacct.web.gle_exporter.handler import build_gle_exporter_handler
     from pacct.web.gle_tabs.handler import build_gle_tabs_handler
-    from pacct.web.project_files.handler import build_project_files_handler
     from pacct.web.settings_compare.handler import (
         build_settings_compare_handler,
     )
@@ -259,8 +259,7 @@ def main():
 
     mounts = [
         Mount("/", build_home_handler(logger), "Home"),
-        Mount("/files",
-              build_project_files_handler(logger, sessions),
+        Mount("/files", build_files_handler(logger, sessions),
               "Project Files"),
         Mount("/glv", build_glv_handler(logger, sessions, glv_defaults),
               "Graphical Logic Viewer"),

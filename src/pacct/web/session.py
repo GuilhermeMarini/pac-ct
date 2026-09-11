@@ -44,18 +44,18 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
+from pacct.library.client import inject_library_runtime
 from pacct.web import theme as themes
 from pacct.web.mount import inject_head
 from pacct.web.progress import JobReporter, inject_progress_runtime
-from pacct.web.project_files.client import inject_library_runtime
 
 COOKIE_NAME = "selsid"
 
 #: Ceiling on a JSON request body. No route in this application sends large
 #: JSON: the biggest is the DNP map copy, a few hundred keys -- orders of
 #: magnitude below this. The real files (a 40-140 MB RDB, an XLSX) do NOT come
-#: through here; they enter through `project_files`, in chunks and under
-#: `library.py`'s own ceilings. Without a limit,
+#: through here; they enter through `web/files/`, in chunks and under
+#: `pacct.library`'s own ceilings. Without a limit,
 #: `rfile.read(Content-Length)` allocates whatever the client claims it will
 #: send.
 MAX_JSON_BODY = 4 << 20  # 4 MiB
@@ -363,7 +363,7 @@ class SessionHandler(BaseHTTPRequestHandler):
         clicking a row goes straight to the IEDs, and a `?rdb=` link keeps
         working after the tool has forgotten.
         """
-        from pacct.web.project_files import library as filelib
+        from pacct import library as filelib
 
         if not ref or self.session is None:
             return None
@@ -392,7 +392,7 @@ class SessionHandler(BaseHTTPRequestHandler):
         work -- and failing here never breaks the export: the file was produced
         all the same, and the tool's own download link still works.
         """
-        from pacct.web.project_files import derived
+        from pacct.library import derived
 
         entry, duplicate, err = derived.adopt(
             self.server_sessions, self.session, path,
@@ -499,7 +499,7 @@ class SessionHandler(BaseHTTPRequestHandler):
                   download_name: str | None = None) -> None:
         """Stream a file out, instead of holding all of it in memory.
 
-        `project_files` already did this, with the reason in a comment: an RDB
+        `web/files/` already did this, with the reason in a comment: an RDB
         is 40-140 MB and `read_bytes()` keeps that resident per concurrent
         download, on a threaded server. The three tools that write RDBs each
         served their own output with `target.read_bytes()`.

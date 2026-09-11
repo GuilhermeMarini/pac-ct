@@ -25,13 +25,13 @@ from urllib.parse import parse_qs, quote, urlparse
 from sellib.models import relay_models
 from sellib.rdb import find_gle, relays_to_dict
 
+from pacct import library as filelib
 from pacct.paths import resolve_gle_path
 from pacct.web.glv import events, load_template
 from pacct.web.glv.diagram import build_diagram
 from pacct.web.glv.link import LinkPool
 from pacct.web.glv.notes import NOTE_MAX_BYTES
 from pacct.web.glv.transport import DEFAULT_PORTS, SCAN_MMS
-from pacct.web.project_files import library as filelib
 from pacct.web.session import SessionHandler
 
 DASHBOARD_HTML = load_template("dashboard.html")
@@ -356,7 +356,7 @@ def build_glv_handler(logger, sessions, defaults: GlvDefaults) -> type:
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
-            # RFC 5987: relay names have accents (see `project_files/handler`).
+            # RFC 5987: relay names have accents (see `web/files/handler`).
             self.send_header("Content-Disposition",
                              "attachment; filename*=UTF-8''"
                              + quote(name, safe=""))

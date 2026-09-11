@@ -1,5 +1,5 @@
 // O que o navegador ganha em TODA pagina, injetado no fim do <head> por
-// `project_files/client.py:inject_library_runtime`.
+// `pacct/library/client.py:inject_library_runtime`.
 //
 // Dois runtimes moram aqui:
 //

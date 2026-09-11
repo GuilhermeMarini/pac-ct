@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from urllib.parse import quote, unquote
 
+from pacct import library as filelib
 from pacct.web.gle_exporter import build_gle_exporter_handler
-from pacct.web.project_files import library as filelib
 from tests import gle_fixtures as fx
 from tests.web_harness import build, fake_rdb
 

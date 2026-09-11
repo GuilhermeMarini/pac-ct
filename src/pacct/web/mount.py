@@ -469,22 +469,21 @@ def make_dispatcher(mounts: list[Mount], sessions=None,
             It lives here, and not in a tool, for the same reason as /progress
             and /theme.css: the six pages need it, and one tool does not own
             another's file list.
+
+            The payload is `pacct.library`'s, exactly as `/progress`'s is
+            `progress.progress_response`'s below -- this route is the framing
+            and nothing else. The empty answer for a visitor with no session
+            is part of that payload and is documented where it is produced:
+            `/library` never mints, and the identity swap `_dispatch`
+            describes is what happens when it does.
             """
             from urllib.parse import parse_qs
 
-            from pacct.web.project_files import library as filelib
+            from pacct.library import library_response
 
             kind = (parse_qs(urlparse(self.path).query).get("kind") or [""])[0]
-            files = []
-            # `self.session` is None when the request arrived with no
-            # cookie: the library of someone with no session is empty, and
-            # inventing a session here just to answer that is what caused the
-            # identity swap described in `_dispatch`.
-            if sessions is not None and getattr(self, "session", None) is not None:
-                lib = filelib.library_for(sessions, self.session)
-                with self.session.lock:
-                    files = [e.to_json() for e in lib.list(kind or None)]
-            body = json.dumps({"files": files}).encode("utf-8")
+            body = library_response(sessions, getattr(self, "session", None),
+                                    kind)
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Cache-Control", "no-store")

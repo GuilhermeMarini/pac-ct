@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from urllib.parse import urlparse
 
-from pacct.web.project_files import library as filelib
+from pacct import library as filelib
 from pacct.web.session import SessionHandler
 from pacct.web.vlan_mapper import load_template, model
 

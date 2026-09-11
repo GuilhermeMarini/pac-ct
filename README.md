@@ -71,6 +71,8 @@ pac-ct/
 |   |   +-- set_dnp.py            (SET_D; contract: parse(b).serialize() == b)
 |   +-- matchers/relay_scd.py     (RDB <-> SCD cross-match by IP / RID)
 |   +-- cli/runner.py             (CLI mode: polling in the terminal)
+|   +-- library/                   (the project's files -- platform, not a tool:
+|   |                               model.py, derived.py, client.py)
 |   +-- web/
 |       +-- dashboard.py          (home + main(): mounts the tools)
 |       +-- mount.py              (ONE server, routing by prefix)
@@ -78,7 +80,7 @@ pac-ct/
 |       +-- rdb_write.py          (the only place that writes bytes into an RDB)
 |       +-- progress.py           (progress bar, state on the server)
 |       +-- themes/               (three visual directions; tokens in tokens.py)
-|       +-- project_files/        (Arquivos do Projeto -- the only screen with upload)
+|       +-- files/                (Arquivos do Projeto -- the only screen with upload)
 |       +-- glv/                  (Visualizador de Lógica: N diagrams, N relays)
 |       +-- dnp_map/              (Editor de Mapa DNP)
 |       +-- vb_updater/  vlan_mapper/  gle_exporter/  settings_compare/

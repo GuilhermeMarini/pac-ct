@@ -22,7 +22,8 @@ from olefile.olefile import OleFileError
 from py61850.scl import SclDocument
 from sellib import rdb as rdb_loader
 
-from pacct.web.project_files import library, load_template
+from pacct.library import model as library
+from pacct.web.files import load_template
 from pacct.web.session import SessionHandler
 
 # The `<!--NAV:files-->` marker inside `.shell` is resolved per request by
@@ -39,7 +40,7 @@ from pacct.web.session import SessionHandler
 #
 # The table is handed down rather than retyped: the page used to carry its own
 # copy of it in JavaScript, keyed without the dots, under a comment saying it
-# mirrored `library.kind_for`. Now `library.EXTENSIONS` is the only copy and
+# mirrored `library.kind_for`. Now `pacct.library`'s table is the only copy and
 # the client reads it through `PacPage.data()`.
 LIBRARY_HTML = load_template("library.html").replace(
     "${PAGE_DATA}",
@@ -47,7 +48,7 @@ LIBRARY_HTML = load_template("library.html").replace(
 )
 
 
-def build_project_files_handler(logger: logging.Logger, sessions) -> type:
+def build_files_handler(logger: logging.Logger, sessions) -> type:
     """Return the tab's handler class. Opens no socket: `mount.py` serves it."""
 
     class Handler(SessionHandler):
@@ -228,7 +229,7 @@ def build_project_files_handler(logger: logging.Logger, sessions) -> type:
                 return None
             # The name to SHOW, over the one `sellib` sanitized -- on the
             # `RdbInfo`, because five screens read it from there rather than
-            # from the entry. See `derived._rdb_entry`.
+            # from the entry. See `pacct.library.derived._rdb_entry`.
             info.display_name = library.display_name_for(filename,
                                                          "arquivo.rdb")
             return library.FileEntry(

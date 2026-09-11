@@ -9,6 +9,14 @@ nor the two framework modules a route lives inside -- `pacct.web.mount` (the
 dispatcher) and `pacct.web.session` (the cookie, the per-visitor state and the
 per-visitor directories).
 
+`pacct.library` is held to a stricter rule than any tool, and that rule is
+what makes it platform rather than a tool that everything happens to import.
+It may not reach `pacct.web` **at all** -- not the dispatcher, not the
+session, not `progress`, not a tool. The direction is the whole point: seven
+tools, `web/mount.py` and `web/session.py` depend on the library, so a single
+edge back the other way would close a cycle and make the library unreadable
+without the framework it is supposed to outlive.
+
 The check is on the import graph and not on a naming convention because a
 model that reaches back does so by importing, and it does it silently: nothing
 else in the suite would fail. `dnp_map`, `gle_tabs` and `vlan_mapper` pass it
@@ -31,6 +39,10 @@ _FORBIDDEN_MODULES = ("pacct.web.mount", "pacct.web.session")
 
 def _model_files() -> list[Path]:
     return sorted((PACKAGE_DIR / "web").glob("*/model.py"))
+
+
+def _library_files() -> list[Path]:
+    return sorted((PACKAGE_DIR / "library").glob("*.py"))
 
 
 def _imported_names(path: Path) -> list[str]:
@@ -79,3 +91,25 @@ def test_the_check_is_not_vacuous():
     found = {path.parent.name for path in _model_files()}
     assert {"dnp_map", "gle_exporter", "gle_tabs", "settings_compare",
             "vb_updater", "vlan_mapper"} <= found
+
+
+def test_the_library_never_imports_the_web_layer():
+    """`pacct.library` is platform, and the test of that is the import graph.
+
+    Not a naming convention and not the docstring: the library became platform
+    the moment the dispatcher and the session layer started depending on it,
+    and it stops being platform the moment it depends on them back.
+    """
+    offenders: list[str] = []
+    for path in _library_files():
+        for name in _imported_names(path):
+            if name == "pacct.web" or name.startswith("pacct.web."):
+                offenders.append(f"library/{path.name} imports {name}")
+    assert offenders == []
+
+
+def test_the_library_check_is_not_vacuous():
+    """The glob above would pass by finding nothing if the package moved or
+    was renamed, so name what it has to find."""
+    found = {path.name for path in _library_files()}
+    assert {"__init__.py", "client.py", "derived.py", "model.py"} <= found
