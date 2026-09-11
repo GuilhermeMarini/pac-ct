@@ -235,3 +235,48 @@ def test_download_names_an_accented_file_with_rfc_5987(tmp_path):
     assert r.status == 200
     disp = r.headers["content-disposition"]
     assert unquote(disp.split("UTF-8''", 1)[1]) == name
+
+
+# -- where the JavaScript lives ---------------------------------------------
+#
+# Nothing in the suite runs JavaScript, and a page whose script never loads
+# still answers 200 -- it just renders blank, because `SelLibrary.picker(...)`
+# is called at the top level of that file. These two assertions cover the one
+# failure a route test can see: the tag and the file disagreeing about the
+# path, after a rename or a file that did not ship.
+
+def test_the_landing_reaches_its_script_file():
+    from pacct.paths import STATIC_DIR
+    from pacct.web import vb_updater
+
+    assert '<script src="/static/js/vb_updater/landing.js">' in vb_updater.LANDING_HTML
+    assert (STATIC_DIR / "js" / "vb_updater" / "landing.js").is_file()
+
+
+def test_the_landing_carries_no_inline_script_body():
+    from pacct.web import vb_updater
+
+    assert "<script>" not in vb_updater.LANDING_HTML
+
+
+# The comparison page is the one template here that `str.format()` fills, so
+# its braces were doubled while the script sat inside it. The extracted file
+# carries single braces; what this pins is that no `{` came with it into the
+# template's OWN text, where a stray one would raise at render rather than at
+# import -- the page is built per request, and only from `/compare`.
+
+def test_the_comparison_page_reaches_its_script_file():
+    from pacct.paths import STATIC_DIR
+    from pacct.web import vb_updater
+
+    html = vb_updater.COMPARE_HTML_TEMPLATE.format(
+        rdb_relay="R1", ied_name="IED1", gle_name="GL1.gle",
+        summary="", rows="")
+    assert '<script src="/static/js/vb_updater/compare.js">' in html
+    assert (STATIC_DIR / "js" / "vb_updater" / "compare.js").is_file()
+
+
+def test_the_comparison_page_carries_no_inline_script_body():
+    from pacct.web import vb_updater
+
+    assert "<script>" not in vb_updater.COMPARE_HTML_TEMPLATE
