@@ -253,3 +253,17 @@ def test_the_editor_carries_no_inline_script_body():
     from pacct.web.dnp_map import handler
 
     assert "<script>" not in handler.EDITOR_HTML
+
+
+def test_the_copy_wizard_reaches_its_script_file():
+    from pacct.paths import STATIC_DIR
+    from pacct.web.dnp_map import handler
+
+    assert '<script src="/static/js/dnp_map/copy.js">' in handler.COPY_HTML
+    assert (STATIC_DIR / "js" / "dnp_map" / "copy.js").is_file()
+
+
+def test_the_copy_wizard_carries_no_inline_script_body():
+    from pacct.web.dnp_map import handler
+
+    assert "<script>" not in handler.COPY_HTML
