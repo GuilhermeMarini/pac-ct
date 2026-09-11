@@ -356,10 +356,12 @@ def test_a_generated_rdb_enters_the_library_with_its_accents(tmp_path,
     pac-ct's decision, and the RDB is the file type it shows most.
 
     The assert on `entry.rdb` is the point: five screens read the name off the
-    `RdbInfo` rather than off the library entry (`glv/handler.py:184`,
-    `settings_compare/state.py:90`, `vb_updater:1113`, `gle_exporter:844`,
-    `dnp_map/handler.py:649`), and two of those build an output filename with
-    it.
+    `RdbInfo` rather than off the library entry (`glv/handler.py`,
+    `settings_compare/state.py`, `vb_updater`, `gle_exporter`,
+    `dnp_map/handler.py`), and two of those build an output filename with it.
+    Files and not `file:line`, for the reason `derived.py` gives beside the
+    same list: every one of the five line numbers this used to carry had
+    drifted off its target.
     """
     from sellib.rdb import RdbInfo
 

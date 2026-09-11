@@ -200,8 +200,9 @@ def main():
     # take turns on the port -- opening one took the other down -- and now they
     # are all up at once, with a single port to open in the firewall or the
     # WSL portproxy.
-    from pacct.web import gle_exporter, vb_updater
+    from pacct.web import vb_updater
     from pacct.web.dnp_map.handler import build_dnp_map_handler
+    from pacct.web.gle_exporter.handler import build_gle_exporter_handler
     from pacct.web.gle_tabs.handler import build_gle_tabs_handler
     from pacct.web.project_files.handler import build_project_files_handler
     from pacct.web.settings_compare.handler import (
@@ -268,7 +269,7 @@ def main():
         Mount("/vlan-mapper", build_vlan_mapper_handler(logger, sessions),
               "VLAN Mapper"),
         Mount("/gle-exporter",
-              gle_exporter.build_gle_exporter_handler(logger, sessions),
+              build_gle_exporter_handler(logger, sessions),
               "GLE Variable Comment Exporter"),
         Mount("/settings-compare",
               build_settings_compare_handler(logger, sessions),

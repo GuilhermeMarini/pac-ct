@@ -144,11 +144,18 @@ def _rdb_entry(src: Path, size: int, name: str, sha: str, origin: str):
         info = rdb_loader.process_upload_stream(fh, size, name)
     # The name to SHOW, over the one `sellib` sanitized. It goes on the
     # `RdbInfo` and not only on the entry because five screens read it from
-    # there (`glv/handler.py:184`, `settings_compare/state.py:90`, `vb_updater:1113`,
-    # `gle_exporter:844`, `dnp_map/handler.py:649`) -- and the field is
-    # documented as "the name THIS upload carried", which is exactly what
+    # there -- `glv/handler.py`, `settings_compare/state.py`, `vb_updater`,
+    # `gle_exporter` (in both its `state.py` and its `handler.py`, which
+    # builds both output names with it) and `dnp_map/handler.py` -- and the
+    # field is documented as "the name THIS upload carried", which is exactly what
     # this is. What `sellib` keeps is the cache's own record in
     # `meta.json`, which no screen reads.
+    # Files, not line numbers, and that is a correction rather than laziness:
+    # this list carried five `file:line` citations and by the time anyone
+    # checked, all five pointed at the wrong line -- one of them three lines
+    # off within a week of being written. A number no test can check and
+    # nobody can verify by eye is worse than no number. `grep -n display_name`
+    # answers it in a second and is never stale.
     info.display_name = library.display_name_for(name, "arquivo.rdb")
     return library.FileEntry(
         sha256=sha, kind=library.KIND_RDB, display_name=info.display_name,
