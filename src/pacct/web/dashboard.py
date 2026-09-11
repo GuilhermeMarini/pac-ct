@@ -200,10 +200,11 @@ def main():
     # take turns on the port -- opening one took the other down -- and now they
     # are all up at once, with a single port to open in the firewall or the
     # WSL portproxy.
-    from pacct.web import gle_exporter, settings_compare, vb_updater, vlan_mapper
+    from pacct.web import gle_exporter, settings_compare, vb_updater
     from pacct.web.dnp_map.handler import build_dnp_map_handler
     from pacct.web.gle_tabs.handler import build_gle_tabs_handler
     from pacct.web.project_files.handler import build_project_files_handler
+    from pacct.web.vlan_mapper.handler import build_vlan_mapper_handler
 
     # Every visitor gets their own state and upload directory, identified by
     # a cookie. Without that, one person's upload replaced another's in
@@ -261,7 +262,7 @@ def main():
               "Graphical Logic Viewer"),
         Mount("/vb-updater", vb_updater.build_vb_updater_handler(logger, sessions),
               "VB Updater"),
-        Mount("/vlan-mapper", vlan_mapper.build_vlan_mapper_handler(logger, sessions),
+        Mount("/vlan-mapper", build_vlan_mapper_handler(logger, sessions),
               "VLAN Mapper"),
         Mount("/gle-exporter",
               gle_exporter.build_gle_exporter_handler(logger, sessions),
