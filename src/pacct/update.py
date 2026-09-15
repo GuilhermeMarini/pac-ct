@@ -122,6 +122,30 @@ class Release:
                 return a
         return None
 
+    @property
+    def min_python(self) -> tuple[int, ...] | None:
+        """The interpreter this bundle needs, as the manifest declares it.
+
+        `build_dist.py` has always written `min_python` into `manifest.json`
+        and nothing ever read it. It became load-bearing in 1.12.0, when the
+        floor moved 3.10 -> 3.13: an engineer still on 3.12 must be told the
+        release exists and cannot be installed, rather than be handed a zip
+        whose `vendor/` wheels are for an interpreter they do not have.
+
+        A manifest that omits the field, or spells it in a way this cannot
+        parse, answers `None` -- which means "no claim", not "no". Every
+        manifest published before 1.12.0 carries `3.10`, and treating an
+        unreadable value as a refusal would turn a typo in a document we do
+        not control into an update nobody can take.
+        """
+        raw = (self.manifest or {}).get("min_python")
+        if not isinstance(raw, str):
+            return None
+        try:
+            return tuple(int(part) for part in raw.strip().split("."))
+        except ValueError:
+            return None
+
 
 @dataclass(frozen=True)
 class Layout:
@@ -442,9 +466,46 @@ def check_latest(url: str = LATEST_MANIFEST_URL,
     return release_from_manifest(manifest)
 
 
+def unsupported_python(release: Release,
+                       running: tuple[int, ...] | None = None) -> str | None:
+    """Why this machine cannot take `release`, or `None` when it can.
+
+    The offline install is the whole reason this exists. A substation has no
+    route to the internet: the bundle carries `vendor/`, one wheel per
+    dependency, fetched for ONE target interpreter. Offering a 3.13 bundle to
+    a 3.12 machine does not produce a download that fails politely -- it
+    produces a half-installed version on the one computer with no network to
+    recover with.
+
+    The answer is a sentence and not a boolean because the caller has to say
+    it out loud. "You are on the newest version" would be false, and silence
+    would be worse: the engineer would keep running `--verificar` and keep
+    being told nothing is available while a release sits there.
+    """
+    needs = release.min_python
+    if needs is None:
+        return None
+    here = running if running is not None else sys.version_info[:2]
+    if tuple(here[:len(needs)]) >= needs:
+        return None
+    return (f"A versao {release.version} pede Python "
+            f"{'.'.join(str(n) for n in needs)} ou mais novo; este esta' "
+            f"rodando {'.'.join(str(n) for n in here[:2])}. Atualize o Python "
+            f"antes de atualizar o PAC CT.")
+
+
 def update_available(release: Release, current: str) -> bool:
-    """Rule 4, in one line: only a real release, and only a newer one."""
-    return version_mod.is_newer(release.version, current)
+    """Rule 4, in one line -- plus the interpreter, since 1.12.0.
+
+    Only a real release, only a newer one, and only one this machine can
+    actually install. The third clause lives HERE rather than at each caller
+    because there are three of them -- `--verificar`, `--atualizar` and the
+    home page's badge -- and a rule enforced in two places out of three is the
+    one that gets found in a substation.
+    """
+    if not version_mod.is_newer(release.version, current):
+        return False
+    return unsupported_python(release) is None
 
 
 # ---------------------------------------------------------------------------

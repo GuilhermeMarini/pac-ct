@@ -121,19 +121,26 @@ def test_the_py61850_pin_is_bounded_above():
     traversal in the package -- and every vendor library reaching the tree
     through it -- funnels there. So the ceiling moved to `<0.5` on 2026-09-11,
     for the same reason it existed, and only after the seam nothing in CI
-    checks was measured: 931 tests here and 275 in SELlib, both against the
-    released SELlib 3.0.1, which is what a clean install actually resolves to
-    (SELlib's own pin is an unbounded `py61850>=0.3.0`).
+    checks was measured.
 
-    The FLOOR moved with it. `>=0.3.0,<0.5` would have been the smaller edit
-    and would have left 0.3.x admissible and untested; `>=0.4.0` means exactly
-    one library line is supported and it is the line the numbers above were
-    measured on. That is asserted below, not just described.
+    **It moved again to `<0.6` on 2026-09-15, by the same procedure**, which is
+    the point worth preserving: 0.5.0 was PUBLISHED first, then measured --
+    935 tests here and 275 in SELlib against it, on Python 3.14.6 -- and only
+    then admitted. 0.5.0 adds the SCL edit layer, taking the public surface
+    from 31 names to 132 with none removed and none changed in meaning, which
+    was checked name by name against the 0.4.0 release rather than inferred
+    from "nothing was deleted".
 
-    The property pinned here is not the string `<0.5`, it is what the specifier
+    The FLOOR moves with the ceiling every time, and that is the rule rather
+    than a habit. `>=0.4.0,<0.6` would have been the smaller edit and would
+    have left the 0.4 line admissible and no longer exercised; one supported
+    library line means a clean install and an existing install cannot disagree
+    about which parser they have. That is asserted below, not just described.
+
+    The property pinned here is not the string `<0.6`, it is what the specifier
     admits. PEP 440's exclusive comparison also refuses pre-releases OF THE
-    VERSION IT NAMES, which is what keeps a `0.5.0.dev1` out of
-    `--atualizar-deps` -- the one path that passes `--pre` to pip.
+    VERSION IT NAMES, which is what keeps a `0.6.0.dev1` out of
+    `--atualizar-deps` -- the one path that passes `--pre`.
 
     Raising the ceiling is a deliberate act, taken once the next minor has been
     verified against this suite, never a side effect of another change. If this
@@ -147,17 +154,44 @@ def test_the_py61850_pin_is_bounded_above():
     assert len(specifiers) == 2, specifiers
     for spec in specifiers:
         admits = SpecifierSet(spec)
-        assert admits.contains("0.4.0") and admits.contains("0.4.9"), spec
-        # One supported line: the 0.3 series is deliberately out, not merely
+        assert admits.contains("0.5.0") and admits.contains("0.5.9"), spec
+        # One supported line: the 0.4 series is deliberately out, not merely
         # older. A pin that still admitted it would admit a version this
         # release has never been run against.
-        assert not admits.contains("0.3.9"), (
-            f"{spec!r} still admits 0.3.9: the floor did not move with the "
+        assert not admits.contains("0.4.9"), (
+            f"{spec!r} still admits 0.4.9: the floor did not move with the "
             f"ceiling, so an untested library line is still installable")
-        for blocked in ("0.5.0", "0.5.0.dev1", "0.5.0rc1", "1.0.0"):
+        for blocked in ("0.6.0", "0.6.0.dev1", "0.6.0rc1", "1.0.0"):
             assert not admits.contains(blocked, prereleases=True), (
                 f"{spec!r} still admits {blocked}: the pin is not bounded "
                 f"below the next release that could change the parser")
+
+
+def test_the_declared_floor_is_the_one_the_pinned_library_demands():
+    """`requires-python` here is not a preference, it is arithmetic.
+
+    `py61850>=0.5.0` declares `>=3.13` in its own metadata. Below 3.13 a
+    resolver is served py61850 0.4.0, which this project's pin no longer
+    admits, so the install fails outright. A `requires-python` claiming 3.10
+    would be a promise the resolver breaks for the user -- which is the shape
+    of bug that only shows up on someone else's machine.
+
+    Pinned as a relationship rather than as the string ">=3.13" so that the
+    next time either side moves, whichever one moves alone fails here.
+    """
+    floor = _requires_python_floor()
+    assert floor >= (3, 13), floor
+    # And the offline bundle has to target the same interpreter: build_dist
+    # passes MIN_PYTHON to `pip download --python-version`, and at 3.10 pip
+    # refuses py61850 0.5.0 with "Ignored the following versions that require
+    # a different python version" -- the release would not build.
+    build_dist = (ROOT / "tools" / "build_dist.py").read_text(encoding="utf-8")
+    m = re.search(r'^MIN_PYTHON = "(\d+)\.(\d+)"', build_dist, re.M)
+    assert m, "build_dist.py must declare MIN_PYTHON"
+    assert (int(m[1]), int(m[2])) == floor, (
+        f"MIN_PYTHON {m[1]}.{m[2]} != requires-python floor "
+        f"{floor[0]}.{floor[1]}: the bundle would vendor wheels for an "
+        f"interpreter this project does not support")
 
 
 def test_the_unpublished_libraries_are_pinned_to_a_commit_not_a_branch():
@@ -200,11 +234,18 @@ def test_ci_starts_at_the_version_pyproject_promises():
 def test_the_ci_matrix_has_no_holes_in_it():
     """Skipping a version is how a real incompatibility hides.
 
-    The concrete one here is **3.13**: that is the release where `telnetlib`
-    was removed from the standard library, and the vendored `selprotopy` still
+    The concrete one was **3.13**: that is the release where `telnetlib` was
+    removed from the standard library, and the vendored `selprotopy` still
     does a bare `import telnetlib`. `pacct/compat.py` covers it by aliasing
-    `telnetlib3`'s backport into `sys.modules` -- and a matrix that jumped
-    3.12 to 3.14 would never exercise the boundary where that starts mattering.
+    `telnetlib3`'s backport into `sys.modules`, and while 3.13 was an interior
+    row a matrix that jumped 3.12 to 3.14 would never have exercised the
+    boundary where that starts mattering.
+
+    **Since 2026-09-15 that boundary is the floor**, so every job runs at or
+    above the removal and none of them can reach the standard library's
+    `telnetlib` at all. The gap rule still earns its place: the matrix is two
+    versions wide today and this is what stops it silently becoming 3.13 and
+    3.15 with 3.14 dropped out of the middle.
     """
     matrix = _ci_matrix()
     expected = [(matrix[0][0], minor)

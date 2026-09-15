@@ -6,7 +6,14 @@ build-backend = "setuptools.build_meta"
 name = "pac-ct"
 description = "Protection, Automation & Control Commissioning Toolkit — web tools for commissioning SEL relays and IEC 61850 systems"
 readme = "README.md"
-requires-python = ">=3.10"
+# 3.13, raised from 3.10 on 2026-09-15. It is NOT a preference: the
+# `py61850>=0.5.0` pin below declares `>=3.13` itself, so this project cannot
+# be installed below it, and a `requires-python` that claimed otherwise would
+# be a lie a resolver discovers for the user. 3.13 is also where `telnetlib`
+# left the standard library, which used to be an interior row of the CI matrix
+# and is now the floor -- so `pacct/compat.py`'s backport is exercised on every
+# job rather than on one.
+requires-python = ">=3.13"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
 authors = [{ name = "Guilherme Marini" }]
@@ -15,9 +22,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Manufacturing",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
@@ -40,15 +44,18 @@ dependencies = [
     # Both the GLV's MMS transport and, since 0.3.0, the IEC 61850-6 reader
     # four tools here read an SCD through. A FINAL, not a pre-release: a
     # specifier naming a `.devN` tells the resolver pre-releases are eligible
-    # for that requirement, which would let a future `0.4.0.dev1` in silently.
-    # Floor and ceiling both moved on 2026-09-11, from `>=0.3.0,<0.4`. The old
-    # ceiling kept out a parser that raised on any SCD carrying an XML comment;
-    # 0.4.0 fixed that at the source (`strip_ns` guards a non-string tag), and
-    # the move was made only after 931 tests here and 275 in SELlib passed
-    # against it. The floor moved too so that one library line is supported and
-    # it is the tested one. See requirements.txt for the full note, and raise
+    # for that requirement, which would let a future `0.5.0.dev1` in silently.
+    # Floor and ceiling moved together on 2026-09-11 and again on 2026-09-15,
+    # each time deliberately and each time only after the seam nothing in CI
+    # checks was measured. 0.5.0 adds the SCL EDIT layer: 31 public names
+    # become 132, none removed and none changed in meaning, verified name by
+    # name against the 0.4.0 release; 935 tests here and 275 in SELlib pass
+    # against it. One supported library line, and it is the tested one.
+    # **This pin is what forces `requires-python` above**: py61850 0.5.0
+    # declares `>=3.13`, so below that a resolver is served 0.4.0, which this
+    # pin does not admit. See requirements.txt for the full note, and raise
     # the ceiling deliberately or not at all.
-    "py61850>=0.4.0,<0.5",
+    "py61850>=0.5.0,<0.6",
 ]
 
 [project.optional-dependencies]
