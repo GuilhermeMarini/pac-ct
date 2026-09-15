@@ -88,4 +88,27 @@ openpyxl>=3.1
 # and `0.5.0rc1` out as well -- including under `--atualizar-deps`, which
 # passes `--pre`. Raise it deliberately, once the next minor has been verified
 # against this suite, and never as a side effect of some other change.
-py61850>=0.4.0,<0.5
+#
+# ---------------------------------------------------------------------------
+# 2026-09-15: raised to `>=0.5.0,<0.6`, deliberately, and the rule above is
+# what was followed rather than waived. 0.5.0 adds the SCL EDIT layer -- the
+# surface goes from 31 names to 132, none removed and none changed in meaning,
+# which was measured name by name against the 0.4.0 release rather than
+# assumed. It was published first, then verified against the consumers nothing
+# in CI checks: 935 tests here and 275 in SELlib, again with the released
+# SELlib 3.0.1, on Python 3.14.6.
+#
+# The floor moved with the ceiling again, for the same one-supported-line
+# reason: `>=0.4.0,<0.6` would leave the 0.4 line installable and no longer
+# exercised.
+#
+# **This pin is what forces `requires-python = ">=3.13"` on this project.**
+# py61850 0.5.0 declares `>=3.13`, so on 3.10, 3.11 or 3.12 a resolver is
+# served 0.4.0 -- which this pin no longer admits -- and the install fails
+# rather than quietly downgrading. Declaring a floor this project cannot
+# satisfy would be the bug; the floor is raised to match. It also reaches the
+# OFFLINE bundle: `tools/build_dist.py` downloads wheels for a target
+# interpreter, and at the old `--python-version 3.10` default pip refuses
+# 0.5.0 outright with "Ignored the following versions that require a different
+# python version". `MIN_PYTHON` and that default moved to 3.13 together.
+py61850>=0.5.0,<0.6

@@ -83,7 +83,14 @@ EXCLUDE_SUFFIXES = {".pyc", ".pyo"}
 # leave the machine it was typed on.
 CONFIG_ALLOW = {"config.ini.example"}
 
-MIN_PYTHON = "3.10"
+# The interpreter the bundle is built FOR, and the floor it advertises. Raised
+# from 3.10 on 2026-09-15 with `requires-python`: it is not cosmetic, because
+# `build_vendor` passes it to `pip download --python-version` and at 3.10 pip
+# refuses `py61850>=0.5.0` outright -- "Ignored the following versions that
+# require a different python version" -- so the release bundle would not build
+# at all. It also travels in `manifest.json` as `min_python`, which is what
+# `pacct.update` refuses an un-installable offer on.
+MIN_PYTHON = "3.13"
 
 
 def _iter_tree(src: Path) -> list[Path]:
@@ -391,9 +398,9 @@ def main() -> None:
                     help="Fetch win_amd64 wheels into vendor/")
     ap.add_argument("--no-vendor", dest="vendor", action="store_false",
                     help="Skip vendor/ (source-only bundle; needs no network)")
-    ap.add_argument("--python-version", default="3.10",
-                    help="Target Python for the Windows wheels (default 3.10, "
-                         "the minimum this project supports)")
+    ap.add_argument("--python-version", default=MIN_PYTHON,
+                    help=f"Target Python for the Windows wheels (default "
+                         f"{MIN_PYTHON}, the minimum this project supports)")
     ap.add_argument("--out", default=str(ROOT / "dist"), type=Path)
     args = ap.parse_args()
     build(release=args.release, windows=args.windows, vendor=args.vendor,

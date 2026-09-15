@@ -24,17 +24,22 @@ class FakeCheck:
     """Um `check_latest` de mentira que conta quantas vezes foi chamado."""
 
     def __init__(self, version: str | None = None,
-                 error: str | None = None) -> None:
+                 error: str | None = None,
+                 min_python: str | None = None) -> None:
         self.version = version
         self.error = error
+        self.min_python = min_python
         self.calls = 0
 
     def __call__(self, *, timeout: float = 0.0) -> U.Release:
         self.calls += 1
         if self.error is not None:
             raise U.UpdateError(self.error)
+        manifest = {"version": self.version, "release": True}
+        if self.min_python is not None:
+            manifest["min_python"] = self.min_python
         return U.Release(version=self.version or "", tag=f"v{self.version}",
-                         notes="", assets=())
+                         notes="", assets=(), manifest=manifest)
 
 
 @pytest.fixture(autouse=True)
@@ -47,8 +52,9 @@ def _clean_cache():
 @pytest.fixture
 def check(monkeypatch):
     """Instala um `check_latest` falso e devolve o contador."""
-    def install(version: str | None = None, error: str | None = None):
-        fake = FakeCheck(version, error)
+    def install(version: str | None = None, error: str | None = None,
+                min_python: str | None = None):
+        fake = FakeCheck(version, error, min_python)
         monkeypatch.setattr(U, "check_latest", fake)
         return fake
     return install
@@ -143,4 +149,30 @@ def test_the_payload_carries_every_field_the_banner_reads(check):
         "available": True,
         "kind": "portable",
         "error": None,
+        "blocked": None,
     }
+
+
+def test_a_release_this_python_cannot_install_is_reported_not_hidden(check):
+    """`available` falso e `blocked` preenchido -- a home NAO pode dizer
+    "atualizado" quando existe versao nova que esta maquina nao instala.
+
+    `error` continua nulo de proposito: a consulta funcionou. Sao dois estados
+    diferentes e a home mostra textos diferentes para cada um.
+    """
+    check("1.11.0", min_python="99.0")
+    st = uc.status()
+    assert st.latest == "1.11.0"
+    assert st.available is False
+    assert st.error is None
+    assert st.blocked is not None and "99.0" in st.blocked
+    assert st.as_dict()["blocked"] == st.blocked
+
+
+def test_nothing_is_blocked_when_there_is_nothing_newer(check):
+    """Uma versao igual ou mais velha nao e' "bloqueada", e' so' nao-nova --
+    senao a home avisaria sobre um Python velho sem ter nada a oferecer."""
+    check("1.10.0", min_python="99.0")
+    st = uc.status()
+    assert st.available is False
+    assert st.blocked is None

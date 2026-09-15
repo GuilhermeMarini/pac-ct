@@ -96,8 +96,9 @@ pac-ct/
 
 ## Prerequisites
 
-- Python 3.10 to 3.14 (CI runs all five; 3.12 and 3.14 are exercised by
-  hand here, including a full offline install)
+- Python 3.13 or newer (CI runs 3.13 and 3.14; 3.14 is exercised by hand
+  here, including a full offline install). The floor was 3.10 until 1.12.0 and
+  moved with the `py61850>=0.5.0` pin, which declares 3.13 itself
 - TCP access to the SEL relay (port 23 / Telnet) -- for the GLV only
 - Linux/macOS/WSL (native Windows should work too)
 

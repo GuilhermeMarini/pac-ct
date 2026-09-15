@@ -56,6 +56,11 @@ class UpdateStatus:
     latest: str | None = None
     available: bool = False
     error: str | None = None
+    # Ha' uma versao nova, e esta maquina nao consegue instala-la: o Python
+    # aqui e' mais velho do que o bundle exige. Campo separado de `error` de
+    # proposito -- `error` quer dizer "a consulta falhou", e esta deu certo.
+    # Sem ele a home mostraria "atualizado", que e' falso.
+    blocked: str | None = None
 
     def as_dict(self) -> dict:
         return {
@@ -64,6 +69,7 @@ class UpdateStatus:
             "available": self.available,
             "kind": self.kind,
             "error": self.error,
+            "blocked": self.blocked,
         }
 
 
@@ -118,7 +124,10 @@ def _ask() -> UpdateStatus:
         release = update.check_latest(timeout=TIMEOUT)
     except update.UpdateError as exc:
         return UpdateStatus(current=current, kind=kind, error=str(exc))
+    blocked = (update.unsupported_python(release)
+               if version_mod.is_newer(release.version, current) else None)
     return UpdateStatus(
         current=current, kind=kind, latest=release.version,
         available=update.update_available(release, current),
+        blocked=blocked,
     )

@@ -70,6 +70,66 @@ def test_a_snapshot_is_never_offered_as_an_update():
     assert U.update_available(release_with("1.3.0", {}), "1.4.0") is False
 
 
+def _release_needing(min_python, version="1.12.0"):
+    """A release whose manifest declares `min_python`, or omits it when None."""
+    manifest = {"name": "pac-ct", "version": version, "release": True,
+                "artifacts": []}
+    if min_python is not None:
+        manifest["min_python"] = min_python
+    return U.Release(version=version, tag=f"v{version}", notes="",
+                     assets=(), manifest=manifest)
+
+
+def test_a_release_the_interpreter_cannot_run_is_not_offered():
+    """The offline install is why this is a refusal and not a warning.
+
+    The bundle carries `vendor/` -- one wheel per dependency, resolved for ONE
+    target interpreter. Handing a 3.13 bundle to a 3.12 machine does not fail
+    politely at download time; it half-installs on the one computer that by
+    definition has no network to recover with. py61850 0.5.0 made this real
+    rather than theoretical by moving this project's floor 3.10 -> 3.13.
+    """
+    newer = _release_needing("3.13")
+    # Explicit interpreters, because the running one must not decide the test.
+    assert U.unsupported_python(newer, (3, 12)) is not None
+    assert U.unsupported_python(newer, (3, 13)) is None
+    assert U.unsupported_python(newer, (3, 14)) is None
+    assert U.unsupported_python(newer, (4, 0)) is None
+
+
+def test_the_refusal_says_both_versions_because_the_engineer_has_to_act():
+    """"Nothing available" would be a lie and silence would be worse -- the
+    engineer would keep re-running `--verificar` while a release sits there."""
+    message = U.unsupported_python(_release_needing("3.13"), (3, 12))
+    assert message is not None
+    assert "3.13" in message and "3.12" in message
+    assert "1.12.0" in message
+
+
+def test_a_manifest_with_no_min_python_makes_no_claim():
+    """Every manifest published before 1.12.0 omits or predates the field, and
+    an unreadable value is "no claim" rather than "no": a typo in a document
+    this project does not control must not become an update nobody can take."""
+    assert U.unsupported_python(_release_needing(None), (3, 9)) is None
+    assert U.unsupported_python(_release_needing("nonsense"), (3, 9)) is None
+    assert U.unsupported_python(_release_needing(3.13), (3, 9)) is None
+    assert _release_needing("3.13").min_python == (3, 13)
+    assert _release_needing(None).min_python is None
+
+
+def test_the_interpreter_gate_is_inside_update_available():
+    """Three callers ask -- `--verificar`, `--atualizar` and the home badge --
+    and a rule enforced in two of the three is the one found in a substation."""
+    from pacct import version as version_mod
+    newer = _release_needing("99.0")           # nothing can satisfy it
+    assert U.update_available(newer, "1.11.6") is False
+    # ...and it is the INTERPRETER that refused, not the version comparison:
+    # without the new clause this release is unambiguously newer.
+    assert version_mod.is_newer(newer.version, "1.11.6") is True
+    # A release the interpreter CAN run still comes through.
+    assert U.update_available(_release_needing("3.0"), "1.11.6") is True
+
+
 MANIFEST_1_5_0 = {
     "name": "pac-ct", "version": "1.5.0", "release": True,
     "artifacts": [

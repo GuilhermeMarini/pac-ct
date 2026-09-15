@@ -23,7 +23,12 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          # The FLOOR, not the newest: this job builds the offline bundle, and
+          # `build_dist.py` resolves `vendor/` wheels for the oldest
+          # interpreter the project supports. Building on a newer one than the
+          # bundle targets is how a wheel that cannot be installed in a
+          # substation gets shipped.
+          python-version: "3.13"
 
       - name: The tag and VERSION must agree
         run: |
@@ -62,7 +67,7 @@ jobs:
           Os dois trazem `vendor/` — um wheel por dependência — porque a
           instalação é **offline**: uma subestação normalmente não tem rede.
           Descompacte em `PAC-CT/versions/<versao>/` e siga o `INSTALAR.txt`
-          que vem dentro. Requer Python 3.10 ou mais novo.
+          que vem dentro. Requer Python 3.13 ou mais novo.
 
           Confira o download antes de instalar: os sha256 estão em
           `SHA256SUMS` e em `manifest.json` — é o mesmo valor que o

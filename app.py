@@ -363,7 +363,12 @@ def run_check(timeout: float = 3.0) -> int:
     """
     _ensure_import_path()
     try:
-        from pacct.update import UpdateError, check_latest, update_available
+        from pacct.update import (
+            UpdateError,
+            check_latest,
+            unsupported_python,
+            update_available,
+        )
     except ModuleNotFoundError as exc:
         sys.exit(_explain_import_failure(exc))
     current = read_version_file()
@@ -373,6 +378,12 @@ def run_check(timeout: float = 3.0) -> int:
         print(f"[--] {exc}")
         return 0
     if not update_available(release, current):
+        # The interpreter refusal is NOT "you are up to date", and saying so
+        # would send the engineer to run `--verificar` again tomorrow.
+        blocked = unsupported_python(release)
+        if blocked:
+            print(f"[!!] {blocked}")
+            return 0
         print(f"[OK] Ja' esta na versao mais nova ({current}).")
         return 0
     print(f"[!!] Ha' uma versao nova: {release.version} (esta: {current}).")
@@ -414,6 +425,7 @@ def run_update(assume_yes: bool = False) -> None:
         perform_portable_update,
         perform_update,
         restart,
+        unsupported_python,
         update_available,
     )
     current = read_version_file()
@@ -429,6 +441,9 @@ def run_update(assume_yes: bool = False) -> None:
         sys.exit(f"[ERRO] {exc}")
 
     if not update_available(release, current):
+        blocked = unsupported_python(release)
+        if blocked:
+            sys.exit(f"[ERRO] {blocked}")
         print(f"[OK] Versao {current} e' a mais nova publicada "
               f"({release.tag or 'sem release'}). Nada a fazer.")
         return

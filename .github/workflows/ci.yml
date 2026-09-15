@@ -11,25 +11,35 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 3.10 is the floor `requires-python` declares; 3.14 is the newest
-        # release. 3.13 is not optional cover: it is where `telnetlib` was
-        # REMOVED from the standard library, and the vendored `selprotopy`
-        # still does a bare `import telnetlib` -- `pacct/compat.py` aliases
-        # `telnetlib3`'s backport into `sys.modules` to cover it, and this is
-        # the job that would notice if the backport ever stopped being a
-        # drop-in.
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        # 3.13 is the floor `requires-python` declares; 3.14 is the newest
+        # release. The floor moved from 3.10 on 2026-09-15 because the
+        # `py61850>=0.5.0` pin declares `>=3.13` itself.
+        #
+        # **3.13 did not stop being the interesting row; it became the floor
+        # one.** It is where `telnetlib` was REMOVED from the standard library,
+        # and the vendored `selprotopy` still does a bare `import telnetlib` --
+        # `pacct/compat.py` aliases `telnetlib3`'s backport into `sys.modules`
+        # to cover it. That backport used to be exercised by one interior job
+        # out of five; now EVERY job runs at or above the removal, so nothing
+        # here ever takes the standard library's `telnetlib` again and a
+        # backport that stopped being a drop-in would fail the whole matrix
+        # rather than one row of it. That is a strictly better guard, and it is
+        # why this comment is rewritten rather than deleted.
+        python-version: ["3.13", "3.14"]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install
-        # --pre: py61850 ships as a pre-release and the specifier says so, but
-        # the flag keeps a resolver that ignores that from failing the job.
+        # `--pre` is a leftover from when py61850 shipped only pre-releases and
+        # `requirements.txt` had to name one. It has named a FINAL since 0.3.0
+        # and the note there now forbids naming a pre-release while a final
+        # exists, so the flag guards nothing -- it only widens what a resolver
+        # may pick. Dropped with the 0.5.0 pin.
         run: |
           python -m pip install --upgrade pip
-          pip install --pre -r requirements.txt -r requirements-dev.txt
+          pip install -r requirements.txt -r requirements-dev.txt
       - name: Lint
         run: python -m ruff check .
       - name: Types
