@@ -8,5 +8,10 @@
     "entry": "src/lib/file-picker.ts",
     "out": "js/lib/file-picker.js",
     "global": "PacLibraryRuntime"
+  },
+  {
+    "entry": "src/lib/progress.ts",
+    "out": "js/lib/progress.js",
+    "global": "PacProgressRuntime"
   }
 ]

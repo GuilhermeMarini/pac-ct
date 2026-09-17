@@ -335,14 +335,16 @@ def test_every_screen_loads_the_runtimes_in_the_order_that_makes_them_work():
       `defer` and no `async`, either of which would move it past the runtime it
       depends on.
     - `SelProgress` is spliced in AFTER the tool's tag, which is why nothing
-      may touch it at the top level and why it may not drift upward.
+      may touch it at the top level and why it may not drift upward. Since
+      B17b it is a `<script src>` like the other two rather than 219 inline
+      lines, so this test names its URL instead of a variable inside it.
 
     Driven through the real injectors in the real order `SessionHandler._send`
     uses them, not through a reproduction of it.
     """
     from pacct.library.client import CLIENT_JS_URL, inject_library_runtime
     from pacct.web.mount import inject_head
-    from pacct.web.progress import inject_progress_runtime
+    from pacct.web.progress import PROGRESS_JS_URL, inject_progress_runtime
 
     for template in _screens():
         html = template.read_text(encoding="utf-8")
@@ -353,7 +355,7 @@ def test_every_screen_loads_the_runtimes_in_the_order_that_makes_them_work():
         head_end = page.lower().index("</head>")
         library = page.index(CLIENT_JS_URL)
         tool = page.index('<script src="/static/js/', head_end)
-        progress = page.index("window.SelProgress", tool)
+        progress = page.index(PROGRESS_JS_URL, tool)
         body_end = page.rindex("</body>")
 
         assert library < head_end, f"{where}: the library runtime left <head>"
@@ -373,8 +375,113 @@ def test_every_screen_loads_the_runtimes_in_the_order_that_makes_them_work():
         assert "<script" not in after, (
             f"{where}: something now loads after the progress runtime"
         )
+        # The bar's tag has to keep the same shape as the tool's: a classic
+        # script executed where it sits. `defer` would let the page's own
+        # script run first and find `SelProgress` missing -- which is exactly
+        # the ordering the inline block used to guarantee by construction.
+        bar_tag = page[progress_tag:page.index("</script>", progress) + len("</script>")]
+        assert " defer" not in bar_tag and " async" not in bar_tag, (
+            f"{where}: the progress tag grew defer/async"
+        )
+        assert 'type="module"' not in bar_tag, f"{where}: the progress tag became a module"
         tool_tag = page[tool:tag_end]
         assert " defer" not in tool_tag and " async" not in tool_tag, (
             f"{where}: the tool's tag grew defer/async"
         )
         assert 'type="module"' not in tool_tag, f"{where}: the tag became a module"
+
+
+# -- client code inside Python, and the three that are left ------------------
+
+# The inline `<script>` blocks that Python still emits, each with the reason it
+# has not moved. B17b took the largest one out (`progress.py`, 219 lines /
+# 8,546 bytes); these are what remained, and they are listed rather than
+# tolerated so that a NEW one fails this test instead of joining them quietly.
+# Same shape as `KNOWN_ASYMMETRIES` in `test_relay_models.py`.
+INLINE_SCRIPTS_STILL_IN_PYTHON = {
+    "web/mount.py": (
+        "_PREFIX_SHIM takes the mount prefix as a per-request argument and "
+        "rewrites fetch/XHR -- it is what makes every OTHER script's requests "
+        "work, so it cannot itself arrive by the mechanism it installs. "
+        "_THEME_PICKER is home-only and doubly substituted (the theme list and "
+        "the active theme)."
+    ),
+    "web/dashboard.py": (
+        "The home's update check, home-only. A candidate for B18's measurement."
+    ),
+}
+
+
+
+def _emits_an_inline_script(path: pathlib.Path) -> bool:
+    """True when this module EMITS `<script>` markup, not merely mentions it.
+
+    Read through `ast` and with docstrings excluded, because prose about a
+    `<script>` is not a `<script>`: `library/client.py` discusses one in its
+    module docstring and emits only a `<script src>` TAG, and a naive substring
+    search calls that an offender. The distinction this test is about is
+    inline code versus a tag, so the search is for the opening tag with no
+    attributes.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    docstrings = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef,
+                             ast.AsyncFunctionDef)):
+            doc = ast.get_docstring(node, clean=False)
+            if doc is not None:
+                docstrings.add(doc)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            if node.value in docstrings:
+                continue
+            if "<script>" in node.value:
+                return True
+    return False
+
+
+def test_no_new_inline_script_appears_in_python():
+    """Client code lives in `static/js/`, and the exceptions are named.
+
+    `docs/ENGINEERING-NOTES.md` says client code goes in `static/js/`, "never
+    inside a `.html` and never inside a `.py`". The `.html` half has been true
+    since the six extractions; the `.py` half was not, and B17b is what made it
+    nearly true -- `progress.py` held 219 lines of it, more than the rest put
+    together.
+
+    What is left is deliberately listed above rather than silently allowed. A
+    new module growing an inline `<script>` fails here.
+    """
+    root = PROJECT_ROOT / "src" / "pacct"
+    offenders = sorted(
+        p.relative_to(root).as_posix()
+        for p in root.rglob("*.py")
+        if _emits_an_inline_script(p)
+    )
+    assert offenders == sorted(INLINE_SCRIPTS_STILL_IN_PYTHON), (
+        "a Python module gained or lost an inline <script>; if it gained one, "
+        "either move it to frontend/src/ or write down why it cannot move"
+    )
+
+
+def test_the_progress_runtime_is_served_rather_than_inlined():
+    """The phase's own subject, asserted where it can be seen.
+
+    `inject_progress_runtime` emits a tag now. The check is not that the tag
+    exists -- the ordering test covers that on all thirteen screens -- but that
+    the RUNTIME is not coming along inside it, which is what a half-finished
+    revert would look like.
+    """
+    from pacct.web import progress
+
+    assert "<script>" not in progress.PROGRESS_TAG
+    assert progress.PROGRESS_TAG.strip() == (
+        f'<script src="{progress.PROGRESS_JS_URL}"></script>'
+    )
+    built = STATIC_DIR / "js" / "lib" / "progress.js"
+    assert built.is_file(), "the progress runtime is not built"
+    # The bar's own API, in the file the tag points at.
+    text = built.read_text(encoding="utf-8")
+    for member in ("begin:", "done:", "fail:", "hide:", "track:", "upload:", "post:"):
+        assert member in text, f"the built runtime is missing {member}"
+    assert "if (!window.SelProgress) window.SelProgress =" in text
