@@ -1,0 +1,12 @@
+{
+  "name": "pacct-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "vite": "^7.3.6"
+  }
+}

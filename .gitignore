@@ -79,3 +79,9 @@ dist/*
 !dist/.gitkeep
 
 *.Identifier
+
+# Dependencias do build do frontend (Fase B14). O `frontend/package-lock.json`
+# e' versionado e e' ele que fixa as versoes; o `node_modules/` e' o que `npm
+# ci` reconstroi a partir dele. Nao havia entrada nenhuma aqui porque ate agora
+# nao havia dependencia de node neste repositorio.
+node_modules/
