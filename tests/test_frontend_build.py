@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import ast
 import json
+import pathlib
 import re
 
 from pacct.paths import PROJECT_ROOT, STATIC_DIR
@@ -53,6 +54,20 @@ _FRONTEND = PROJECT_ROOT / "frontend"
 _SOURCE = _FRONTEND / "src" / "vlan_mapper" / "landing.ts"
 _BUILT = STATIC_DIR / "js" / "vlan_mapper" / "landing.js"
 _CI = PROJECT_ROOT / ".github" / "workflows" / "ci.yml"
+_BUNDLES = _FRONTEND / "bundles.json"
+
+
+def _bundles() -> list[dict]:
+    """The build's own inventory, read as data.
+
+    `frontend/build.js` loops over this and calls Vite once per row, because
+    Vite refuses more than one entry when the format is `iife` -- and `iife` is
+    the served contract, not a preference. The table is JSON rather than a
+    literal inside `build.js` so that THIS FILE can read it: the suite has no
+    node and must never need one, which is exactly what
+    `test_bundle_without_node_or_network.py` exists to keep true.
+    """
+    return json.loads(_BUNDLES.read_text(encoding="utf-8"))
 
 
 def _static_types() -> dict[str, str]:
@@ -204,3 +219,162 @@ def test_typecheck_is_wired_and_runs_before_the_build():
     assert ci.index("npm run typecheck") < ci.index("npm run build"), (
         "the type check has to run before the build, not after it"
     )
+
+
+# -- the build table is the inventory, and the suite reads it ----------------
+
+def test_every_row_of_the_build_table_has_a_source_and_a_served_output():
+    rows = _bundles()
+    assert rows, "the build table is empty"
+    known = set(_static_types())
+    for row in rows:
+        assert set(row) == {"entry", "out", "global"}, f"unexpected keys in {row}"
+        source = _FRONTEND / row["entry"]
+        built = STATIC_DIR / row["out"]
+        assert source.is_file(), f"{row['entry']} is in the build table and does not exist"
+        assert built.is_file(), f"{row['out']} is in the build table and was never built"
+        # The output has to be servable at the absolute path the template
+        # hard-codes: a suffix `mount.py` does not know comes back as
+        # `application/octet-stream` and is refused under `nosniff`.
+        assert built.suffix in known, f"{row['out']} has a type mount.py cannot serve"
+
+
+def test_every_built_file_says_which_row_produced_it():
+    # The banner is how whoever opens the served file finds the file to edit,
+    # and with more than one bundle it also has to name the RIGHT source.
+    for row in _bundles():
+        first = (STATIC_DIR / row["out"]).read_text(encoding="utf-8").splitlines()[0]
+        assert f"frontend/{row['entry']}" in first, (
+            f"{row['out']} does not name {row['entry']} as its source"
+        )
+
+
+def _reachable_from_the_build_table() -> set[str]:
+    """Every source a build actually reads, followed through its imports.
+
+    Written as a walk rather than as "every source is an entry", which is what
+    this started as and was wrong the moment a bundle had more than one module:
+    `lib/file-picker.ts` is the entry and `lib/page.ts` and `lib/library.ts`
+    are what it pulls in. Only relative specifiers are followed -- there is
+    nothing else to follow, since nothing here imports a package.
+    """
+    seen: set[str] = set()
+    queue = [row["entry"] for row in _bundles()]
+    while queue:
+        rel = queue.pop()
+        if rel in seen:
+            continue
+        seen.add(rel)
+        source = _FRONTEND / rel
+        if not source.is_file():
+            continue
+        here = pathlib.PurePosixPath(rel).parent
+        for spec in re.findall(r"""(?:from|import)\s+['"](\.[^'"]+)['"]""",
+                               source.read_text(encoding="utf-8")):
+            target = (here / spec).as_posix()
+            # `import './page'` means `./page.ts` on disk.
+            for candidate in (target, target + ".ts"):
+                if (_FRONTEND / candidate).is_file():
+                    queue.append(candidate)
+                    break
+    return seen
+
+
+def test_no_typescript_source_is_built_into_nothing():
+    """The half-migration guard, and the reason the table is data.
+
+    A `.ts` under `frontend/src/` that no build reaches is dead in a way
+    nothing else here can see: the served file stays whatever was last
+    committed, edits to the source vanish, and CI's staleness check passes
+    because a file nobody builds cannot go stale. The served file is still
+    there, still valid, still answering 200.
+
+    Declaration files are excluded because they are types and produce no output
+    by construction.
+    """
+    sources = {
+        p.relative_to(_FRONTEND).as_posix()
+        for p in (_FRONTEND / "src").rglob("*.ts")
+        if not p.name.endswith(".d.ts")
+    }
+    orphans = sorted(sources - _reachable_from_the_build_table())
+    assert orphans == [], (
+        f"no build reaches these sources: {orphans}"
+    )
+
+
+# -- the load order, on every screen that has one ----------------------------
+
+def _screens() -> list[pathlib.Path]:
+    """Every template that loads a tool's script.
+
+    Discovered rather than listed, so a screen added later is covered without
+    anyone remembering to add it here. Thirteen today -- which is four more
+    than the nine mounts, and that gap is the point: the four the mounts miss
+    include the GLV dashboard, where 2 of the application's 3 `PacPage` call
+    sites live.
+    """
+    root = PROJECT_ROOT / "src" / "pacct" / "web"
+    found = [p for p in sorted(root.glob("*/templates/*.html"))
+             if "/static/js/" in p.read_text(encoding="utf-8")]
+    assert len(found) >= 13, f"only {len(found)} screens found; did templates move?"
+    return found
+
+
+def test_every_screen_loads_the_runtimes_in_the_order_that_makes_them_work():
+    """The invariant that has cost this project a blank screen, as a test.
+
+    It was enforced by two Python functions and verified by someone
+    remembering to look in a browser. What it says:
+
+    - `SelLibrary` is injected at the END of `<head>`, so it is defined before
+      the tool's own script is parsed. Every tool calls `SelLibrary.picker(...)`
+      at the TOP LEVEL, and a `ReferenceError` there aborts the whole block --
+      the tool renders blank and still answers 200.
+    - the tool's own tag sits immediately before `</body>`, classic, with no
+      `defer` and no `async`, either of which would move it past the runtime it
+      depends on.
+    - `SelProgress` is spliced in AFTER the tool's tag, which is why nothing
+      may touch it at the top level and why it may not drift upward.
+
+    Driven through the real injectors in the real order `SessionHandler._send`
+    uses them, not through a reproduction of it.
+    """
+    from pacct.library.client import CLIENT_JS_URL, inject_library_runtime
+    from pacct.web.mount import inject_head
+    from pacct.web.progress import inject_progress_runtime
+
+    for template in _screens():
+        html = template.read_text(encoding="utf-8")
+        page = inject_library_runtime(inject_progress_runtime(
+            inject_head(html, "", "caderno")))
+        where = f"{template.parent.parent.name}/{template.name}"
+
+        head_end = page.lower().index("</head>")
+        library = page.index(CLIENT_JS_URL)
+        tool = page.index('<script src="/static/js/', head_end)
+        progress = page.index("window.SelProgress", tool)
+        body_end = page.rindex("</body>")
+
+        assert library < head_end, f"{where}: the library runtime left <head>"
+        assert library < tool, f"{where}: the tool's script is parsed before its runtime"
+        assert tool < progress < body_end, f"{where}: SelProgress is no longer last"
+
+        # Nothing may slip in between the tool's script and the progress
+        # runtime, and nothing after it either. Measured against the progress
+        # block's own opening tag rather than against `</body>`, because that
+        # block IS a `<script>` and would otherwise match itself.
+        tag_end = page.index("</script>", tool) + len("</script>")
+        progress_tag = page.rindex("<script", tool, progress)
+        assert "<script" not in page[tag_end:progress_tag], (
+            f"{where}: something now loads between the tool's script and the bar"
+        )
+        after = page[page.index("</script>", progress) + len("</script>"):body_end]
+        assert "<script" not in after, (
+            f"{where}: something now loads after the progress runtime"
+        )
+        tool_tag = page[tool:tag_end]
+        assert " defer" not in tool_tag and " async" not in tool_tag, (
+            f"{where}: the tool's tag grew defer/async"
+        )
+        assert 'type="module"' not in tool_tag, f"{where}: the tag became a module"

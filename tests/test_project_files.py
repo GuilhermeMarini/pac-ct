@@ -292,8 +292,17 @@ def test_the_runtime_survives_a_page_without_a_body_tag():
 
 def test_the_runtime_refuses_to_define_itself_twice():
     """Every page gets it injected; a tool that also inlined it must not
-    clobber a picker that is already mounted."""
-    assert "if (window.SelLibrary) return;" in _picker_js()
+    clobber a picker that is already mounted.
+
+    The guard changed SHAPE in B17 and kept its meaning. It used to be
+    `if (window.SelLibrary) return;` at the top of an IIFE; the runtime is a
+    module now, so the same guard protects the assignment instead of aborting
+    a function that no longer exists. Asserted on both runtimes, because both
+    are injected into every page and both can arrive twice.
+    """
+    js = _picker_js()
+    assert "if (!window.SelLibrary) window.SelLibrary =" in js
+    assert "if (!window.PacPage) window.PacPage =" in js
 
 
 def test_the_picker_links_the_tab_relatively():

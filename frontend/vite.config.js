@@ -1,7 +1,11 @@
-// A build do frontend do PAC CT. Hoje ela produz UM arquivo: o script da tela
-// do Mapeador de VLAN. Tudo aqui existe para que a saida caiba no contrato que
-// as paginas ja cumprem -- descrito em `docs/ENGINEERING-NOTES.md`, secao
-// "Where the JavaScript lives" -- e nao para seguir o default do Vite.
+// O que vale para TODO arquivo construido aqui. Quem diz QUAIS arquivos sao
+// esses e' o `bundles.json`, e quem roda a build uma vez por linha dele e' o
+// `build.js` -- o Vite recusa mais de uma entrada no formato `iife`, e o
+// `iife` e' o contrato, nao uma preferencia.
+//
+// Tudo neste arquivo existe para que a saida caiba no contrato que as paginas
+// ja cumprem -- descrito em `docs/ENGINEERING-NOTES.md`, secao "Where the
+// JavaScript lives" -- e nao para seguir o default do Vite.
 //
 // Desde o B16 a fonte e' TypeScript, e vale dizer o que esta build NAO faz: o
 // Vite nao confere tipos. O esbuild apaga as anotacoes sem ler nenhuma, entao
@@ -48,23 +52,15 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   build: {
     lib: {
-      entry: 'src/vlan_mapper/landing.ts',
       formats: ['iife'],
-      // O modo `lib` exige um nome para `iife`. Este arquivo nao exporta nada,
-      // entao o nome nunca chega a ser atribuido a lugar nenhum.
-      name: 'PacVlanMapper',
-      fileName: () => 'landing.js',
+      // `entry`, `name` e `fileName` vem do `build.js`, uma linha do
+      // `bundles.json` por vez -- sao a unica coisa que muda de um arquivo
+      // construido para o outro, junto com o `outDir` e o banner.
     },
-    outDir: '../src/pacct/web/static/js/vlan_mapper',
     // O diretorio de saida e' versionado e tem dono: nunca esvazia-lo.
     emptyOutDir: false,
     sourcemap: false,
     minify: false,
     target: 'esnext',
-    rollupOptions: {
-      output: {
-        banner: '// Gerado por `npm run build` a partir de frontend/src/vlan_mapper/landing.ts -- nao editar aqui.',
-      },
-    },
   },
 })

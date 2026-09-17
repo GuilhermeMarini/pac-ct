@@ -1,8 +1,17 @@
 """The browser runtimes injected into every page.
 
-The JavaScript itself is a real file now -- `web/static/js/lib/file-picker.js`,
+The JavaScript itself is a real file -- `web/static/js/lib/file-picker.js`,
 served by the `/static` route `mount.py` already answers. What is left here is
 the one tag that reaches it.
+
+**Since B17 that file is BUILT output.** Its source is TypeScript, under
+`frontend/src/lib/`: `page.ts` (PacPage), `library.ts` (SelLibrary) and
+`file-picker.ts`, the entry that names the two and the order they load in.
+Edit those and run `npm run build` in `frontend/`; editing the served file
+directly is undone by the next build, which is why it opens with a line saying
+where its source is. Nothing about the tag below changed, and nothing about it
+may: the served path, the position and the absence of `defer` are the contract
+this module exists to keep.
 
 Two runtimes live in that file. `SelLibrary` is the picker: six tools need the
 same list over the same acervo, so it is written once and injected the way
