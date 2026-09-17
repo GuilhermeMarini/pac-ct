@@ -55,3 +55,47 @@ jobs:
         # and they are not what breaks. This is the backstop for the pre-push
         # hook, which is not versioned and may never have been installed.
         run: python tools/build_dist.py --no-vendor
+
+  frontend:
+    # The frontend is BUILT output that is committed (stage 2, decision 3): a
+    # clone with no node runs the application, and node is a dependency of
+    # changing the frontend rather than of running it. The price of that
+    # decision is exactly this job -- nothing else can notice that
+    # `src/pacct/web/static/js/` has stopped matching `frontend/src/`.
+    #
+    # It is a separate job, not a step in `test`, because it shares nothing
+    # with the Python matrix: it would run twice for no reason and a red
+    # rebuild would be reported as a Python failure.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          # The exact version, from the file the developer's shell reads too.
+          # This job is the reason it is exact rather than a major: the check
+          # below is a byte comparison, so a floating node would surface here
+          # as an intermittent failure with no code change behind it.
+          node-version-file: frontend/.nvmrc
+      - name: Install
+        # `npm ci`, never `npm install`: it installs the lockfile exactly and
+        # refuses when `package.json` and the lock disagree. No `cache:` on the
+        # setup step on purpose -- 14 packages install in seconds, and "it
+        # passed because the cache was warm" is the failure this whole phase
+        # exists to prevent.
+        run: npm ci
+        working-directory: frontend
+      - name: Build
+        run: npm run build
+        working-directory: frontend
+      - name: The committed output is what the build produces
+        # `actions/checkout` gave a clean tree, so anything the build changed
+        # is a file whose commit is stale. The diff is the whole assertion; the
+        # status is printed so the log names the file instead of only the fact.
+        run: |
+          if ! git diff --quiet; then
+            echo "::error::The committed build output is stale. Run 'npm run build' in frontend/ and commit the result."
+            git status --porcelain
+            git diff --stat
+            exit 1
+          fi
+          echo "Committed output matches a fresh build."

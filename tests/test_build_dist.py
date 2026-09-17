@@ -97,11 +97,19 @@ def test_no_config_ini_travels_only_the_example(built):
 
 def test_the_repository_scaffolding_stays_behind(built):
     """Tests, docs, samples, mockups and the caches are the repository, not the
-    product. The samples alone are 63 MB."""
+    product. The samples alone are 63 MB.
+
+    `/frontend/` and `node_modules` joined the list in B15. They are the
+    frontend's SOURCE and its build dependencies; what ships is the built
+    output, which is an ordinary tracked file under `src/`. This is the line
+    that keeps "node is never a substation dependency" true by construction --
+    `frontend/` is simply not in `TREE_DIRS` -- rather than by assertion.
+    """
     _, out, manifest = built
     names = _names(out / manifest["artifacts"][0]["file"])
     for unwanted in ("/tests/", "/docs/", "/samples/", "/mockups/",
-                     "__pycache__", "/.git/", "/cache/"):
+                     "__pycache__", "/.git/", "/cache/",
+                     "/frontend/", "node_modules"):
         assert not any(unwanted in n for n in names), unwanted
     assert not any(n.endswith(".pyc") for n in names)
 
