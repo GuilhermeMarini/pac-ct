@@ -6,62 +6,43 @@
 // da propria pagina. Essa ordem e' carregada de significado (ver
 // `docs/ENGINEERING-NOTES.md`, secao "Where the JavaScript lives"): um
 // `import` mudaria a forma como a pagina carrega e quebraria as duas pontas.
-// Um arquivo de declaracao descreve o que ja esta la; e' a unica ferramenta
+// Um arquivo de declaracao descreve o que ja esta la'; e' a unica ferramenta
 // que nao mexe no que e' servido.
 //
-// Declara-se AQUI so' o que o piloto exerce, e isso e' deliberado:
+// **O que mudou no B17.** Ate' aqui este arquivo DESCREVIA o `SelLibrary` e o
+// `PacPage` a mao, e uma descricao escrita a mao pode dizer menos que a
+// implementacao sem que nada perceba. Agora ela nao descreve: ela DERIVA, com
+// `import('...')` em posicao de tipo -- que nao gera import nenhum em tempo de
+// execucao -- do `lib/library.ts` e do `lib/page.ts`, que sao o codigo que
+// define esses globais. Existe uma definicao de cada forma, e ela e' a
+// implementacao.
 //
-//   - de `SelLibrary`, so' `picker`. O runtime tambem expoe `list`, `fmtSize`
-//     e `savedNote`, e nenhum deles tem chamada nesta tela.
-//   - de `SelProgress`, so' `post`. O runtime tambem expoe `begin`, `done`,
-//     `fail`, `track`, `upload` e `newJobId`.
-//   - `PacPage` nao aparece. Tem ZERO chamadas no piloto, e o B17 e' a fase
-//     que migra o `lib/file-picker.js` -- o arquivo que o DEFINE. Uma
-//     declaracao escrita aqui seria substituida pelo tipo inferido da propria
-//     fonte uma fase depois, sem nunca ter sido verificada por uma chamada. E
-//     o `PacPage.data()` devolve o que o servidor pos no bloco `page-data`,
-//     que esta tela nao tem: tipar essa carga aqui e' escrever um tipo que
-//     sete ferramentas herdam sem que nada o tenha conferido.
-//
-// O `SelLibrary.picker` tambem aceita `multi`, e ai o `onPick` recebe o ARRAY
-// das linhas marcadas em vez de uma. Nao esta declarado pelo mesmo motivo: o
-// piloto nao usa, entao a forma da sobrecarga seria desenhada sem nenhuma
-// chamada para conferi-la. Quem converter uma ferramenta `multi` desenha a
-// sobrecarga com um caso de uso na frente.
+// O `SelProgress` continua descrito a mao aqui embaixo, e essa e' exatamente a
+// assimetria que o B17b existe para fechar: o runtime dele ainda mora dentro
+// de uma string do `web/progress.py`, entao nao ha implementacao em TypeScript
+// de onde derivar. Enquanto isso, o que esta escrito aqui e' uma promessa que
+// nada confere.
 export {};
 
 declare global {
-  // Uma entrada do acervo do projeto, exatamente como o `FileEntry.to_json()`
-  // do `library/model.py` a serializa -- nove campos, nenhum opcional.
-  // `detail` e `origin` sao `""` quando vazios, nunca `null`.
-  interface PacLibraryFile {
-    sha256: string;
-    short_sha: string;
-    kind: string;
-    name: string;
-    size: number;
-    uploaded_at: number;
-    detail: string;
-    origin: string;
-    generated: boolean;
+  // Os tipos do acervo vem de onde o picker os cumpre.
+  type PacLibraryFile = import('./lib/library').PacLibraryFile;
+  type PacSavedFile = import('./lib/library').PacSavedFile;
+  type PacPickerOpts = import('./lib/library').PacPickerOpts;
+  type PacPickerHandle = import('./lib/library').PacPickerHandle;
+
+  const SelLibrary: import('./lib/library').SelLibraryApi;
+  const PacPage: import('./lib/page').PacPageApi;
+
+  // O `window` precisa conhecer os dois porque e' onde o proprio runtime os
+  // pendura (`window.SelLibrary = libraryApi`), e porque o guarda de dupla
+  // injecao os le' antes de existirem.
+  interface Window {
+    SelLibrary: import('./lib/library').SelLibraryApi;
+    PacPage: import('./lib/page').PacPageApi;
   }
 
-  interface PacPickerOpts {
-    kind?: string;
-    label?: string;
-    selected?: string;
-    onPick?: (f: PacLibraryFile) => void;
-    annotate?: (f: PacLibraryFile) => string;
-  }
-
-  interface PacPickerHandle {
-    refresh: () => Promise<void>;
-    select: (ref: string) => void;
-  }
-
-  const SelLibrary: {
-    picker: (el: string | HTMLElement, opts?: PacPickerOpts) => PacPickerHandle;
-  };
+  // -- SelProgress: ainda descrito a mao, ver B17b ---------------------------
 
   // O corpo que uma rota devolve quando falha. Nao e' uma invencao deste
   // arquivo: o proprio `progress.py` le `d.error` do corpo para montar a

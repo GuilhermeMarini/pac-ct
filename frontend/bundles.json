@@ -1,0 +1,12 @@
+[
+  {
+    "entry": "src/vlan_mapper/landing.ts",
+    "out": "js/vlan_mapper/landing.js",
+    "global": "PacVlanMapper"
+  },
+  {
+    "entry": "src/lib/file-picker.ts",
+    "out": "js/lib/file-picker.js",
+    "global": "PacLibraryRuntime"
+  }
+]
