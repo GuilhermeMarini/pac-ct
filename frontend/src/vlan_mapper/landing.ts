@@ -12,20 +12,61 @@
 // documento -- o SCD vem de `/select-scd` e de `/state`, e as duas
 // preferencias de exibicao vem do `localStorage` do proprio navegador.
 
-const statusEl = document.getElementById('status');
-function setStatus(msg, kind) {
+// O que `/state` e `/select-scd` respondem, escrito a partir do
+// `web/vlan_mapper/model.py`: `build_payload` (com SCD) e `state_payload` (a
+// visita sem SCD) respondem o MESMO conjunto de seis chaves -- o comentario
+// que as separa la diz por que isso e' obrigatorio -- e e' esse conjunto que
+// esta aqui. O tipo nao sai desta tela: ha um unico produtor, neste
+// repositorio, e nenhuma outra ferramenta o herda.
+//
+// O preco fica escrito de proposito: NADA confere este tipo contra o Python
+// que o produz. Se o `model.py` trocar uma chave, quem descobre e' a tela.
+interface VlanMapperRow {
+  ied_name: string;
+  // `ip`, `relay_type` e `description` chegam como `""` quando faltam, nunca
+  // como null -- o `_row_to_dict` faz `r.ip or ""` nos tres.
+  ip: string;
+  relay_type: string;
+  description: string;
+  rx_vlans: string[];          // VLAN-IDs distintos que o IED assina
+  tx_vlans: string[];          // ... e que publica
+  publishers_by_vlan: Record<string, string[]>;
+  rx_count: number;
+  tx_count: number;
+  unresolved: string[];
+}
+
+interface VlanMapperState {
+  has_scd: boolean;
+  scd_name: string | null;
+  rows: VlanMapperRow[];
+  ied_count: number;
+  vlan_count: number;
+  all_vlans: string[];
+}
+
+// As buscas por id levam `!` porque o `landing.html` DESTA ferramenta garante
+// os sete ids -- `status`, `results`, `summary`, `table-wrap`, `filter`,
+// `toggle-empty`, `copy-csv` -- e isso foi conferido no template, nao
+// suposto. A excecao confirma a regra: `back-to-menu` NAO esta no template, e
+// e' precisamente o unico que este arquivo ja testava antes de usar; ali o
+// tipo continua `| null` e o teste que ja existia passa a ser obrigatorio em
+// vez de ser um habito. O mesmo vale para `data-fmt`: o seletor exige o
+// atributo que o template escreve nos dois botoes.
+const statusEl = document.getElementById('status')!;
+function setStatus(msg: string, kind: string) {
   statusEl.textContent = msg || '';
   statusEl.className = kind || '';
 }
 
-function escHtml(s) {
+function escHtml(s: unknown) {
   return (s == null ? '' : String(s))
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 // Texto que vai DENTRO de um atributo ("..."), e nao entre tags. Precisa do
 // `"`, que o escHtml nao toca: descricao e nome de IED vem do SCD, e uma
 // aspas num deles fechava o atributo e o resto virava marcacao.
-function escAttr(s) {
+function escAttr(s: unknown) {
   return (s == null ? '' : String(s))
     .replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 }
@@ -36,9 +77,9 @@ SelLibrary.picker('pick-scd', {
   onPick: (f) => selectScd(f),
 });
 
-async function selectScd(f) {
+async function selectScd(f: PacLibraryFile) {
   setStatus('Lendo ' + f.name + '...', '');
-  const r = await SelProgress.post('/select-scd', {sha256: f.sha256},
+  const r = await SelProgress.post<VlanMapperState>('/select-scd', {sha256: f.sha256},
                                    {label: 'Lendo ' + f.name});
   if (!r.ok) {
     setStatus('Falha: ' + ((r.data && r.data.error) || r.status), 'err');
@@ -48,7 +89,7 @@ async function selectScd(f) {
   render(r.data);
 }
 
-let _lastData = null;
+let _lastData: VlanMapperState | null = null;
 // Formato de exibicao dos VLAN-IDs. O SCD armazena em hex (string de 3 chars
 // como "033"); o switch frequentemente espera decimal. Persistido em
 // localStorage pra UX entre sessoes.
@@ -60,7 +101,7 @@ try { _vlanFmt = localStorage.getItem('vlan-mapper-fmt') || 'hex'; } catch(e) {}
 let _displayMode = 'chips';
 try { _displayMode = localStorage.getItem('vlan-mapper-mode') || 'chips'; } catch(e) {}
 
-function vlanFmt(v) {
+function vlanFmt(v: string | null) {
   if (v == null) return '';
   const s = String(v).trim();
   if (_vlanFmt === 'dec') {
@@ -70,16 +111,16 @@ function vlanFmt(v) {
   return s.toUpperCase();
 }
 
-function vlanSortKey(v) {
+function vlanSortKey(v: string) {
   const s = String(v).trim();
   const h = parseInt(s, 16);
   if (!isNaN(h)) return h;
   return Number.MAX_SAFE_INTEGER;
 }
 
-function render(data) {
+function render(data: VlanMapperState | null) {
   _lastData = data;
-  const results = document.getElementById('results');
+  const results = document.getElementById('results')!;
   if (!data || !data.has_scd) {
     results.style.display = 'none';
     return;
@@ -91,7 +132,7 @@ function render(data) {
 
 function renderSummary() {
   const data = _lastData;
-  const summary = document.getElementById('summary');
+  const summary = document.getElementById('summary')!;
   if (!data) { summary.innerHTML = ''; return; }
   summary.innerHTML =
     '<div class="stat"><strong>' + data.ied_count + '</strong> IED(s)</div>'
@@ -105,7 +146,7 @@ function renderSummary() {
 
 function renderTable() {
   const data = _lastData;
-  const tw = document.getElementById('table-wrap');
+  const tw = document.getElementById('table-wrap')!;
   if (!data || !data.rows || !data.rows.length) {
     tw.innerHTML = '<div class="empty-list">SCD não contem IEDs.</div>';
     return;
@@ -128,7 +169,7 @@ function renderTable() {
 // Lista (ordenada) de VLAN-IDs unicos da linha (RX uniao TX), no formato
 // armazenado (hex string). E uma "fonte da verdade" interna; usar vlanFmt()
 // pra exibir.
-function rowVlans(r) {
+function rowVlans(r: VlanMapperRow) {
   const set = new Set([...(r.rx_vlans || []), ...(r.tx_vlans || [])]);
   return [...set].sort((a, b) => vlanSortKey(a) - vlanSortKey(b));
 }
@@ -136,7 +177,7 @@ function rowVlans(r) {
 // Publishers que originam um dado VLAN para esta linha. Inclui:
 //   - publishers RX (do payload publishers_by_vlan)
 //   - "(self)" se a linha publica nesse VLAN (TX)
-function publishersForVlan(r, vid) {
+function publishersForVlan(r: VlanMapperRow, vid: string) {
   const out = [];
   const rxPubs = (r.publishers_by_vlan && r.publishers_by_vlan[vid]) || [];
   out.push(...rxPubs);
@@ -144,7 +185,7 @@ function publishersForVlan(r, vid) {
   return out;
 }
 
-function chipHtml(r, vid) {
+function chipHtml(r: VlanMapperRow, vid: string) {
   const inRx = (r.rx_vlans || []).indexOf(vid) >= 0;
   const inTx = (r.tx_vlans || []).indexOf(vid) >= 0;
   const cls = (inRx && inTx) ? 'both' : (inRx ? 'rx' : 'tx');
@@ -179,12 +220,12 @@ function chipHtml(r, vid) {
     + '</span>';
 }
 
-function csvText(r) {
+function csvText(r: VlanMapperRow) {
   // CSV simples (so VLAN-IDs, no formato atual). Util pra colar no switch CLI.
   return rowVlans(r).map(v => vlanFmt(v)).join(', ');
 }
 
-function rowHtml(r) {
+function rowHtml(r: VlanMapperRow) {
   const vlans = rowVlans(r);
   const rxSize = (r.rx_vlans || []).length;
   const txSize = (r.tx_vlans || []).length;
@@ -241,7 +282,7 @@ function rowHtml(r) {
 }
 
 // HTML do conteudo da celula no modo CSV/texto.
-function csvCellHtml(r) {
+function csvCellHtml(r: VlanMapperRow) {
   const text = csvText(r);
   const isEmpty = !text;
   return '<div class="csv-text' + (isEmpty ? ' empty' : '') + '">'
@@ -252,7 +293,7 @@ function csvCellHtml(r) {
 let _filterQ = '';
 function applyFilter() {
   const q = _filterQ;
-  document.querySelectorAll('table.vlans tbody tr').forEach(tr => {
+  document.querySelectorAll<HTMLElement>('table.vlans tbody tr').forEach(tr => {
     if (!q) { tr.style.removeProperty('display'); return; }
     const hay = tr.dataset.search || '';
     tr.style.display = hay.indexOf(q) >= 0 ? '' : 'none';
@@ -260,15 +301,15 @@ function applyFilter() {
 }
 
 (function setupFilterAndToggle() {
-  const filter = document.getElementById('filter');
+  const filter = document.getElementById('filter') as HTMLInputElement;
   filter.addEventListener('input', () => {
     _filterQ = (filter.value || '').trim().toLowerCase();
     applyFilter();
   });
 
-  const toggle = document.getElementById('toggle-empty');
+  const toggle = document.getElementById('toggle-empty')!;
   const KEY = 'vlan-mapper-hide-empty';
-  function apply(on) {
+  function apply(on: boolean) {
     document.body.classList.toggle('hide-empty', on);
     toggle.setAttribute('aria-pressed', on ? 'true' : 'false');
     toggle.classList.toggle('active', on);
@@ -284,8 +325,8 @@ function applyFilter() {
 
 // Hex/Dec toggle. Aplica imediatamente (re-renderiza summary + tabela).
 (function setupFormatToggle() {
-  const buttons = document.querySelectorAll('.fmt-group button[data-fmt]');
-  function apply(fmt) {
+  const buttons = document.querySelectorAll<HTMLButtonElement>('.fmt-group button[data-fmt]');
+  function apply(fmt: string) {
     _vlanFmt = fmt;
     buttons.forEach(b => {
       const active = b.dataset.fmt === fmt;
@@ -300,14 +341,14 @@ function applyFilter() {
   }
   // Sincroniza estado visual inicial com _vlanFmt carregado de localStorage.
   apply(_vlanFmt);
-  buttons.forEach(b => b.addEventListener('click', () => apply(b.dataset.fmt)));
+  buttons.forEach(b => b.addEventListener('click', () => apply(b.dataset.fmt!)));
 })();
 
 // Chips/Texto global toggle. Renderiza todas as linhas no modo selecionado,
 // permitindo selecionar/copiar varias linhas de texto CSV de uma so vez.
 (function setupModeToggle() {
-  const buttons = document.querySelectorAll('.fmt-group button[data-mode]');
-  function apply(mode) {
+  const buttons = document.querySelectorAll<HTMLButtonElement>('.fmt-group button[data-mode]');
+  function apply(mode: string | undefined) {
     _displayMode = (mode === 'text') ? 'text' : 'chips';
     buttons.forEach(b => {
       const active = b.dataset.mode === _displayMode;
@@ -321,7 +362,7 @@ function applyFilter() {
   buttons.forEach(b => b.addEventListener('click', () => apply(b.dataset.mode)));
 })();
 
-document.getElementById('copy-csv').addEventListener('click', async () => {
+document.getElementById('copy-csv')!.addEventListener('click', async () => {
   if (!_lastData || !_lastData.rows) return;
   // CSV completo da tabela. Usa o formato atual (Hex/Dec) pra coluna All_VLANs;
   // mantem o formato raw nas colunas RX_VLANs/TX_VLANs (auditavel).
@@ -359,7 +400,7 @@ document.getElementById('copy-csv').addEventListener('click', async () => {
 (async function init() {
   try {
     const r = await fetch('/state', { cache: 'no-store' });
-    const data = await r.json();
+    const data: VlanMapperState = await r.json();
     if (data.has_scd) {
       render(data);
     }

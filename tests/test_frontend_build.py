@@ -1,10 +1,24 @@
 """The frontend build, and the contract its output has to fit into.
 
 `vlan_mapper` is the pilot: since B14 its script is produced by Vite out of
-`frontend/src/vlan_mapper/landing.js` instead of being written by hand at the
-path the page loads. Nothing about the served page changed, and that is what
-this file asserts -- the build is configured to match the tree, not the other
-way round.
+`frontend/src/vlan_mapper/`, instead of being written by hand at the path the
+page loads, and since B16 that source is TypeScript. Nothing about the served
+page changed in either phase, and that is what this file asserts -- the build
+is configured to match the tree, not the other way round.
+
+**B16 ended one assertion that B14 could make and this file no longer can.**
+B14 checked that the built script contained the source verbatim, which was the
+whole promise of a phase that moved 367 lines without touching them. Esbuild
+strips the types, and measured it strips much more than that: of the source's
+65 comment lines the output keeps 1, quotes are normalised to double and
+redundant parentheses are dropped. The output is no longer the source in any
+sense, so what stands in its place is a landmark test -- the output still has
+to contain the calls that make the tool a tool, in order.
+
+**And Vite does not type-check.** The esbuild transform deletes annotations
+without reading them, so a green build says nothing about type correctness.
+`tsc --noEmit` is what says it, and the last test here is the one that keeps it
+wired into CI rather than trusting a comment.
 
 The five rules the served contract keeps are in `docs/ENGINEERING-NOTES.md`,
 section "Where the JavaScript lives". Four of them are decided by the build's
@@ -30,13 +44,15 @@ inside a factory closure, so there is nothing to import. That is the shape
 from __future__ import annotations
 
 import ast
+import json
 import re
 
 from pacct.paths import PROJECT_ROOT, STATIC_DIR
 
 _FRONTEND = PROJECT_ROOT / "frontend"
-_SOURCE = _FRONTEND / "src" / "vlan_mapper" / "landing.js"
+_SOURCE = _FRONTEND / "src" / "vlan_mapper" / "landing.ts"
 _BUILT = STATIC_DIR / "js" / "vlan_mapper" / "landing.js"
+_CI = PROJECT_ROOT / ".github" / "workflows" / "ci.yml"
 
 
 def _static_types() -> dict[str, str]:
@@ -50,31 +66,56 @@ def _static_types() -> dict[str, str]:
     raise AssertionError("_STATIC_TYPES is no longer an assignment in mount.py")
 
 
-# -- the source moved, and the output still carries it -----------------------
+# -- the source, and what the build does to it -------------------------------
 
 def test_the_pilots_source_lives_in_the_frontend_package():
     assert _SOURCE.is_file()
 
 
-def test_the_built_script_carries_the_pilots_source_unchanged():
-    # Compared with leading whitespace stripped: the bundler re-indents every
-    # line by two spaces when it wraps the file, and that indent is the
-    # bundler's, not a change to the source. Everything else has to match, in
-    # order, with nothing inserted -- B14's whole promise is that the
-    # JavaScript did not change.
-    source = [line.strip() for line in _SOURCE.read_text(encoding="utf-8").splitlines()]
-    built = [line.strip() for line in _BUILT.read_text(encoding="utf-8").splitlines()]
-    assert source, "the pilot's source is empty"
-    starts = [i for i, line in enumerate(built) if line == source[0]]
-    assert any(built[i:i + len(source)] == source for i in starts), (
-        "the built script no longer contains the pilot's source verbatim"
-    )
+def test_the_pilots_source_is_typescript():
+    # One source, and no `.js` left beside it: two files at the same path with
+    # different extensions is how a build quietly keeps compiling the old one.
+    assert _SOURCE.suffix == ".ts"
+    assert not _SOURCE.with_suffix(".js").exists()
+
+
+def test_the_built_script_still_does_what_the_tool_does():
+    # What replaces B14's verbatim comparison, which transpilation ended.
+    # These are the calls that make the screen a screen: the picker that
+    # chooses the SCD, the POST that reads it, the two display preferences,
+    # the clipboard copy and the boot fetch. In this order, because the order
+    # is the page's lifecycle -- and in the output's own spelling, since
+    # esbuild normalises quotes.
+    built = _BUILT.read_text(encoding="utf-8")
+    landmarks = [
+        'SelLibrary.picker("pick-scd", {',
+        "SelProgress.post(",
+        'localStorage.getItem("vlan-mapper-fmt")',
+        'localStorage.getItem("vlan-mapper-mode")',
+        "navigator.clipboard.writeText(csv)",
+        'fetch("/state", { cache: "no-store" })',
+    ]
+    at = -1
+    for mark in landmarks:
+        found = built.find(mark, at + 1)
+        assert found > at, f"the built script no longer contains, in order: {mark}"
+        at = found
+
+
+def test_the_types_do_not_reach_the_browser():
+    # The other half of the same fact: what esbuild strips has to be gone.
+    # A type name in the served file means the transform did not run, which is
+    # the shape a misconfigured `entry` would take.
+    built = _BUILT.read_text(encoding="utf-8")
+    assert "interface " not in built
+    assert "VlanMapperRow" not in built
+    assert "VlanMapperState" not in built
 
 
 def test_the_built_script_names_where_its_source_is():
     # Whoever opens the served file has to be able to find the file to edit.
     first = _BUILT.read_text(encoding="utf-8").splitlines()[0]
-    assert "frontend/src/vlan_mapper/landing.js" in first
+    assert "frontend/src/vlan_mapper/landing.ts" in first
 
 
 # -- the four traps ----------------------------------------------------------
@@ -138,3 +179,28 @@ def test_node_is_pinned_to_an_exact_version():
 def test_the_build_dependencies_are_not_committed():
     assert "node_modules/" in (PROJECT_ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
     assert not (_FRONTEND / "package-lock.json").read_text(encoding="utf-8").strip() == ""
+
+
+# -- the gate Vite cannot be ------------------------------------------------
+
+def test_typecheck_is_wired_and_runs_before_the_build():
+    """`tsc --noEmit` is the phase's gate, and CI is where it binds.
+
+    Vite transpiles TypeScript with esbuild, which deletes annotations without
+    reading them: a green `npm run build` proves nothing about types. The check
+    therefore has to be its own command, and it has to be in the workflow --
+    a `typecheck` script nobody runs is a comment with a JSON syntax.
+
+    It runs BEFORE the build so a type error fails on its own terms, instead of
+    surfacing afterwards as a stale-output byte diff that names the wrong
+    problem.
+    """
+    pkg = json.loads((_FRONTEND / "package.json").read_text(encoding="utf-8"))
+    assert pkg["scripts"]["typecheck"] == "tsc --noEmit"
+    assert "typescript" in pkg["devDependencies"]
+
+    ci = _CI.read_text(encoding="utf-8")
+    assert "npm run typecheck" in ci
+    assert ci.index("npm run typecheck") < ci.index("npm run build"), (
+        "the type check has to run before the build, not after it"
+    )

@@ -84,6 +84,23 @@ jobs:
         # exists to prevent.
         run: npm ci
         working-directory: frontend
+      - name: Types
+        # The gate Vite cannot be. `vite build` transpiles TypeScript with
+        # esbuild, which STRIPS the annotations without reading them: a green
+        # build below proves the bundle was produced, never that it is
+        # type-correct. This step is the only thing in CI that reads a type.
+        #
+        # It is a step in this job rather than a job of its own because it
+        # shares everything with the build -- the same node, the same
+        # `node_modules`, the same checkout -- so a separate job would pay a
+        # second `npm ci` for a name this step's own name already gives. That
+        # is the opposite of the reasoning that made `frontend` separate from
+        # `test`, and deliberately so: THAT split shared nothing.
+        #
+        # Before the build, so a type error fails as a type error instead of
+        # arriving afterwards as a stale-output diff that names the wrong file.
+        run: npm run typecheck
+        working-directory: frontend
       - name: Build
         run: npm run build
         working-directory: frontend

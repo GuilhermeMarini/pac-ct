@@ -1,0 +1,63 @@
+// O nivel de rigor foi ESCOLHIDO POR MEDICAO, do mesmo jeito que o escopo do
+// `ruff.toml` e do `mypy.ini` do `py61850` foi escolhido no A18b: contando os
+// erros em cada nivel antes de escolher um, e nao adotando o mais severo por
+// higiene.
+//
+// A medicao, sobre o piloto de 367 linhas recem-renomeado, com as declaracoes
+// no lugar e NADA ainda corrigido:
+//
+//     strict: false                                      9 erros
+//     strict: true                                      52 erros
+//     strict: true + os cinco sinalizadores extras      52 erros
+//
+// As duas ultimas linhas sao IDENTICAS byte a byte, e isso nao e' resultado:
+// 28 dos 52 erros do `strict` sao `any` implicito, e `any` e' imune a todos os
+// cinco sinalizadores. Eles nao tinham em que morder. Por isso a medicao teve
+// duas passadas -- fechar os 52 primeiro, medir os cinco depois:
+//
+//     exactOptionalPropertyTypes     0 erros
+//     noImplicitOverride             0
+//     noUnusedLocals                 0
+//     noUnusedParameters             0
+//     isolatedModules                0
+//     noUncheckedIndexedAccess       1
+//
+// A regra que escolhe: fica o nivel mais severo cujos erros se fecham
+// ESCREVENDO UM TIPO. O `noUncheckedIndexedAccess` e' o unico que falha nela,
+// por um erro so', e vale nomear onde: no `chipHtml`, o `pubs[0]` dentro de
+// `else if (pubs.length === 1)` -- o TypeScript nao estreita um indice pelo
+// `length`, entao o tipo e' `string | undefined` e ESTA CERTO em ser. Fecha-lo
+// exigiria uma asercao (`pubs[0]!`) ou um ramo novo em tempo de execucao, e
+// esta fase troca a linguagem sem mexer no comportamento. Uma fase que
+// reescreva esse trecho pode ligar o sinalizador e apagar este paragrafo.
+//
+// Dos 52, 51 fecharam escrevendo tipos. Os outros sao 7 buscas por id que
+// levam `!` e uma que vira `HTMLInputElement`, justificadas no proprio
+// `landing.ts` contra o `landing.html` que garante os ids.
+{
+  "compilerOptions": {
+    // `target` e `lib` acompanham o `vite.config.js` (`target: 'esnext'`): o
+    // gate tem que descrever o que o build produz, nao um alvo mais antigo que
+    // recusaria o que o build aceita.
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["esnext", "dom", "dom.iterable"],
+
+    // Isto aqui NAO emite nada: quem transpila e' o esbuild, dentro do Vite.
+    // O `tsc` existe neste repositorio para uma coisa so' -- dizer nao.
+    "noEmit": true,
+
+    // O esbuild transpila arquivo a arquivo e nunca ve o programa inteiro. O
+    // `isolatedModules` faz o `tsc` recusar o que o esbuild nao conseguiria
+    // traduzir sozinho, que e' exatamente a distancia entre o gate e o build.
+    "isolatedModules": true,
+
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": ["src"]
+}
