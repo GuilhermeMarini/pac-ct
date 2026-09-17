@@ -17,11 +17,11 @@
 // define esses globais. Existe uma definicao de cada forma, e ela e' a
 // implementacao.
 //
-// O `SelProgress` continua descrito a mao aqui embaixo, e essa e' exatamente a
-// assimetria que o B17b existe para fechar: o runtime dele ainda mora dentro
-// de uma string do `web/progress.py`, entao nao ha implementacao em TypeScript
-// de onde derivar. Enquanto isso, o que esta escrito aqui e' uma promessa que
-// nada confere.
+// **O B17b fechou a ultima assimetria.** Ate' ele, o `SelProgress` continuava
+// descrito a mao aqui, porque o runtime dele morava dentro de uma string do
+// `web/progress.py` e nao havia implementacao de onde derivar. Agora ha
+// (`lib/progress.ts`), e nao sobrou nenhuma declaracao escrita a mao neste
+// arquivo: os tres globais derivam do codigo que os define.
 export {};
 
 declare global {
@@ -40,45 +40,12 @@ declare global {
   interface Window {
     SelLibrary: import('./lib/library').SelLibraryApi;
     PacPage: import('./lib/page').PacPageApi;
+    SelProgress: import('./lib/progress').SelProgressApi;
   }
 
-  // -- SelProgress: ainda descrito a mao, ver B17b ---------------------------
+  // Os tipos da barra vem de onde ela e' implementada.
+  type PacApiError = import('./lib/progress').PacApiError;
+  type PacPostResult<T> = import('./lib/progress').PacPostResult<T>;
 
-  // O corpo que uma rota devolve quando falha. Nao e' uma invencao deste
-  // arquivo: o proprio `progress.py` le `d.error` do corpo para montar a
-  // mensagem (`API.fail((d && d.error) || ('Falhou: HTTP ' + r.status))`), e o
-  // caminho de erro de rede resolve com `{error: String(e)}`. As rotas em
-  // Python escrevem a mesma forma -- `self._send_json(404, {"error": ...})`.
-  // `error` e' opcional porque o runtime ja aceita nao o encontrar.
-  interface PacApiError {
-    error?: string;
-  }
-
-  // O que o `post` resolve, como uniao discriminada por `ok` -- e a
-  // discriminacao e' o que faz a conversao caber sem uma unica asercao no
-  // ponto de chamada: no ramo `!r.ok` o corpo e' o erro, depois dele e' o
-  // sucesso, e o TypeScript estreita sozinho exatamente onde o codigo ja
-  // estreitava sozinho.
-  //
-  // `data` e' `T | null` nos dois ramos: o `progress.py` faz
-  // `r.json().catch(function () { return null; })`, entao um corpo que nao e'
-  // JSON chega como `null` com qualquer status.
-  type PacPostResult<T> =
-    | {ok: true; status: number; data: T | null}
-    | {ok: false; status: number; data: PacApiError | null};
-
-  interface PacPostOpts {
-    label?: string;
-    doneLabel?: string;
-    jobId?: string;
-    headers?: Record<string, string>;
-  }
-
-  const SelProgress: {
-    post: <T = unknown>(
-      url: string,
-      payload?: unknown,
-      opts?: PacPostOpts,
-    ) => Promise<PacPostResult<T>>;
-  };
+  const SelProgress: import('./lib/progress').SelProgressApi;
 }
